@@ -1,0 +1,17 @@
+/* Basic icon sizing fixes */
+svg {
+  width: 20px;
+  height: 20px;
+}
+
+.h-4 { height: 16px !important; }
+.w-4 { width: 16px !important; }
+.h-5 { height: 20px !important; }
+.w-5 { width: 20px !important; }
+.h-6 { height: 24px !important; }
+.w-6 { width: 24px !important; }
+
+/* Basic layout helpers */
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }

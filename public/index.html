@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Web site created using create-react-app"
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <!--
+      Notice the use of %PUBLIC_URL% in the tags above.
+      It will be replaced with the URL of the `public` folder during the build.
+      Only files inside the `public` folder can be referenced from the HTML.
+
+      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
+      work correctly both with client-side routing and a non-root public URL.
+      Learn how to configure a non-root public URL by running `npm run build`.
+    -->
+    <!-- Using system UI font stack; no external web font loaded for better performance and native look. -->
+    <title>Zphere</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    
+    <!-- Auto-styling for buttons based on text content -->
+    <script>
+      // Function to apply button styling based on text content
+      function applyButtonStyling() {
+        const buttons = document.querySelectorAll('button');
+        
+        buttons.forEach(button => {
+          const text = button.textContent.toLowerCase().trim();
+          const hasCreateText = text.includes('create') || text.includes('new') || text.includes('add');
+          const hasDeleteText = text.includes('delete') || text.includes('remove');
+          
+          if (hasCreateText && !button.classList.contains('btn-styled')) {
+            button.style.backgroundColor = '#000000';
+            button.style.color = 'white';
+            button.style.borderColor = '#000000';
+            button.style.fontSize = '0.875rem';
+            button.style.padding = '0.2rem 0.75rem';
+            button.classList.add('btn-styled', 'btn-create-auto');
+          } else if (hasDeleteText && !button.classList.contains('btn-styled')) {
+            button.style.backgroundColor = '#ef4444';
+            button.style.color = 'white';
+            button.style.borderColor = '#ef4444';
+            button.style.fontSize = '0.875rem';
+            button.style.padding = '0.2rem 0.75rem';
+            button.classList.add('btn-styled', 'btn-delete-auto');
+          }
+        });
+      }
+      
+      // Apply styling when DOM loads
+      document.addEventListener('DOMContentLoaded', applyButtonStyling);
+      
+      // Re-apply when new content is loaded (for React dynamic content)
+      const observer = new MutationObserver(function(mutations) {
+        let shouldUpdate = false;
+        mutations.forEach(function(mutation) {
+          if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+            shouldUpdate = true;
+          }
+        });
+        if (shouldUpdate) {
+          setTimeout(applyButtonStyling, 100);
+        }
+      });
+      
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+    </script>
+    
+    <!--
+      This HTML file is a template.
+      If you open it directly in the browser, you will see an empty page.
+
+      You can add webfonts, meta tags, or analytics to this file.
+      The build step will place the bundled scripts into the <body> tag.
+
+      To begin the development, run `npm start` or `yarn start`.
+      To create a production bundle, use `npm run build` or `yarn build`.
+    -->
+  </body>
+</html>

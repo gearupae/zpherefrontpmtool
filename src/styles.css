@@ -1,0 +1,56 @@
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Icon fixes - most important for your current issue */
+svg {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+}
+
+.h-4 { height: 16px; }
+.w-4 { width: 16px; }
+.h-5 { height: 20px; }
+.w-5 { width: 20px; }
+.h-6 { height: 24px; }
+.w-6 { width: 24px; }
+
+/* Basic layout */
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.space-x-2 > * + * { margin-left: 8px; }
+.space-y-4 > * + * { margin-top: 16px; }
+
+/* Spacing */
+.p-4 { padding: 16px; }
+.m-4 { margin: 16px; }
+
+/* Colors */
+.bg-white { background-color: white; }
+.bg-gray-50 { background-color: #f9fafb; }
+.text-gray-900 { color: #111827; }
+.text-gray-600 { color: #4b5563; }
+
+/* Borders */
+.border { border: 1px solid #e5e7eb; }
+.rounded { border-radius: 4px; }
+
+/* Basic form styling */
+input, select, textarea {
+  font: inherit;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+button {
+  cursor: pointer;
+  font: inherit;
+}

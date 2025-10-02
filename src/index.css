@@ -1,0 +1,1317 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global base: force all text to pure black (except explicit button overrides below) */
+@layer base {
+html, body { color: #000000 !important; font-family: 'Inter', 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important; }
+  h1, h2, h3, h4, h5, h6,
+  p, span, div, li, label, th, td, a, small, strong, em, code {
+    color: #000000 !important;
+  }
+}
+
+/* Light mode base background to prevent unintended dark surfaces */
+html:not(.dark) body { background-color: #F9FAFB !important; color: #111827 !important; }
+
+/* Chart color variables for consistent graph palettes */
+:root {
+  --chart-1: #60a5fa; /* blue-400 */
+  --chart-2: #22c55e; /* green-500 */
+  --chart-3: #f97316; /* orange-500 */
+  --chart-4: #a78bfa; /* violet-400 */
+  --chart-5: #f43f5e; /* rose-500 */
+  --chart-6: #14b8a6; /* teal-500 */
+}
+.chart-series-1 { color: var(--chart-1); fill: var(--chart-1); stroke: var(--chart-1); }
+.chart-series-2 { color: var(--chart-2); fill: var(--chart-2); stroke: var(--chart-2); }
+.chart-series-3 { color: var(--chart-3); fill: var(--chart-3); stroke: var(--chart-3); }
+.chart-series-4 { color: var(--chart-4); fill: var(--chart-4); stroke: var(--chart-4); }
+.chart-series-5 { color: var(--chart-5); fill: var(--chart-5); stroke: var(--chart-5); }
+.chart-series-6 { color: var(--chart-6); fill: var(--chart-6); stroke: var(--chart-6); }
+
+/* USER SPECIFIED EXACT COLOR OVERRIDES (neutralized to grayscale/black) */
+@layer utilities {
+  /* Neutralize colored backgrounds to white/gray */
+  .bg-user-green { background-color: #FFFFFF !important; }
+  .bg-user-red { background-color: #FFFFFF !important; }
+  .bg-user-yellow { background-color: #FFFFFF !important; }
+  .bg-user-purple { background-color: #FFFFFF !important; }
+  
+  /* Force any custom text color helpers to black */
+  .text-user-blue { color: #000000 !important; }
+  .text-user-green { color: #000000 !important; }
+  .text-user-red { color: #000000 !important; }
+  .text-user-yellow { color: #000000 !important; }
+  .text-user-purple { color: #000000 !important; }
+  
+  /* Borders neutralized to light gray */
+  .border-user-blue { border-color: #E5E7EB !important; }
+  .border-user-green { border-color: #E5E7EB !important; }
+  .border-user-red { border-color: #E5E7EB !important; }
+  .border-user-yellow { border-color: #E5E7EB !important; }
+  .border-user-purple { border-color: #E5E7EB !important; }
+
+  /* Hide scrollbar for navigation menu */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* Internet Explorer 10+ */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Safari and Chrome */
+  }
+
+  /* Action button styling - USER SPECIFIED DARK THEME */
+  .btn-primary, .btn-action {
+    background: #1a1919 !important;
+    color: white !important;
+    border: 1px solid #1a1919 !important;
+  }
+  
+  .btn-primary:hover, .btn-action:hover {
+    background: #2a2929 !important;
+    border-color: #2a2929 !important;
+  }
+  
+  .btn-primary:focus, .btn-action:focus {
+    background: #1a1919 !important;
+    border-color: #1a1919 !important;
+  }
+
+  /* New Task/Project buttons and Cancel buttons - USER SPECIFIED DARK STYLING */
+  .btn-new-action {
+    background: #0b0b0b !important;
+    border: 1px solid #0b0b0b !important;
+    color: white !important;
+    padding: 0.5rem 0.80rem !important; /* unified */
+    border-radius: 0.5rem !important;
+  }
+  
+  .btn-new-action:hover {
+    background: #1a1a1a !important;
+    border-color: #1a1a1a !important;
+    color: white !important;
+  }
+  
+  .btn-new-action:focus {
+    background: #0b0b0b !important;
+    border-color: #0b0b0b !important;
+    color: white !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(11, 11, 11, 0.5) !important;
+  }
+
+  .btn-cancel {
+    background: #0b0b0b !important;
+    border: 1px solid #0b0b0b !important;
+    color: white !important;
+    padding: 0.5rem 0.80rem !important; /* unified */
+    border-radius: 0.5rem !important;
+  }
+  
+  .btn-cancel:hover {
+    background: #1a1a1a !important;
+    border-color: #1a1a1a !important;
+    color: white !important;
+  }
+  
+  .btn-cancel:focus {
+    background: #0b0b0b !important;
+    border-color: #0b0b0b !important;
+    color: white !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(11, 11, 11, 0.5) !important;
+  }
+
+  /* In dark theme, treat blue button backgrounds as black to fit piano-black theme */
+  html.dark button.bg-blue-600,
+  html.dark button.bg-blue-500,
+  html.dark [role="button"].bg-blue-600,
+  html.dark [role="button"].bg-blue-500,
+  html.dark .btn.bg-blue-600,
+  html.dark .btn.bg-blue-500 {
+    --tw-bg-opacity: 1 !important;
+    background-color: #0d0d0d !important; /* solid black */
+    border-color: #0d0d0d !important;
+    color: #ffffff !important;
+  }
+
+  /* Hover variants mapping to darker black (normalized via generic button:hover rules below) */
+
+  /* Keep buttons at normal size, but increase form elements */
+  input, select, textarea {
+    font-size: 1rem !important;
+  }
+  
+  /* Form fields – compact, neutral */
+  input,
+  select,
+  textarea {
+    width: 100% !important;
+    min-height: 38px !important; /* slightly reduced field height */
+    padding: 0.45rem 0.65rem !important; /* compact padding */
+    border-radius: 0.5rem !important; /* rounded-md/lg */
+    border: 1px solid #E5E7EB !important; /* neutral border */
+    background-color: #FFFFFF !important;
+    color: #1F2937 !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Uniform select caret spacing */
+  select { background-position: right 0.6rem center !important; }
+
+  /* Textarea default height */
+  textarea {
+    min-height: 100px !important;
+    resize: vertical !important;
+  }
+
+  /* Unified focus styles for fields */
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none !important;
+    border-color: #0d0d0d !important;
+    box-shadow: 0 0 0 2px rgba(13, 13, 13, 0.2) !important; /* subtle black focus ring */
+  }
+  
+
+  /* Specific increases for common UI elements */
+  h1 { font-size: 2.5rem !important; line-height: 1.4 !important; }
+  h2 { font-size: 2rem !important; line-height: 1.5 !important; }
+  h3 { font-size: 1.625rem !important; line-height: 1.6 !important; }
+  h4 { font-size: 1.375rem !important; line-height: 1.6 !important; }
+  h5 { font-size: 1.25rem !important; line-height: 1.6 !important; }
+  h6 { font-size: 1.125rem !important; line-height: 1.6 !important; }
+  
+  p { font-size: 1.125rem !important; line-height: 1.6 !important; }
+  span { font-size: inherit !important; }
+  div { font-size: inherit !important; }
+
+  /* Specific UI component font size overrides */
+  .sidebar, .navigation, .menu {
+    font-size: 1.125rem !important;
+  }
+
+  /* Table font sizes */
+  table, th, td {
+    font-size: 1rem !important;
+    letter-spacing: 0.01em !important; /* subtle premium feel */
+  }
+  table th, table td { padding: 0.5rem !important; }
+
+  /* Form labels */
+  label {
+    font-size: 0.875rem !important; /* normal label size */
+    line-height: 1.5 !important;
+    font-weight: 500 !important;
+  }
+
+  /* Navigation links */
+  nav a, .nav-link {
+    font-size: 1.125rem !important;
+  }
+
+  /* Card content */
+  .card, .card-body {
+    font-size: 1.125rem !important;
+  }
+
+  /* Modal content */
+  .modal, .modal-content {
+    font-size: 1.125rem !important;
+  }
+
+  /* Base button class */
+  .btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    gap: 0.4rem !important;
+    padding: 0.5rem 0.75rem !important; /* unified size */
+    border-radius: 0.5rem !important;
+    border: 1px solid transparent !important;
+    font-weight: 500 !important;
+    font-size: 0.9rem !important; /* slightly larger */
+    cursor: pointer !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease !important;
+  }
+
+  /* Button variants (all black/white) */
+  .btn-primary, .btn-secondary, .btn-danger, .btn-outline, .btn-default {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    border-color: #000000 !important;
+  }
+  .btn-primary:hover, .btn-secondary:hover, .btn-danger:hover, .btn-outline:hover, .btn-default:hover {
+    background-color: #1a1a1a !important;
+    border-color: #1a1a1a !important;
+  }
+
+  /* Button-specific styling - USER SPECIFIED */
+  /* All action buttons → solid black */
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  button.bg-blue-500,
+  button.bg-blue-600,
+  .btn,
+  .btn-primary,
+  .btn-action,
+  .btn-create,
+  .btn-new,
+  .btn-add,
+  .btn-secondary,
+  .btn-danger,
+  .btn-outline,
+  .btn-default {
+    background-color: #000000 !important;
+    color: white !important;
+    border-color: #000000 !important;
+    font-size: 0.875rem !important;
+    padding: 0.5rem 0.80rem !important; /* unified primary/create buttons */
+    border-radius: 0.5rem !important;
+  }
+    font-size: 0.9rem !important;
+    padding: 0.5rem 0.75rem !important; /* unified size */
+    border-radius: 0.5rem !important;
+  }
+
+  button:hover,
+  [role="button"]:hover,
+  input[type="button"]:hover,
+  input[type="submit"]:hover,
+  input[type="reset"]:hover,
+  button.bg-blue-500:hover,
+  button.bg-blue-600:hover,
+  .btn:hover,
+  .btn-primary:hover,
+  .btn-action:hover,
+  .btn-create:hover,
+  .btn-new:hover,
+  .btn-add:hover,
+  .btn-secondary:hover,
+  .btn-danger:hover,
+  .btn-outline:hover,
+  .btn-default:hover {
+    background-color: #1a1a1a !important;
+    border-color: #1a1a1a !important;
+  }
+
+  button[class*="create"]:hover, 
+  button[class*="Create"]:hover, 
+  button[class*="new"]:hover, 
+  button[class*="New"]:hover, 
+  button[class*="add"]:hover, 
+  button[class*="Add"]:hover,
+  .btn-create:hover,
+  .btn-new:hover,
+  .btn-add:hover {
+    background-color: #1a1a1a !important;
+    border-color: #1a1a1a !important;
+  }
+
+  /* Delete/Remove buttons (unified to black as requested) */
+  button[class*="delete"], 
+  button[class*="Delete"], 
+  button[class*="remove"], 
+  button[class*="Remove"],
+  .btn-delete,
+  .btn-remove {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    border-color: #000000 !important;
+    font-size: 0.875rem !important;
+    padding: 0.5rem 0.80rem !important;
+    border-radius: 0.5rem !important;
+  }
+
+  button[class*="delete"]:hover, 
+  button[class*="Delete"]:hover, 
+  button[class*="remove"]:hover, 
+  button[class*="Remove"]:hover,
+  .btn-delete:hover,
+  .btn-remove:hover {
+    background-color: #1a1a1a !important;
+    border-color: #1a1a1a !important;
+  }
+
+  /* Additional targeting by button content and common patterns */
+  /* Create/Add buttons with common text patterns */
+  button[title*="Create"],
+  button[title*="New"], 
+  button[title*="Add"],
+  button[aria-label*="Create"],
+  button[aria-label*="New"],
+  button[aria-label*="Add"],
+  button[class*="create"],
+  button[class*="Create"],
+  button[class*="new"],
+  button[class*="New"],
+  button[class*="add"],
+  button[class*="Add"],
+  button[data-action="create"],
+  button[data-action="new"],
+  button[data-action="add"] {
+    background-color: #0d0d0d !important;
+    color: white !important;
+    border-color: #0d0d0d !important;
+    padding: 0.5rem 0.80rem !important; /* ensure create/new/add buttons are consistent */
+    border-radius: 0.5rem !important;
+  }
+
+  /* Global blue → grayscale overrides to enforce black/white/gray scheme */
+  /* Any element with a Tailwind blue background class (non-button elements) */
+[class*="bg-blue-"]:not(button):not(.btn):not(.btn-primary) {
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+    border-color: #E5E7EB !important;
+  }
+  /* Ensure any button still carrying bg-user-blue becomes neutral black */
+  button.bg-user-blue, button[class*="bg-user-blue"] {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    border-color: #000000 !important;
+  }
+
+  /* Subtle section styling utilities (neutral grayscale) */
+  .muted-bg {
+    background: #FFFFFF !important;
+  }
+  .section-card {
+    background-color: #FFFFFF !important;
+    border: 1px solid #E5E7EB !important; /* gray-200 */
+    border-top: 1px solid #E5E7EB !important; /* remove accent */
+    border-radius: 0.75rem !important; /* rounded-xl */
+    padding: 0.75rem !important; /* reduced p-3 */
+    margin-bottom: 0.75rem !important; /* tighter vertical rhythm */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 1px rgba(0, 0, 0, 0.04) !important;
+  }
+  .section-card--green, .section-card--yellow, .section-card--purple, .section-card--blue { border-top-color: #E5E7EB !important; }
+
+  .section-header {
+    background: #FFFFFF !important;
+    border: 1px solid rgba(229,231,235,1) !important; /* gray-200 */
+    border-radius: 0.5rem !important;
+    padding: 0.5rem 0.75rem !important;
+  }
+
+  .divider-subtle {
+    height: 1px !important;
+    background: linear-gradient(90deg, rgba(229,231,235,0) 0%, rgba(229,231,235,1) 50%, rgba(229,231,235,0) 100%) !important;
+    border: 0 !important;
+    margin: 0.75rem 0 !important;
+  }
+
+  /* Compact, even form layouts */
+  .form-grid {
+    display: grid !important;
+    grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+    gap: 0.5rem !important; /* slightly tighter spacing */
+  }
+  .form-col-3 { grid-column: span 3 / span 3 !important; }
+  .form-col-4 { grid-column: span 4 / span 4 !important; }
+  .form-col-6 { grid-column: span 6 / span 6 !important; }
+  .form-col-12 { grid-column: span 12 / span 12 !important; }
+
+  /* Auto-fit grid for generic forms without manual columns */
+  .form-auto-fit { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important; gap: 0.5rem !important; }
+
+  /* Compact form variant (apply on containers that need less scrolling) */
+  .form-compact input, .form-compact select, .form-compact textarea {
+    min-height: 34px !important;
+    padding: 0.4rem 0.6rem !important;
+  }
+  .form-compact .form-row { margin-bottom: 0.5rem !important; }
+
+  /* Reduce over-large white blocks by default spacing in main area */
+  .page-container { padding: 0.75rem !important; }
+  @media (min-width: 640px) { .page-container { padding: 1rem !important; } }
+  @media (min-width: 1024px) { .page-container { padding: 1.25rem !important; } }
+
+  /* Premium labels (solid, high-contrast; allowed colored elements) */
+  .label {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.35rem !important;
+    font-size: 0.75rem !important; /* 12px */
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    text-transform: uppercase !important;
+    padding: 0.2rem 0.5rem !important;
+    border-radius: 0.375rem !important; /* rounded-md */
+    border: 1px solid #000000 !important;
+    color: #ffffff !important; /* will be overridden in neutral */
+    background-color: #000000 !important;
+  }
+  .label--neutral { background-color: #000000 !important; color: #ffffff !important; border-color: #000000 !important; }
+  /* Monochrome label variants (dark grays) */
+  .label--blue { background-color: #111111 !important; border-color: #111111 !important; color: #ffffff !important; }
+  .label--green { background-color: #1f1f1f !important; border-color: #1f1f1f !important; color: #ffffff !important; }
+  .label--red { background-color: #262626 !important; border-color: #262626 !important; color: #ffffff !important; }
+  .label--yellow { background-color: #333333 !important; border-color: #333333 !important; color: #ffffff !important; }
+  .label--purple { background-color: #404040 !important; border-color: #404040 !important; color: #ffffff !important; }
+
+  /* Status → dark labels (monochrome) */
+  .status-badge, .badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.35rem !important;
+    font-size: 0.75rem !important; /* 12px */
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    text-transform: uppercase !important;
+    padding: 0.2rem 0.5rem !important;
+    border-radius: 0.375rem !important; /* rounded-md */
+    border: 1px solid #000000 !important;
+    color: #ffffff !important;
+    background-color: #000000 !important;
+  }
+  .status-draft,
+  .status-active, .status-sent,
+  .status-completed, .status-paid, .status-accepted,
+  .status-overdue, .status-rejected, .status-cancelled,
+  .status-pending, .status-warning, .status-viewed,
+  .status-custom, .status-special {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.35rem !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    text-transform: uppercase !important;
+    padding: 0.2rem 0.5rem !important;
+    border-radius: 0.375rem !important;
+    border: 1px solid #000000 !important;
+    color: #ffffff !important;
+    background-color: #000000 !important;
+  }
+  @media (min-width: 1024px) { .page-container { padding: 1.5rem !important; } }
+
+  /* Global card normalization inside page container */
+  .page-container .bg-white.rounded,
+  .page-container .bg-white.rounded-md,
+  .page-container .bg-white.rounded-lg {
+    border: 1px solid #E5E7EB !important;
+    border-top: 3px solid #E0E7FF !important; /* soft top accent like goals metrics */
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 1px 1px rgba(17, 24, 39, 0.02) !important;
+    border-radius: 0.75rem !important;
+  }
+
+  /* Automatic accent mapping via :has() based on inner chip color */
+  .page-container .section-card:has(.bg-green-100),
+  .page-container .bg-white.rounded:has(.bg-green-100),
+  .page-container .bg-white.rounded-md:has(.bg-green-100),
+  .page-container .bg-white.rounded-lg:has(.bg-green-100) { border-top-color: #BBF7D0 !important; }
+
+  .page-container .section-card:has(.bg-yellow-100),
+  .page-container .bg-white.rounded:has(.bg-yellow-100),
+  .page-container .bg-white.rounded-md:has(.bg-yellow-100),
+  .page-container .bg-white.rounded-lg:has(.bg-yellow-100) { border-top-color: #FEF3C7 !important; }
+
+  .page-container .section-card:has(.bg-purple-100),
+  .page-container .bg-white.rounded:has(.bg-purple-100),
+  .page-container .bg-white.rounded-md:has(.bg-purple-100),
+  .page-container .bg-white.rounded-lg:has(.bg-purple-100) { border-top-color: #E9D5FF !important; }
+
+  .page-container .section-card:has(.bg-blue-100),
+  .page-container .bg-white.rounded:has(.bg-blue-100),
+  .page-container .bg-white.rounded-md:has(.bg-blue-100),
+  .page-container .bg-white.rounded-lg:has(.bg-blue-100) { border-top-color: #BAE6FD !important; }
+
+  .page-container .section-card:has(.bg-red-100),
+  .page-container .bg-white.rounded:has(.bg-red-100),
+  .page-container .bg-white.rounded-md:has(.bg-red-100),
+  .page-container .bg-white.rounded-lg:has(.bg-red-100) { border-top-color: #FECACA !important; }
+
+  /* Accent mapping via classes or data attributes (manual overrides) */
+  .page-container .section-card.card-accent--green,
+  .page-container .bg-white.rounded.card-accent--green,
+  .page-container .bg-white.rounded-md.card-accent--green,
+  .page-container .bg-white.rounded-lg.card-accent--green,
+  .page-container [data-card-accent="green"] { border-top-color: #BBF7D0 !important; }
+
+  .page-container .section-card.card-accent--yellow,
+  .page-container .bg-white.rounded.card-accent--yellow,
+  .page-container .bg-white.rounded-md.card-accent--yellow,
+  .page-container .bg-white.rounded-lg.card-accent--yellow,
+  .page-container [data-card-accent="yellow"] { border-top-color: #FEF3C7 !important; }
+
+  .page-container .section-card.card-accent--purple,
+  .page-container .bg-white.rounded.card-accent--purple,
+  .page-container .bg-white.rounded-md.card-accent--purple,
+  .page-container .bg-white.rounded-lg.card-accent--purple,
+  .page-container [data-card-accent="purple"] { border-top-color: #E9D5FF !important; }
+
+  .page-container .section-card.card-accent--blue,
+  .page-container .bg-white.rounded.card-accent--blue,
+  .page-container .bg-white.rounded-md.card-accent--blue,
+  .page-container .bg-white.rounded-lg.card-accent--blue,
+  .page-container [data-card-accent="blue"] { border-top-color: #BAE6FD !important; }
+
+  .page-container .section-card.card-accent--indigo,
+  .page-container .bg-white.rounded.card-accent--indigo,
+  .page-container .bg-white.rounded-md.card-accent--indigo,
+  .page-container .bg-white.rounded-lg.card-accent--indigo,
+  .page-container [data-card-accent="indigo"] { border-top-color: #E0E7FF !important; }
+
+  /* Subtle card hover affordance */
+  .page-container .section-card:hover,
+  .page-container .bg-white.rounded-lg:hover,
+  .page-container .bg-white.rounded:hover,
+  .page-container .bg-white.rounded-md:hover {
+    box-shadow: 0 2px 6px rgba(17, 24, 39, 0.06), 0 1px 2px rgba(17, 24, 39, 0.04) !important;
+  }
+
+  /* Remove accent (colored top border + card shadows) from buttons only */
+  .page-container button.section-card,
+  .page-container button.bg-white.rounded,
+  .page-container button.bg-white.rounded-md,
+  .page-container button.bg-white.rounded-lg,
+  .page-container button[class*="card-accent--"],
+  .page-container button[data-card-accent],
+  .page-container [role="button"].section-card,
+  .page-container [role="button"].bg-white.rounded,
+  .page-container [role="button"].bg-white.rounded-md,
+  .page-container [role="button"].bg-white.rounded-lg,
+  .page-container input[type="button"].bg-white.rounded,
+  .page-container input[type="submit"].bg-white.rounded,
+  .page-container input[type="reset"].bg-white.rounded {
+    border-top: 0 !important;
+    border-top-color: transparent !important;
+    box-shadow: none !important;
+  }
+  .page-container button.section-card:hover,
+  .page-container button.bg-white.rounded:hover,
+  .page-container button.bg-white.rounded-md:hover,
+  .page-container button.bg-white.rounded-lg:hover,
+  .page-container [role="button"].section-card:hover,
+  .page-container [role="button"].bg-white.rounded:hover,
+  .page-container [role="button"].bg-white.rounded-md:hover,
+  .page-container [role="button"].bg-white.rounded-lg:hover,
+  .page-container input[type="button"].bg-white.rounded:hover,
+  .page-container input[type="submit"].bg-white.rounded:hover,
+  .page-container input[type="reset"].bg-white.rounded:hover {
+    box-shadow: none !important;
+  }
+
+  /* Global failsafe: if any button uses section-card, remove accent/shadow */
+  button.section-card,
+  [role="button"].section-card {
+    border-top: 0 !important;
+    border-top-color: transparent !important;
+    box-shadow: none !important;
+  }
+  button.section-card:hover,
+  [role="button"].section-card:hover {
+    box-shadow: none !important;
+  }
+
+  /* Table styling (applies to most tables) */
+  .page-container table:not(.unstyled-table) {
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    background-color: #FFFFFF !important;
+    box-shadow: none !important;
+    filter: none !important;
+  }
+
+  /* Remove any shadow from table elements globally */
+  .page-container table, .page-container table thead, .page-container table tbody, .page-container table tr, .page-container table th, .page-container table td {
+    box-shadow: none !important;
+    filter: none !important;
+  }
+
+  /* Ensure tables never get colored top accents; accents remain for cards only */
+  .page-container table.bg-white.rounded,
+  .page-container table.bg-white.rounded-md,
+  .page-container table.bg-white.rounded-lg,
+  .page-container table.section-card,
+  .page-container table[class*="card-accent--"],
+  .page-container table[data-card-accent] {
+    border-top: 0 !important;
+    border-color: #E5E7EB !important; /* keep neutral borders if any */
+  }
+
+  /* Card/table normalization */
+  .page-container .section-card table,
+  .page-container .bg-white.rounded table,
+  .page-container .bg-white.rounded-md table,
+  .page-container .bg-white.rounded-lg table {
+    /* ensure neutral look without relying on :has */
+    border-color: #E5E7EB !important;
+  }
+  .page-container table:not(.unstyled-table) thead th {
+    background-color: #F9FAFB !important; /* gray-50 */
+    color: #6B7280 !important; /* gray-500 */
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    font-weight: 600 !important;
+    border-bottom: 1px solid #E5E7EB !important; /* gray-200 */
+    padding: 0.625rem 0.75rem !important; /* ~py-2.5 px-3 */
+  }
+  .page-container table:not(.unstyled-table) tbody td {
+    border-bottom: 1px solid #F3F4F6 !important; /* gray-100 */
+    padding: 0.625rem 0.75rem !important;
+    vertical-align: middle !important;
+  }
+  .page-container table:not(.unstyled-table) tbody tr:nth-child(even) {
+    background-color: #FCFCFD !important;
+  }
+  .page-container table:not(.unstyled-table) tbody tr:hover {
+    background-color: #F9FAFB !important;
+  }
+
+  /* Links - subtle underline behavior */
+  .page-container a {
+    color: #1D4ED8 !important; /* blue-700 */
+    text-underline-offset: 3px !important;
+    text-decoration-thickness: 1px !important;
+  }
+  .page-container a:hover { color: #1E40AF !important; /* blue-800 */ }
+
+  /* Labels & placeholders */
+  .page-container label { color: #374151 !important; /* gray-700 */ margin-bottom: 0.25rem !important; display: inline-block !important; }
+  .page-container input::placeholder, .page-container textarea::placeholder { color: #9CA3AF !important; }
+
+  /* Checkbox & radio sizing and accent */
+  .page-container input[type="checkbox"], .page-container input[type="radio"] {
+    width: 1rem !important; height: 1rem !important; accent-color: #0d0d0d !important;
+  }
+
+  /* Badges / chips */
+  .badge { display: inline-flex !important; align-items: center !important; border-radius: 9999px !important; padding: 0.125rem 0.5rem !important; font-size: 0.75rem !important; line-height: 1 !important; border: 1px solid #E5E7EB !important; background-color: #F9FAFB !important; color: #374151 !important; }
+  .badge-green { background-color: #ECFDF5 !important; border-color: #A7F3D0 !important; color: #065F46 !important; }
+  .badge-blue { background-color: #EFF6FF !important; border-color: #93C5FD !important; color: #1E40AF !important; }
+  .badge-yellow { background-color: #FFFBEB !important; border-color: #FDE68A !important; color: #92400E !important; }
+
+  /* Toolbars / headers in cards */
+  .toolbar { display: flex !important; align-items: center !important; justify-content: space-between !important; padding: 0.5rem 0.75rem !important; background: linear-gradient(180deg, rgba(249,250,251,0.95) 0%, rgba(243,244,246,0.95) 100%) !important; border: 1px solid #E5E7EB !important; border-radius: 0.5rem !important; }
+  /* Specific black for primary utility classes already mapped above */
+  .bg-blue-500, .bg-blue-600 { background-color: #0d0d0d !important; }
+
+  /* Blue text → neutral text */
+  [class*="text-blue-"] { color: #000000 !important; }
+
+  /* Blue border → neutral border */
+  [class*="border-blue-"] { border-color: #d1d5db !important; }
+
+  /* Hover variants that mention blue */
+  [class*="hover:bg-blue-"]:hover { background-color: #e5e7eb !important; border-color: #d1d5db !important; color: #0d0d0d !important; }
+  [class*="hover:text-blue-"]:hover { color: #0d0d0d !important; }
+  [class*="hover:border-blue-"]:hover { border-color: #d1d5db !important; }
+
+  /* Menu (desktop) — soften default color and keep active blue */
+  header nav a { color: #374151 !important; } /* gray-700 */
+  header nav a:hover { color: #111827 !important; } /* gray-900 on hover */
+  header nav a.text-blue-600 { color: #1d4ed8 !important; } /* keep active link blue */
+
+  /* Force pure black for table body text */
+  .page-container table:not(.unstyled-table) tbody td,
+  .page-container table:not(.unstyled-table) tbody a { color: #000000 !important; }
+
+  /* Focus ring blue → subtle black ring */
+  [class*="focus:ring-blue"]:focus, [class*="ring-blue"]:focus {
+    box-shadow: 0 0 0 2px rgba(13,13,13,0.25) !important;
+  }
+
+
+  /* Make primary submit buttons in forms a bit smaller */
+  form button[type="submit"] {
+    padding: 0.4rem 0.70rem !important;
+    font-size: 0.8125rem !important;
+  }
+  form button[type="submit"] svg {
+    width: 1rem !important; /* ~16px */
+    height: 1rem !important;
+  }
+
+  /* Secondary buttons (outlined/white) - keep neutral gray */
+  button.bg-white, button.text-[#0d0d0d], button.border-gray-300, button.border-secondary-300 {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-color: #d1d5db !important;
+  }
+  button.bg-white:hover {
+    background-color: #f9fafb !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  /* Unified top-of-page action button class */
+  .btn-page-action {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.35rem !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #d1d5db !important; /* gray-300 */
+    padding: 0.4rem 0.70rem !important; /* slightly smaller */
+    border-radius: 0.5rem !important;
+    font-size: 0.8125rem !important; /* ~13px, smaller than text-sm */
+    font-weight: 500 !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+  }
+  .btn-page-action:hover {
+    background-color: #f9fafb !important; /* gray-50 */
+    border-color: #cbd5e1 !important; /* gray-300/400 */
+    color: #0d0d0d !important;
+  }
+
+  /* Interactive element normalization (fallback for components still using Tailwind colors) */
+  /* Primary-like actions (blue/green backgrounds) → black primary in dark mode */
+  html.dark button[class*="bg-blue-"],
+  html.dark a[class*="bg-blue-"],
+  html.dark [role="button"][class*="bg-blue-"] {
+    background-color: #0d0d0d !important;
+    color: #ffffff !important;
+    border-color: #0d0d0d !important;
+    padding: 0.5rem 0.80rem !important;
+    border-radius: 0.5rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+  }
+  html.dark button[class*="bg-green-"],
+  html.dark a[class*="bg-green-"],
+  html.dark [role="button"][class*="bg-green-"] {
+    background-color: #0d0d0d !important;
+    color: #ffffff !important;
+    border-color: #0d0d0d !important;
+    padding: 0.5rem 0.80rem !important;
+    border-radius: 0.5rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+  }
+
+  /* Danger actions keep red */
+  button[class*="bg-red-"],
+  a[class*="bg-red-"],
+  [role="button"][class*="bg-red-"] {
+    background-color: #ef4444 !important;
+    color: #ffffff !important;
+    border-color: #ef4444 !important;
+    padding: 0.5rem 0.80rem !important;
+    border-radius: 0.5rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+  }
+
+  /* Secondary-like actions (blue-100 etc.) → white with gray border */
+  button[class*="bg-blue-1"],
+  a[class*="bg-blue-1"],
+  [role="button"][class*="bg-blue-1"] {
+    background-color: #ffffff !important;
+    color: #0d0d0d !important;
+    border-color: #d1d5db !important;
+    padding: 0.5rem 0.80rem !important;
+    border-radius: 0.5rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+  }
+
+  /* Hover normalization - only in dark mode */
+  html.dark button[class*="hover:bg-blue-"]:hover,
+  html.dark a[class*="hover:bg-blue-"]:hover,
+  html.dark [role="button"][class*="hover:bg-blue-"]:hover {
+    background-color: #1a1a1a !important;
+    border-color: #1a1a1a !important;
+    color: #ffffff !important;
+  }
+  html.dark button[class*="hover:bg-green-"]:hover,
+  html.dark a[class*="hover:bg-green-"]:hover,
+  html.dark [role="button"][class*="hover:bg-green-"]:hover {
+    background-color: #1a1a1a !important;
+    border-color: #1a1a1a !important;
+    color: #ffffff !important;
+  }
+  button[class*="hover:bg-red-"]:hover,
+  a[class*="hover:bg-red-"]:hover,
+  [role="button"][class*="hover:bg-red-"]:hover {
+    background-color: #dc2626 !important;
+    border-color: #dc2626 !important;
+    color: #ffffff !important;
+  }
+
+  /* Square action buttons (icon buttons) */
+.btn-icon {
+    width: 2.125rem !important; /* ~34px */
+    height: 2.125rem !important;
+    padding: 0 !important;
+    border-radius: 0.4rem !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    line-height: 0 !important; /* remove baseline impact */
+    font-size: 0 !important;  /* avoid inline text affecting centering */
+    vertical-align: middle !important;
+    box-sizing: border-box !important;
+    text-align: center !important;
+  }
+
+  /* Global table normalization to match Projects list view */
+  table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+  }
+  table thead {
+    background-color: #f9fafb !important; /* gray-50 */
+  }
+  table thead th {
+    padding: 0.5rem 0.75rem !important; /* py-2 px-3 */
+    text-align: left !important;
+    font-weight: 600 !important; /* font-semibold */
+    font-size: 0.875rem !important; /* text-sm */
+    color: #000000 !important; /* text-black */
+    text-transform: uppercase !important; /* uppercase */
+    letter-spacing: 0.05em !important; /* tracking-wider */
+    white-space: nowrap !important;
+  }
+  table tbody td {
+    padding: 0.5rem 0.75rem !important; /* py-2 px-3 */
+    font-size: 1rem !important; /* text-base */
+    color: #111827 !important; /* gray-900/black-ish */
+    white-space: nowrap !important;
+  }
+  table tbody tr:hover {
+    background-color: #f9fafb !important; /* hover:bg-gray-50 */
+  }
+
+  /* Global form spacing reduction: shrink vertical gaps between stacked fields a bit */
+  /* Applies to all forms using Tailwind space-y-* and mb-* utilities */
+  form .space-y-8 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.6rem !important; }  /* was 2.0rem */
+  form .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.2rem !important; }  /* was 1.5rem */
+  form .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.8rem !important; }  /* was 1.0rem */
+  form .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.6rem !important; }  /* was 0.75rem */
+  form .space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.4rem !important; }  /* was 0.5rem */
+
+  /* Reduce common bottom margins inside forms to minimize scroll */
+  form .mb-6 { margin-bottom: 1.2rem !important; }  /* was 1.5rem */
+  form .mb-4 { margin-bottom: 0.8rem !important; }  /* was 1.0rem */
+  form .mb-3 { margin-bottom: 0.6rem !important; }  /* was 0.75rem */
+  form .mb-2 { margin-bottom: 0.4rem !important; }  /* was 0.5rem */
+  .btn-icon svg { width: 1.125rem !important; height: 1.125rem !important; display: block !important; margin: 0 !important; }
+  .btn-icon > * { margin: 0 !important; line-height: 0 !important; }
+
+  /* Action button colors */
+.btn-view {
+    background-color: #f3f4f6 !important; /* gray-100 */
+    color: #111827 !important; /* gray-900 */
+    border-color: #e5e7eb !important; /* gray-200 */
+  }
+  .btn-view:hover { background-color: #e5e7eb !important; border-color: #d1d5db !important; }
+
+  .btn-edit {
+    background-color: #0d0d0d !important; /* black */
+    color: #ffffff !important;
+    border-color: #0d0d0d !important;
+  }
+  .btn-edit:hover { background-color: #1a1a1a !important; border-color: #1a1a1a !important; }
+
+  .btn-delete, .btn-danger {
+    background-color: #ef4444 !important; /* red-500 */
+    color: #ffffff !important;
+    border-color: #ef4444 !important;
+  }
+  .btn-delete:hover, .btn-danger:hover { background-color: #dc2626 !important; border-color: #dc2626 !important; }
+
+  /* Attribute-based auto-styling for common action buttons */
+button[title*="View"], button[aria-label*="View"], button[class*="view"], button[data-action="view"] {
+    width: 2.125rem !important; height: 2.125rem !important; padding: 0 !important;
+    background-color: #f3f4f6 !important; color: #111827 !important; border-color: #e5e7eb !important; border-radius: 0.4rem !important;
+    display: inline-grid !important; place-items: center !important; line-height: 0 !important; font-size: 0 !important; text-align: center !important;
+  }
+  button[title*="View"] svg, button[aria-label*="View"] svg, button[class*="view"] svg, button[data-action="view"] svg { width: 1.125rem !important; height: 1.125rem !important; display: block !important; }
+
+button[title*="Edit"], button[aria-label*="Edit"], button[class*="edit"], button[data-action="edit"] {
+    width: 2.125rem !important; height: 2.125rem !important; padding: 0 !important;
+    background-color: #0d0d0d !important; color: #ffffff !important; border-color: #0d0d0d !important; border-radius: 0.4rem !important;
+    display: inline-grid !important; place-items: center !important; line-height: 0 !important; font-size: 0 !important; text-align: center !important;
+  }
+  button[title*="Edit"] svg, button[aria-label*="Edit"] svg, button[class*="edit"] svg, button[data-action="edit"] svg { width: 1.125rem !important; height: 1.125rem !important; display: block !important; }
+
+button[title*="Delete"], button[aria-label*="Delete"], button[class*="delete"], button[data-action="delete"],
+  button[title*="Remove"], button[aria-label*="Remove"], button[class*="remove"], button[data-action="remove"] {
+    width: 2.125rem !important; height: 2.125rem !important; padding: 0 !important;
+    background-color: #ef4444 !important; color: #ffffff !important; border-color: #ef4444 !important; border-radius: 0.4rem !important;
+    display: inline-grid !important; place-items: center !important; line-height: 0 !important; font-size: 0 !important; text-align: center !important;
+  }
+  button[title*="Delete"] svg, button[aria-label*="Delete"] svg, button[class*="delete"] svg, button[data-action="delete"] svg,
+  button[title*="Remove"] svg, button[aria-label*="Remove"] svg, button[class*="remove"] svg, button[data-action="remove"] svg { width: 1.125rem !important; height: 1.125rem !important; display: block !important; }
+
+  /* Chip/badge shape normalization to match Projects table */
+  /* Applies to pastel badge-like elements (exclude buttons) */
+  [class*="bg-"][class*="-100"]:not(button):not(.btn) {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 0.125rem 0.375rem !important; /* pt-0 pb-0.5 ~ 0.125rem, px-1.5 ~ 0.375rem */
+    border-radius: 0.25rem !important; /* rounded-sm */
+    font-size: 0.75rem !important; /* text-xs */
+    font-weight: 300 !important; /* font-light */
+    line-height: 1 !important;
+    border-width: 1px !important;
+    border-style: solid !important;
+  }
+
+  /* Vibrant pastel overrides for label-like backgrounds (chips, badges, table labels) */
+  /* Yellow */
+  [class*="bg-yellow-100"] { background-color: #fef3c7 !important; border-color: #fcd34d !important; }
+  /* Green */
+  [class*="bg-green-100"] { background-color: #bbf7d0 !important; border-color: #86efac !important; }
+  /* Purple */
+  [class*="bg-purple-100"] { background-color: #e9d5ff !important; border-color: #c4b5fd !important; }
+  /* Blue */
+  [class*="bg-blue-100"] { background-color: #bae6fd !important; border-color: #7dd3fc !important; }
+  /* Red */
+  [class*="bg-red-100"] { background-color: #fecaca !important; border-color: #fca5a5 !important; }
+  /* Orange */
+  [class*="bg-orange-100"] { background-color: #ffedd5 !important; border-color: #fdba74 !important; }
+  /* Indigo */
+  [class*="bg-indigo-100"] { background-color: #c7d2fe !important; border-color: #a5b4fc !important; }
+  /* Pink */
+  [class*="bg-pink-100"] { background-color: #fbcfe8 !important; border-color: #f9a8d4 !important; }
+  /* Teal */
+  [class*="bg-teal-100"] { background-color: #ccfbf1 !important; border-color: #99f6e4 !important; }
+  /* Cyan */
+  [class*="bg-cyan-100"] { background-color: #cffafe !important; border-color: #a5f3fc !important; }
+  /* Emerald */
+  [class*="bg-emerald-100"] { background-color: #a7f3d0 !important; border-color: #6ee7b7 !important; }
+
+  /* Left-border accents used in notification center – bump vibrance one step */
+  .border-l-blue-300 { border-left-color: #60a5fa !important; }
+  .border-l-yellow-300 { border-left-color: #fbbf24 !important; }
+  .border-l-orange-300 { border-left-color: #fb923c !important; }
+  .border-l-red-300 { border-left-color: #f87171 !important; }
+  .border-l-gray-300 { border-left-color: #9ca3af !important; }
+
+  /* Delete/Remove buttons with common text patterns */
+  button[title*="Delete"],
+  button[title*="Remove"],
+  button[aria-label*="Delete"],
+  button[aria-label*="Remove"] {
+    background-color: #ef4444 !important;
+    color: white !important;
+    border-color: #ef4444 !important;
+  }
+
+  /* Target buttons with specific data attributes */
+  button[data-action="create"],
+  button[data-action="add"],
+  button[data-action="new"] {
+    background-color: #000000 !important;
+    color: white !important;
+    border-color: #000000 !important;
+  }
+
+  button[data-action="delete"],
+  button[data-action="remove"] {
+    background-color: #ef4444 !important;
+    color: white !important;
+    border-color: #ef4444 !important;
+  }
+
+  /* Additional classes for manual application */
+  .btn-create-custom {
+    background-color: #000000 !important;
+    color: white !important;
+    border-color: #000000 !important;
+    font-size: 0.875rem !important;
+    padding: 0.2rem 0.75rem !important;
+  }
+
+  .btn-delete-custom {
+    background-color: #ef4444 !important;
+    color: white !important;
+    border-color: #ef4444 !important;
+    font-size: 0.875rem !important;
+    padding: 0.2rem 0.75rem !important;
+  }
+
+}
+
+
+/* Dark theme base overrides (applied when <html> has .dark) */
+html.dark body {
+  background-color: #111827 !important; /* gray-900 */
+  color: #E5E7EB !important;            /* light gray text */
+}
+
+/* Muted background gradient in dark */
+html.dark .muted-bg {
+  background: linear-gradient(180deg, #111827 0%, #1F2937 100%) !important; /* gray-900 to gray-800 */
+}
+
+/* Card/surface normalization in dark */
+html.dark .page-container .bg-white.rounded,
+html.dark .page-container .bg-white.rounded-md,
+html.dark .page-container .bg-white.rounded-lg,
+html.dark .page-container .section-card {
+  background-color: #1F2937 !important; /* gray-800 */
+  border-color: #374151 !important;      /* gray-700 */
+  color: #E5E7EB !important;             /* gray-200 text */
+}
+
+/* Tables in dark */
+html.dark .page-container table:not(.unstyled-table) {
+  background-color: #0F172A !important; /* slate-900 */
+}
+html.dark .page-container table:not(.unstyled-table) thead th {
+  background-color: #111827 !important; /* gray-900 */
+  color: #9CA3AF !important;            /* gray-400 */
+  border-bottom-color: #374151 !important; /* gray-700 */
+}
+html.dark .page-container table:not(.unstyled-table) tbody td {
+  border-bottom-color: #1F2937 !important; /* gray-800 */
+}
+html.dark .page-container table:not(.unstyled-table) tbody tr:nth-child(even) {
+  background-color: #0B1220 !important;
+}
+html.dark .page-container table:not(.unstyled-table) tbody tr:hover {
+  background-color: #1F2937 !important;
+}
+
+/* Scrollbars in dark */
+html.dark ::-webkit-scrollbar-track { background: #111827; }
+html.dark ::-webkit-scrollbar-thumb { background: #334155; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Buttons and interactive elements in dark */
+html.dark .btn-primary {
+  background-color: #2563eb !important; /* blue-600 */
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+}
+html.dark .btn-primary:hover { background-color: #3b82f6 !important; border-color: #3b82f6 !important; }
+
+html.dark .bg-blue-500,
+html.dark .bg-blue-600 { background-color: #2563eb !important; border-color: #2563eb !important; color: #ffffff !important; }
+
+html.dark button[class*="bg-blue-"],
+html.dark a[class*="bg-blue-"],
+html.dark [role="button"][class*="bg-blue-"] {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+}
+html.dark button[class*="hover:bg-blue-"]:hover,
+html.dark a[class*="hover:bg-blue-"]:hover,
+html.dark [role="button"][class*="hover:bg-blue-"]:hover {
+  background-color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+/* Form fields in dark */
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #111827 !important; /* gray-900 */
+  color: #E5E7EB !important;             /* gray-200 */
+  border-color: #374151 !important;       /* gray-700 */
+}
+html.dark input::placeholder,
+html.dark textarea::placeholder { color: #6B7280 !important; }
+
+/* Text color normalization in dark mode for common utility classes */
+html.dark .text-gray-900,
+html.dark .text-secondary-900 { color: #E5E7EB !important; }
+html.dark .text-gray-800,
+html.dark .text-secondary-800 { color: #D1D5DB !important; }
+html.dark .text-gray-700,
+html.dark .text-secondary-700 { color: #D1D5DB !important; }
+html.dark .text-gray-600,
+html.dark .text-secondary-600 { color: #9CA3AF !important; }
+html.dark .text-gray-500,
+html.dark .text-secondary-500 { color: #9CA3AF !important; }
+
+/* Links in dark */
+html.dark .page-container a { color: #93C5FD !important; }
+html.dark .page-container a:hover { color: #BFDBFE !important; }
+
+/* Any text-blue-* forced to neutral in light mode; re-map to blue in dark */
+html.dark [class*="text-blue-"] { color: #93C5FD !important; }
+html.dark [class*="hover:text-blue-"]:hover { color: #BFDBFE !important; }
+
+/* Common white surfaces outside page-container (header, etc.) */
+html.dark .bg-white { background-color: #111827 !important; color: #E5E7EB !important; }
+
+/* Borders */
+html.dark [class*="border-gray-200"],
+html.dark .border-secondary-200 { border-color: #374151 !important; }
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Custom scrollbar - Professional Theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+
+::-webkit-scrollbar-track {
+  background: #F9FAFB;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}
+
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-down { animation: slideDown 180ms ease-out; }
+
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.toast {
+  width: 360px; /* consistent width */
+  border-radius: 0.5rem; /* ~rounded-md */
+  background: #ffffff;
+  border: 1px solid #E5E7EB; /* gray-200 */
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
+  padding: 8px 14px; /* reduced vertical padding */
+  display: flex;
+  align-items: center; /* vertical centering */
+  gap: 12px;
+  min-height: 48px; /* slightly reduced, keeps rectangle shape */
+  box-sizing: border-box;
+}
+.toast__icon svg {
+  width: 24px; height: 24px; display: block;
+}
+.toast__title { line-height: 1.35; }
+.toast__message { line-height: 1.45; }
+
+/* ==========================================
+   Enhanced Buttons - Piano Black + Morphic
+   ========================================== */
+
+/* Base button sizing scale for consistency */
+  .btn,
+  button.btn,
+  [role="button"].btn {
+  padding: 0.5rem 0.75rem !important; /* unified size */
+  border-radius: 10px !important; /* refined radius */
+  font-size: 0.9rem !important; /* ~14.4px */
+  line-height: 1.1 !important;
+  letter-spacing: 0.01em !important;
+}
+.btn-sm { padding: 0.45rem 0.6rem !important; font-size: 0.85rem !important; border-radius: 9px !important; }
+.btn-md { padding: 0.5rem 0.75rem !important; font-size: 0.9rem !important; border-radius: 10px !important; }
+.btn-lg { padding: 0.6rem 0.9rem !important; font-size: 0.95rem !important; border-radius: 12px !important; }
+
+/* Piano-black primary button */
+.btn-primary,
+button.btn-primary,
+.btn-action,
+button.btn-action,
+.btn-default[data-variant="primary"],
+button[data-variant="primary"],
+button[class*="primary"]:not(.btn-glass):not(.btn-neu) {
+  background: linear-gradient(180deg, #0b0b0b 0%, #000000 100%) !important;
+  color: #FFFFFF !important;
+  border: 1px solid #0b0b0b !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 6px 16px rgba(0,0,0,0.24) !important;
+}
+.btn-primary:hover,
+button.btn-primary:hover,
+.btn-action:hover,
+button.btn-action:hover,
+button[data-variant="primary"]:hover {
+  background: linear-gradient(180deg, #111111 0%, #0a0a0a 100%) !important;
+  border-color: #0a0a0a !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 18px rgba(0,0,0,0.3) !important;
+}
+.btn-primary:active,
+button.btn-primary:active,
+.btn-action:active,
+button.btn-action:active,
+button[data-variant="primary"]:active {
+  background: #000000 !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.4) !important;
+}
+.btn-primary:focus-visible,
+button.btn-primary:focus-visible,
+.btn-action:focus-visible,
+button.btn-action:focus-visible,
+button[data-variant="primary"]:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(13,13,13,0.2) !important;
+}
+
+/* Glassmorphic button (apply .btn-glass) */
+.btn-glass {
+  background: rgba(255, 255, 255, 0.7) !important;
+  color: #0f172a !important; /* slate-900 */
+  border: 1px solid rgba(209, 213, 219, 0.6) !important; /* gray-300 */
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.06) !important; /* slate-950 */
+}
+.btn-glass:hover {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-color: rgba(156, 163, 175, 0.7) !important; /* gray-400 */
+}
+.btn-glass:active { box-shadow: inset 0 1px 2px rgba(0,0,0,0.06) !important; }
+html.dark .btn-glass {
+  background: rgba(17, 24, 39, 0.55) !important; /* gray-900 */
+  color: #e5e7eb !important; /* gray-200 */
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.35) !important;
+}
+html.dark .btn-glass:hover { background: rgba(17, 24, 39, 0.7) !important; }
+
+/* Neumorphic button (apply .btn-neu) */
+.btn-neu {
+  background: #f3f4f6 !important; /* gray-100 */
+  color: #111827 !important; /* gray-900 */
+  border: 1px solid transparent !important;
+  box-shadow: 6px 6px 12px #d1d5db, -6px -6px 12px #ffffff !important; /* gray-300 / white */
+}
+.btn-neu:hover { box-shadow: 4px 4px 10px #d1d5db, -4px -4px 10px #ffffff !important; }
+.btn-neu:active { box-shadow: inset 2px 2px 6px #d1d5db, inset -2px -2px 6px #ffffff !important; }
+html.dark .btn-neu {
+  background: #111827 !important; /* gray-900 */
+  color: #e5e7eb !important; /* gray-200 */
+  box-shadow: 6px 6px 12px #0b1220, -6px -6px 12px #1f2937 !important; /* slate-900 / gray-800 */
+}
+html.dark .btn-neu:hover { box-shadow: 4px 4px 10px #0b1220, -4px -4px 10px #1f2937 !important; }
+html.dark .btn-neu:active { box-shadow: inset 2px 2px 6px #0b1220, inset -2px -2px 6px #1f2937 !important; }
+
+/* Morphic section containers (apply to cards/sections) */
+.section-glass {
+  background: rgba(255, 255, 255, 0.75) !important;
+  border: 1px solid rgba(209,213,219,0.6) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 28px rgba(2,6,23,0.08) !important;
+}
+html.dark .section-glass {
+  background: rgba(17,24,39,0.55) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45) !important;
+}
+
+.section-neu {
+  background: #f3f4f6 !important;
+  border-radius: 12px !important;
+  box-shadow: 10px 10px 24px #d1d5db, -10px -10px 24px #ffffff !important;
+}
+html.dark .section-neu {
+  background: #111827 !important;
+  box-shadow: 10px 10px 24px #0b1220, -10px -10px 24px #1f2937 !important;
+}

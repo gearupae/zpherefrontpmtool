@@ -1,0 +1,83 @@
+/* Professional Monochrome Scheme */
+:root {
+  --background: #FFFFFF;      /* White background */
+  --surface: #FFFFFF;         /* White for cards and surfaces */
+  --border: #E5E7EB;          /* Light gray borders */
+  --text-primary: #000000;    /* Pure black primary text */
+  --text-secondary: #000000;  /* Pure black secondary text */
+  --text-muted: #000000;      /* Pure black muted text (by request) */
+  
+  /* Accents neutralized */
+  --primary: #000000;         /* Links/accents → black */
+  --success: #000000;         /* Statuses → black text */
+  --error: #000000;           /* Error text (backgrounds handled via classes) */
+  --warning: #000000;         /* Warning text */
+  --purple: #000000;          /* Custom text */
+}
+
+.App {
+  background-color: var(--background);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* Base text colors */
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+/* Status badges (monochrome) */
+.status-draft,
+.status-active, .status-sent,
+.status-completed, .status-paid, .status-accepted,
+.status-overdue, .status-rejected, .status-cancelled,
+.status-pending, .status-warning, .status-viewed,
+.status-custom, .status-special {
+  background-color: #F3F4F6; /* light gray background */
+  color: #000000;            /* pure black text */
+}
+
+/* Legacy styles for backward compatibility */
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: var(--surface);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: var(--text-primary);
+}
+
+.App-link {
+  color: #000000;
+  text-decoration: underline;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

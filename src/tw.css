@@ -1,0 +1,224 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Piano black theme and subtle, consistent UI primitives */
+@layer base {
+  :root {
+    --piano-black: #0b0b0b;
+    --piano-black-800: #111111;
+    --piano-black-700: #161616;
+    --color-text: #0b0b0b;
+    --color-bg: #FAFAFA;     /* off-white canvas */
+    --color-surface: #FFFFFF;/* cards/surfaces */
+    --color-border: #E5E7EB; /* gray-200 */
+    --btn-height: 38px;      /* slightly larger, unified */
+    --btn-px: 0.75rem;       /* modest horizontal padding */
+    --btn-py: 0.5rem;        /* modest vertical padding */
+    --radius-md: 0.5rem;     /* 8px */
+    --radius-lg: 0.75rem;    /* 12px */
+  }
+
+  html, body {
+    color: var(--color-text);
+    background-color: var(--color-bg);
+  }
+
+  /* Global font: premium, readable */
+  body {
+    @apply font-sans antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--color-text);
+  }
+
+  /* Subtle form defaults */
+  input, select, textarea {
+    min-height: 38px;
+    padding: 0.45rem 0.65rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+  }
+
+  /* Radios and checkboxes - unified sizing and accent */
+  input[type="radio"] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--piano-black);
+    vertical-align: middle;
+  }
+  input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--piano-black);
+    vertical-align: middle;
+    min-height: 11px;
+  }
+
+  /* Provide a consistent base for buttons without being heavy-handed */
+  button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: var(--btn-py) var(--btn-px);
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    font-weight: 500;
+    font-size: 0.875rem; /* text-sm */
+    line-height: 1;      /* keep compact vertical rhythm */
+    min-height: var(--btn-height);
+    cursor: pointer;
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+  }
+
+  /* Focus-visible ring for interactive elements */
+  a:focus-visible,
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(11,11,11,0.2);
+    border-color: var(--piano-black);
+  }
+}
+
+@layer components {
+  /* Container and surface helpers */
+  .page-container {
+    @apply w-full px-3 sm:px-4 lg:px-6 py-4;
+  }
+  .muted-bg { background-color: var(--color-bg); }
+  .section-card {
+    @apply bg-white border rounded-xl shadow-sm;
+    border-color: var(--color-border);
+    border-top-color: var(--color-border);
+    padding: 0.75rem; /* p-3 */
+  }
+
+  /* Base button and variants */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium;
+    padding: var(--btn-py) var(--btn-px);
+    min-height: var(--btn-height);
+    border: 1px solid transparent;
+    gap: 0.4rem;
+  }
+  /* Button size variants */
+  .btn-sm { padding: 0.4rem 0.6rem; min-height: 34px; font-size: 0.875rem; border-radius: var(--radius-md); }
+  .btn-md { padding: var(--btn-py) var(--btn-px); min-height: var(--btn-height); font-size: 0.9375rem; border-radius: 10px; }
+  .btn-lg { padding: 0.75rem 1rem; min-height: 44px; font-size: 1rem; border-radius: var(--radius-lg); }
+
+  .btn-black {
+    @apply text-white;
+    background-color: var(--piano-black);
+    border-color: var(--piano-black);
+  }
+  .btn-black:hover {
+    background-color: var(--piano-black-800);
+    border-color: var(--piano-black-800);
+  }
+  .btn-black:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(11,11,11,0.2);
+  }
+
+  /* Primary page action button used across pages */
+  .btn-page-action {
+    @apply btn text-white;
+    background-color: var(--piano-black);
+    border-color: var(--piano-black);
+  }
+  .btn-page-action:hover {
+    background-color: var(--piano-black-800);
+    border-color: var(--piano-black-800);
+  }
+
+  /* Icon-only button (table action circles, etc.) */
+  .btn-icon {
+    @apply inline-flex items-center justify-center rounded-full;
+    width: 2.125rem;  /* 34px */
+    height: 2.125rem; /* 34px */
+    line-height: 1;
+  }
+
+  /* Neutral button variant */
+  .btn-neutral {
+    @apply text-piano;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+  }
+  .btn-neutral:hover {
+    background-color: #f8fafc; /* slate-50 */
+    border-color: #d1d5db; /* gray-300 */
+  }
+
+  /* Utility: remove min-height from buttons in specific contexts */
+  .btn-no-minh { min-height: auto !important; height: auto !important; }
+
+  /* Subtle section header + divider */
+  .section-header {
+    @apply rounded-md;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    padding: 0.5rem 0.75rem;
+  }
+  .divider-subtle {
+    height: 1px;
+    background: linear-gradient(90deg, rgba(229,231,235,0) 0%, rgba(229,231,235,1) 50%, rgba(229,231,235,0) 100%);
+    border: 0;
+    margin: 0.75rem 0;
+  }
+}
+
+@layer utilities {
+  /* Uniform small gaps */
+  .stack-y-3 > * + * { margin-top: 0.75rem; }
+  .stack-y-4 > * + * { margin-top: 1rem; }
+
+  /* Optional text utility to enforce piano-black when needed */
+  .text-piano { color: var(--piano-black); }
+}
+
+/* Toasts: top-right stack with subtle slide down */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-down { animation: slideDown 180ms ease-out; }
+
+@layer components {
+  .toast-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .toast {
+    width: 360px; /* consistent width */
+    border-radius: 0.5rem; /* ~rounded-md */
+    background: #ffffff;
+    border: 1px solid var(--color-border);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
+    padding: 8px 14px; /* reduced vertical padding */
+    display: flex;
+    align-items: center; /* vertical centering */
+    gap: 12px;
+    min-height: 48px; /* slightly reduced, keeps rectangle shape */
+    box-sizing: border-box;
+  }
+  .toast__icon svg { width: 24px; height: 24px; display: block; }
+  .toast__title { line-height: 1.35; }
+  .toast__message { line-height: 1.45; }
+}

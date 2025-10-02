@@ -1,0 +1,955 @@
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAppDispatch } from '../../hooks/redux';
+import { TeamMember, User, Project, Task, UserRole, UserStatus } from '../../types';
+import LoadingSpinner from '../../components/UI/LoadingSpinner';
+import { addNotification } from '../../store/slices/notificationSlice';
+import {
+  UserGroupIcon,
+  UserIcon,
+  CalendarIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  ShieldCheckIcon,
+  CogIcon,
+  UserPlusIcon,
+  ArrowLeftIcon,
+  PencilIcon,
+  TrashIcon,
+  FolderIcon,
+  DocumentTextIcon,
+  BoltIcon,
+  ChartBarIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  GlobeAltIcon,
+  MapPinIcon,
+  BuildingOfficeIcon,
+  StarIcon,
+  TrophyIcon,
+  FireIcon,
+  AcademicCapIcon
+} from '@heroicons/react/24/outline';
+
+interface TeamMemberStats {
+  totalProjects: number;
+  activeProjects: number;
+  completedTasks: number;
+  activeTasks: number;
+  totalHours: number;
+  efficiency: number;
+  avgTaskCompletion: number;
+  recentActivity: string;
+}
+
+const TeamDetailOverviewPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  
+  const [teamMember, setTeamMember] = useState<User | null>(null);
+  const [memberProjects, setMemberProjects] = useState<Project[]>([]);
+  const [memberTasks, setMemberTasks] = useState<Task[]>([]);
+  const [stats, setStats] = useState<TeamMemberStats>({
+    totalProjects: 0,
+    activeProjects: 0,
+    completedTasks: 0,
+    activeTasks: 0,
+    totalHours: 0,
+    efficiency: 0,
+    avgTaskCompletion: 0,
+    recentActivity: 'No recent activity'
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'tasks' | 'activity' | 'edit'>('overview');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<User>>({});
+  const [showQuickActions, setShowQuickActions] = useState(false);
+
+  useEffect(() => {
+    console.log('TeamDetailOverviewPage useEffect - id:', id);
+    if (id) {
+      fetchTeamMemberData();
+    }
+  }, [id]);
+
+  const fetchTeamMemberData = async () => {
+    if (!id) return;
+    
+    console.log('fetchTeamMemberData called with id:', id);
+    setIsLoading(true);
+    try {
+      // Fetch team member details using users endpoint
+      const { default: apiClient } = await import('../../api/client');
+      console.log('Making API call to:', `/users/${id}`);
+      const memberResponse = await apiClient.get(`/users/${id}`);
+      console.log('API response:', memberResponse);
+      const memberData = memberResponse.data;
+      setTeamMember(memberData);
+      setEditForm(memberData);
+
+      // Fetch related data
+      await Promise.all([
+        fetchMemberProjects(memberData.id),
+        fetchMemberTasks(memberData.id)
+      ]);
+      
+    } catch (error) {
+      console.error('Failed to fetch team member data:', error);
+      dispatch(addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to load team member data',
+        duration: 5000,
+      }));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchMemberProjects = async (userId: string) => {
+    try {
+      const { default: apiClient } = await import('../../api/client');
+      // Fetch all projects and filter by team member
+      const response = await apiClient.get('/projects');
+      const allProjects = response.data;
+      
+      // Filter projects where this user is the owner or a member
+      const userProjects = allProjects.filter((project: Project) => 
+        project.owner_id === userId
+      );
+      
+      setMemberProjects(userProjects);
+    } catch (error) {
+      console.error('Failed to fetch member projects:', error);
+    }
+  };
+
+  const fetchMemberTasks = async (userId: string) => {
+    try {
+      const { default: apiClient } = await import('../../api/client');
+      // Fetch all tasks and filter by assignee
+      const response = await apiClient.get('/tasks');
+      const allTasks = response.data;
+      
+      // Filter tasks assigned to this user
+      const userTasks = allTasks.filter((task: Task) => 
+        task.assignee_id === userId || task.created_by_id === userId
+      );
+      
+      setMemberTasks(userTasks);
+      calculateStats(userTasks, memberProjects);
+    } catch (error) {
+      console.error('Failed to fetch member tasks:', error);
+    }
+  };
+
+  const calculateStats = (tasks: Task[], projects: Project[]) => {
+    const completedTasks = tasks.filter(task => task.status === 'completed');
+    const activeTasks = tasks.filter(task => task.status === 'in_progress' || task.status === 'todo');
+    const activeProjects = projects.filter(project => project.status === 'active');
+    
+    const totalHours = tasks.reduce((sum, task) => sum + (task.actual_hours || 0), 0);
+    const totalStoryPoints = tasks.reduce((sum, task) => sum + (task.story_points || 0), 0);
+    const efficiency = totalHours > 0 ? totalStoryPoints / totalHours : 0;
+    
+    const avgTaskCompletion = tasks.length > 0 ? (completedTasks.length / tasks.length) * 100 : 0;
+    
+    setStats({
+      totalProjects: projects.length,
+      activeProjects: activeProjects.length,
+      completedTasks: completedTasks.length,
+      activeTasks: activeTasks.length,
+      totalHours,
+      efficiency,
+      avgTaskCompletion,
+      recentActivity: tasks.length > 0 ? 'Active this week' : 'No recent activity'
+    });
+  };
+
+  const handleUpdateMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!teamMember) return;
+
+    try {
+      const { default: apiClient } = await import('../../api/client');
+      await apiClient.put(`/users/me`, editForm); // Note: This might need adjustment based on actual API
+      
+      setTeamMember({ ...teamMember, ...editForm });
+      setIsEditing(false);
+      
+      dispatch(addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Team member updated successfully',
+        duration: 3000,
+      }));
+    } catch (error) {
+      console.error('Failed to update team member:', error);
+      dispatch(addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to update team member',
+        duration: 5000,
+      }));
+    }
+  };
+
+  const handleDeleteMember = async () => {
+    if (!teamMember || !window.confirm('Are you sure you want to remove this team member? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { default: apiClient } = await import('../../api/client');
+      await apiClient.delete(`/users/${teamMember.id}`);
+      
+      dispatch(addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Team member removed successfully',
+        duration: 3000,
+      }));
+      
+      navigate('/teams');
+    } catch (error) {
+      console.error('Failed to delete team member:', error);
+      dispatch(addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to remove team member',
+        duration: 5000,
+      }));
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const getRoleColor = (role: string) => {
+    const roleColors: Record<string, string> = {
+      admin: 'bg-red-100 text-red-800',
+      manager: 'bg-orange-100 text-orange-800',
+      member: 'bg-blue-100 text-blue-800',
+      client: 'bg-gray-100 text-gray-800'
+    };
+    return roleColors[role] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusColor = (status: string) => {
+    const statusColors: Record<string, string> = {
+      active: 'bg-green-100 text-green-800',
+      inactive: 'bg-gray-100 text-gray-800',
+      pending: 'bg-yellow-100 text-yellow-800',
+      suspended: 'bg-red-100 text-red-800'
+    };
+    return statusColors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return <ShieldCheckIcon className="h-5 w-5" />;
+      case 'manager':
+        return <CogIcon className="h-5 w-5" />;
+      case 'member':
+        return <UserGroupIcon className="h-5 w-5" />;
+      case 'client':
+        return <UserPlusIcon className="h-5 w-5" />;
+      default:
+        return <UserIcon className="h-5 w-5" />;
+    }
+  };
+
+  const getPerformanceLevel = () => {
+    if (stats.efficiency > 3) return { level: 'Exceptional', color: 'text-purple-600', icon: TrophyIcon };
+    if (stats.efficiency > 2) return { level: 'High Performer', color: 'text-green-600', icon: StarIcon };
+    if (stats.efficiency > 1) return { level: 'Good', color: 'text-blue-600', icon: FireIcon };
+    return { level: 'Getting Started', color: 'text-gray-600', icon: AcademicCapIcon };
+  };
+
+  console.log('TeamDetailOverviewPage rendering - teamMember:', teamMember, 'isLoading:', isLoading, 'id:', id);
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
+
+  if (!teamMember) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Team Member Not Found</h2>
+        <p className="text-gray-600 mb-6">The team member you're looking for doesn't exist.</p>
+        <button
+          onClick={() => navigate('/teams')}
+          className="px-4 py-2 bg-user-blue text-white rounded-md hover:bg-user-blue"
+        >
+          Back to Teams
+        </button>
+      </div>
+    );
+  }
+
+  const performance = getPerformanceLevel();
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => navigate('/teams')}
+            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <ArrowLeftIcon className="h-5 w-5" />
+          </button>
+          <div className="flex items-center space-x-4">
+            <div className="h-16 w-16 bg-primary-100 rounded-full flex items-center justify-center">
+              {teamMember.avatar_url ? (
+                <img
+                  src={teamMember.avatar_url}
+                  alt={teamMember.full_name}
+                  className="h-16 w-16 rounded-full object-cover"
+                />
+              ) : (
+                <span className="text-user-blue font-bold text-xl">
+                  {teamMember.first_name[0]}{teamMember.last_name[0]}
+                </span>
+              )}
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">{teamMember.full_name}</h1>
+              <div className="flex items-center space-x-2 mt-1">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${getRoleColor(teamMember.role)}`}>
+                  {getRoleIcon(teamMember.role)}
+                  <span className="ml-1">{teamMember.role}</span>
+                </span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${getStatusColor(teamMember.status)}`}>
+                  {teamMember.status}
+                </span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${performance.color} bg-opacity-10`}>
+                  <performance.icon className="h-4 w-4 mr-1" />
+                  {performance.level}
+                </span>
+              </div>
+              <p className="text-gray-600 mt-1">
+                @{teamMember.username} • Member since {formatDate(teamMember.created_at)}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex space-x-3">
+          <button
+            onClick={() => setActiveTab('edit')}
+            className="inline-flex items-center px-4 py-2 border border-secondary-300 text-sm font-medium rounded-md text-secondary-700 bg-white hover:bg-secondary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          >
+            <PencilIcon className="h-4 w-4 mr-2" />
+            Edit
+          </button>
+          <button
+            onClick={handleDeleteMember}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            <TrashIcon className="h-4 w-4 mr-2" />
+            Remove
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white shadow rounded-lg p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
+          <button
+            onClick={() => setShowQuickActions(!showQuickActions)}
+            className="text-sm text-user-blue hover:text-primary-800"
+          >
+            {showQuickActions ? 'Hide' : 'Show'} Actions
+          </button>
+        </div>
+        {showQuickActions && (
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <button
+              onClick={() => window.open(`mailto:${teamMember.email}`)}
+              className="flex flex-col items-center p-3 border border-secondary-200 rounded-lg hover:bg-secondary-50 transition-colors"
+            >
+              <EnvelopeIcon className="h-6 w-6 text-user-blue mb-2" />
+              <span className="text-sm font-medium text-gray-700">Send Email</span>
+            </button>
+            {teamMember.phone && (
+              <button
+                onClick={() => window.open(`tel:${teamMember.phone}`)}
+                className="flex flex-col items-center p-3 border border-secondary-200 rounded-lg hover:bg-secondary-50 transition-colors"
+              >
+                <PhoneIcon className="h-6 w-6 text-user-blue mb-2" />
+                <span className="text-sm font-medium text-gray-700">Call</span>
+              </button>
+            )}
+            <button
+              onClick={() => setActiveTab('projects')}
+              className="flex flex-col items-center p-3 border border-secondary-200 rounded-lg hover:bg-secondary-50 transition-colors"
+            >
+              <FolderIcon className="h-6 w-6 text-user-blue mb-2" />
+              <span className="text-sm font-medium text-gray-700">View Projects</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('tasks')}
+              className="flex flex-col items-center p-3 border border-secondary-200 rounded-lg hover:bg-secondary-50 transition-colors"
+            >
+              <DocumentTextIcon className="h-6 w-6 text-user-blue mb-2" />
+              <span className="text-sm font-medium text-gray-700">View Tasks</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="flex space-x-8">
+          {[
+            { id: 'overview', name: 'Overview', icon: ChartBarIcon },
+            { id: 'projects', name: 'Projects', icon: FolderIcon },
+            { id: 'tasks', name: 'Tasks', icon: DocumentTextIcon },
+            { id: 'activity', name: 'Activity', icon: ClockIcon },
+            { id: 'edit', name: 'Edit', icon: PencilIcon }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`py-2 px-3 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
+                activeTab === tab.id ? 'text-indigo-600' : 'text-black hover:text-gray-700'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <tab.icon className="h-4 w-4" />
+                <span>{tab.name}</span>
+              </div>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Split Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Tab Content */}
+          {activeTab === 'overview' && teamMember && (
+        <div className="space-y-6">
+          {/* Performance Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <FolderIcon className="h-8 w-8 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">{stats.totalProjects}</h3>
+                  <p className="text-sm text-gray-500">Total Projects</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <CheckCircleIcon className="h-8 w-8 text-green-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">{stats.completedTasks}</h3>
+                  <p className="text-sm text-gray-500">Completed Tasks</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <ClockIcon className="h-8 w-8 text-orange-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">{stats.totalHours.toFixed(1)}h</h3>
+                  <p className="text-sm text-gray-500">Total Hours</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <BoltIcon className="h-8 w-8 text-purple-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">{stats.efficiency.toFixed(2)}</h3>
+                  <p className="text-sm text-gray-500">Efficiency Score</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Member Information */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Email</p>
+                    <a href={`mailto:${teamMember.email}`} className="text-sm text-user-blue hover:text-primary-800">
+                      {teamMember.email}
+                    </a>
+                  </div>
+                </div>
+                {teamMember.phone && (
+                  <div className="flex items-center space-x-3">
+                    <PhoneIcon className="h-5 w-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Phone</p>
+                      <a href={`tel:${teamMember.phone}`} className="text-sm text-user-blue hover:text-primary-800">
+                        {teamMember.phone}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center space-x-3">
+                  <GlobeAltIcon className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Timezone</p>
+                    <p className="text-sm text-gray-600">{teamMember.timezone}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <CalendarIcon className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Joined</p>
+                    <p className="text-sm text-gray-600">{formatDate(teamMember.created_at)}</p>
+                  </div>
+                </div>
+                {teamMember.last_login && (
+                  <div className="flex items-center space-x-3">
+                    <ClockIcon className="h-5 w-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Last Login</p>
+                      <p className="text-sm text-gray-600">{formatDate(teamMember.last_login)}</p>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center space-x-3">
+                  <BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Organization</p>
+                    <p className="text-sm text-gray-600">{teamMember.organization_name}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {teamMember.bio && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <p className="text-sm font-medium text-gray-900 mb-2">Bio</p>
+                <p className="text-sm text-gray-600">{teamMember.bio}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Performance Overview */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Performance Overview</h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Task Completion Rate</span>
+                <span className="text-sm font-medium text-gray-900">{stats.avgTaskCompletion.toFixed(1)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-user-blue h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${stats.avgTaskCompletion}%` }}
+                ></div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">{stats.activeProjects}</div>
+                  <div className="text-sm text-gray-500">Active Projects</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-600">{stats.activeTasks}</div>
+                  <div className="text-sm text-gray-500">Active Tasks</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Projects Tab */}
+      {activeTab === 'projects' && (
+        <div className="space-y-6">
+          <div className="bg-white shadow rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Projects</h3>
+            {memberProjects.length === 0 ? (
+              <div className="text-center py-8">
+                <FolderIcon className="mx-auto h-8 w-8 text-gray-400" />
+                <p className="text-sm text-gray-500 mt-2">No projects found</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {memberProjects.map((project) => (
+                  <div key={project.id} className="border border-secondary-200 rounded-lg p-4 hover:bg-secondary-50 cursor-pointer" onClick={() => navigate(`/projects/${project.id}`)}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900">{project.name}</h4>
+                        <p className="text-sm text-gray-600">{project.description}</p>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">{project.status}</span>
+                          <span className="text-xs px-2 py-1 bg-orange-100 text-orange-800 rounded-full">{project.priority}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/projects/${project.id}`);
+                        }}
+                        className="text-user-blue hover:text-primary-800 text-sm"
+                      >
+                        View Project
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tasks Tab */}
+      {activeTab === 'tasks' && (
+        <div className="space-y-6">
+          <div className="bg-white shadow rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Tasks</h3>
+            {memberTasks.length === 0 ? (
+              <div className="text-center py-8">
+                <DocumentTextIcon className="mx-auto h-8 w-8 text-gray-400" />
+                <p className="text-sm text-gray-500 mt-2">No tasks found</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {memberTasks.map((task) => (
+                  <div key={task.id} className="border border-secondary-200 rounded-lg p-4 hover:bg-secondary-50 cursor-pointer" onClick={() => navigate(`/tasks/${task.id}`)}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900">{task.title}</h4>
+                        <p className="text-sm text-gray-600">{task.description}</p>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">{task.status}</span>
+                          <span className="text-xs px-2 py-1 bg-orange-100 text-orange-800 rounded-full">{task.priority}</span>
+                          {task.estimated_hours && (
+                            <span className="text-xs text-gray-500">{task.estimated_hours}h</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/tasks/${task.id}`);
+                        }}
+                        className="text-user-blue hover:text-primary-800 text-sm"
+                      >
+                        View Task
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Activity Tab */}
+      {activeTab === 'activity' && (
+        <div className="space-y-6">
+          <div className="bg-white shadow rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
+            <div className="space-y-4">
+              <div className="text-center py-8">
+                <ClockIcon className="mx-auto h-8 w-8 text-gray-400" />
+                <p className="text-sm text-gray-500 mt-2">Activity tracking coming soon</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Tab */}
+      {activeTab === 'edit' && teamMember && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-6">Edit Team Member</h3>
+          <form onSubmit={handleUpdateMember} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  First Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.first_name || ''}
+                  onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Last Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.last_name || ''}
+                  onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={editForm.email || ''}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={editForm.phone || ''}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Timezone
+                </label>
+                <input
+                  type="text"
+                  value={editForm.timezone || ''}
+                  onChange={(e) => setEditForm({ ...editForm, timezone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Role
+                </label>
+                <select
+                  value={editForm.role || 'member'}
+                  onChange={(e) => setEditForm({ ...editForm, role: e.target.value as UserRole })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="member">Member</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">Admin</option>
+                  <option value="client">Client</option>
+                </select>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bio
+              </label>
+              <textarea
+                rows={4}
+                value={editForm.bio || ''}
+                onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Add a bio for this team member..."
+              />
+            </div>
+            
+            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => setActiveTab('overview')}
+                className="px-4 py-2 border border-secondary-300 rounded-md text-secondary-700 hover:bg-secondary-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-user-blue text-white rounded-md hover:bg-user-blue transition-colors"
+              >
+                Update Member
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-8">
+          {/* Member Stats */}
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Member Stats</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Total Projects</span>
+                  <span className="text-sm font-medium text-gray-900">{stats.totalProjects}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Active Projects</span>
+                  <span className="text-sm font-medium text-blue-600">{stats.activeProjects}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Completed Tasks</span>
+                  <span className="text-sm font-medium text-green-600">{stats.completedTasks}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Active Tasks</span>
+                  <span className="text-sm font-medium text-blue-600">{stats.activeTasks}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Efficiency</span>
+                  <span className="text-sm font-medium text-gray-900">{stats.efficiency}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Performance Level */}
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Performance</h3>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <performance.icon className={`h-5 w-5 ${performance.color}`} />
+                  <span className="text-sm text-gray-600">Level: {performance.level}</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Efficiency</span>
+                    <span className="font-medium">{stats.efficiency}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${stats.efficiency}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact Info */}
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Contact Info</h3>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-900 truncate">{teamMember.email}</p>
+                  </div>
+                </div>
+                {teamMember.phone && (
+                  <div className="flex items-center space-x-3">
+                    <PhoneIcon className="h-5 w-5 text-gray-400" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-900">{teamMember.phone}</p>
+                    </div>
+                  </div>
+                )}
+                {(teamMember as any).location && (
+                  <div className="flex items-center space-x-3">
+                    <MapPinIcon className="h-5 w-5 text-gray-400" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-900">{(teamMember as any).location}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Recent Activity</h3>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="h-2 w-2 rounded-full bg-blue-400"></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-900">{stats.recentActivity}</p>
+                    <p className="text-xs text-gray-500">Last updated</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Quick Actions</h3>
+              <div className="space-y-3">
+                <button
+                  onClick={() => window.open(`mailto:${teamMember.email}`)}
+                  className="w-full flex items-center justify-center px-4 py-2 text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100"
+                >
+                  <EnvelopeIcon className="h-4 w-4 mr-2" />
+                  Send Email
+                </button>
+                {teamMember.phone && (
+                  <button
+                    onClick={() => window.open(`tel:${teamMember.phone}`)}
+                    className="w-full flex items-center justify-center px-4 py-2 text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100"
+                  >
+                    <PhoneIcon className="h-4 w-4 mr-2" />
+                    Call
+                  </button>
+                )}
+                <button
+                  onClick={() => setActiveTab('projects')}
+                  className="w-full flex items-center justify-center px-4 py-2 text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100"
+                >
+                  <FolderIcon className="h-4 w-4 mr-2" />
+                  View Projects
+                </button>
+                <button
+                  onClick={() => setActiveTab('tasks')}
+                  className="w-full flex items-center justify-center px-4 py-2 text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100"
+                >
+                  <DocumentTextIcon className="h-4 w-4 mr-2" />
+                  View Tasks
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TeamDetailOverviewPage;
