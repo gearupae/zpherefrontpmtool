@@ -50,8 +50,37 @@ export function detectTenantContext(userRole?: string, userOrganization?: any): 
       isTenant: false
     };
   }
-  
-  // Pattern 3: User role-based detection (for platform admins only)
+
+  // Pattern 3: Path-based tenant slug detection (domain.com/:tenant-slug/<section>)
+  // Support multiple tenant sections, not just /dashboard
+  const pathParts = path.split('/').filter(part => part);
+  const tenantSections = new Set([
+    'dashboard', 'projects', 'tasks', 'teams', 'customers', 'proposals',
+    'invoices', 'analytics', 'ai', 'settings', 'collaboration', 'views',
+    'knowledge', 'purchase', 'goals', 'vendors', 'orders'
+  ]);
+  if (pathParts.length >= 2 && tenantSections.has(pathParts[1])) {
+    const tenantSlug = pathParts[0];
+    // Treat special admin slug as admin context for path-based routing
+    if (tenantSlug === 'zphere-admin') {
+      return {
+        tenantId: 'admin',
+        tenantSlug: tenantSlug,
+        tenantType: 'admin',
+        isAdmin: true,
+        isTenant: false,
+      };
+    }
+    return {
+      tenantId: tenantSlug, // Will be resolved to actual ID by backend
+      tenantSlug: tenantSlug,
+      tenantType: 'tenant',
+      isAdmin: false,
+      isTenant: true
+    };
+  }
+
+  // Pattern 4: User role-based detection (for platform admins only)
   if (userRole === 'ADMIN' || userRole === 'admin' || userRole === 'SUPER_ADMIN') {
     // Check if user has an organization - if yes, they're an organization admin (tenant context)
     // If no organization, they're a platform admin (admin context)
@@ -84,35 +113,6 @@ export function detectTenantContext(userRole?: string, userOrganization?: any): 
         isTenant: false
       };
     }
-  }
-  
-  // Pattern 4: Path-based tenant slug detection (domain.com/:tenant-slug/<section>)
-  // Support multiple tenant sections, not just /dashboard
-  const pathParts = path.split('/').filter(part => part);
-  const tenantSections = new Set([
-    'dashboard', 'projects', 'tasks', 'teams', 'customers', 'proposals',
-    'invoices', 'analytics', 'ai', 'settings', 'collaboration', 'views',
-    'knowledge', 'purchase', 'goals', 'vendors', 'orders'
-  ]);
-  if (pathParts.length >= 2 && tenantSections.has(pathParts[1])) {
-    const tenantSlug = pathParts[0];
-    // Treat special admin slug as admin context for path-based routing
-    if (tenantSlug === 'zphere-admin') {
-      return {
-        tenantId: 'admin',
-        tenantSlug: tenantSlug,
-        tenantType: 'admin',
-        isAdmin: true,
-        isTenant: false,
-      };
-    }
-    return {
-      tenantId: tenantSlug, // Will be resolved to actual ID by backend
-      tenantSlug: tenantSlug,
-      tenantType: 'tenant',
-      isAdmin: false,
-      isTenant: true
-    };
   }
   
   // Pattern 5: User organization-based detection
