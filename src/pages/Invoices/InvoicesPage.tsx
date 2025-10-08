@@ -1,11 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../../hooks/redux';
-import { ProjectInvoice, ProjectInvoiceCreate, InvoiceType, Project, Customer } from '../../types';
-import LoadingSpinner from '../../components/UI/LoadingSpinner';
+import { ProjectInvoice, ProjectInvoiceCreate, InvoiceType, Project, Customer, Item } from '../../types';
 import { addNotification } from '../../store/slices/notificationSlice';
 import DeliveryNoteManagement from '../../components/Invoices/DeliveryNoteManagement';
+import InvoiceItemsTable from '../../components/Invoices/InvoiceItemsTable';
 import { apiClient } from '../../api/client';
+import DateRangeCalendar from '../../components/UI/DateRangeCalendar';
+import './FilterButtons.css';
 import { 
   PlusIcon, 
   BanknotesIcon,
@@ -16,8 +19,45 @@ import {
   ExclamationTriangleIcon,
   ClockIcon,
   TruckIcon,
-  DocumentArrowDownIcon
+  DocumentArrowDownIcon,
+  MagnifyingGlassIcon,
+  ArrowPathIcon,
+  FunnelIcon,
+  CalendarIcon,
+  ChevronDownIcon,
+  CheckIcon,
+  CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
+type SelectedItem = {
+  item?: Item | null;
+  quantity: number;
+  unit_price: number; // dollars for UI
+  tax_rate: number;   // %
+  discount_rate: number; // %
+  description: string;
+};
+
+// Portal component for rendering filter popups outside table overflow context
+const FilterPortal: React.FC<{ children: React.ReactNode; buttonRect: DOMRect | null }> = ({ children, buttonRect }) => {
+  if (!buttonRect) return null;
+  
+  return ReactDOM.createPortal(
+    <div
+      className="filter-portal"
+      style={{
+        position: 'fixed',
+        left: `${buttonRect.left}px`,
+        top: `${buttonRect.bottom + 4}px`,
+        zIndex: 99999,
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>,
+    document.body
+  );
+};
+
 const InvoicesPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -26,8 +66,41 @@ const InvoicesPage: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([{ item: null, description: '', quantity: 1, unit_price: 0, tax_rate: 0, discount_rate: 0 }]);
   const [showDeliveryNotes, setShowDeliveryNotes] = useState(false);
   const [selectedInvoiceForDelivery, setSelectedInvoiceForDelivery] = useState<ProjectInvoice | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<ProjectInvoice | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isRecordingPayment, setIsRecordingPayment] = useState(false);
+
+  // Search and filter state
+  const [invoiceSearch, setInvoiceSearch] = useState('');
+  const [filterFromDate, setFilterFromDate] = useState('');
+  const [filterToDate, setFilterToDate] = useState('');
+  const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
+  const [filterCustomerId, setFilterCustomerId] = useState('');
+  const [dueDateFrom, setDueDateFrom] = useState('');
+  const [dueDateTo, setDueDateTo] = useState('');
+  
+  // Pending filter state (for Apply button)
+  const [pendingToolbarFrom, setPendingToolbarFrom] = useState('');
+  const [pendingToolbarTo, setPendingToolbarTo] = useState('');
+  const [pendingDueDateFrom, setPendingDueDateFrom] = useState('');
+  const [pendingDueDateTo, setPendingDueDateTo] = useState('');
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<'status' | 'amount' | 'balance_due' | 'due_date' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  
+  // Filter popup state
+  const [headerFilterOpen, setHeaderFilterOpen] = useState<null | 'status' | 'customer' | 'due_date'>(null);
+  const [filterButtonRect, setFilterButtonRect] = useState<DOMRect | null>(null);
+  const [toolbarDateOpen, setToolbarDateOpen] = useState(false);
+  
+  const toolbarDateRef = useRef<HTMLDivElement | null>(null);
+  const headerFilterRef = useRef<HTMLDivElement | null>(null);
   
   const [newInvoice, setNewInvoice] = useState<ProjectInvoiceCreate>({
     title: '',
@@ -41,7 +114,6 @@ const InvoicesPage: React.FC = () => {
     invoice_date: new Date().toISOString().split('T')[0],
     due_date: '',
     notes: '',
-    terms_and_conditions: '',
     is_recurring: false,
     recurring_interval: '1',
     next_invoice_date: '',
@@ -65,7 +137,8 @@ const InvoicesPage: React.FC = () => {
     paid_invoices: 0,
     overdue_invoices: 0,
     total_amount: 0,
-    pending_amount: 0
+    pending_amount: 0,
+    this_month_received: 0
   });
 
   const fetchInvoices = async () => {
@@ -79,9 +152,38 @@ const InvoicesPage: React.FC = () => {
         apiClient.get('/customers/')
       ]);
 
-      setInvoices(invoicesRes.data?.invoices || []);
+      const invoicesArr = invoicesRes.data?.invoices || [];
+      setInvoices(invoicesArr);
       setProjects(projectsRes.data || []);
       setCustomers(customersRes.data?.customers || []);
+
+      // Compute this month's received amount from payment_history (fallback to paid_date)
+      const now = new Date();
+      const month = now.getUTCMonth();
+      const year = now.getUTCFullYear();
+      const inSameMonth = (dStr?: string) => {
+        if (!dStr) return false;
+        const d = new Date(dStr);
+        return d.getUTCFullYear() === year && d.getUTCMonth() === month;
+      };
+      let thisMonthReceived = 0;
+      invoicesArr.forEach((inv: any) => {
+        let addedFromHistory = false;
+        if (Array.isArray(inv.payment_history)) {
+          inv.payment_history.forEach((p: any) => {
+            if (p && p.payment_date && inSameMonth(p.payment_date)) {
+              const amt = typeof p.amount === 'number' ? p.amount : parseInt(p.amount || '0', 10) || 0;
+              thisMonthReceived += amt;
+              addedFromHistory = true;
+            }
+          });
+        }
+        // Fallback: if invoice was paid this month and no history captured, count amount_paid
+        if (!addedFromHistory && inSameMonth(inv.paid_date)) {
+          const amtPaid = typeof inv.amount_paid === 'number' ? inv.amount_paid : parseInt(inv.amount_paid || '0', 10) || 0;
+          thisMonthReceived += amtPaid;
+        }
+      });
 
       setStats({
         total_invoices: statsRes.data?.total_invoices ?? 0,
@@ -89,7 +191,8 @@ const InvoicesPage: React.FC = () => {
         paid_invoices: statsRes.data?.paid_invoices ?? 0,
         overdue_invoices: statsRes.data?.overdue_invoices ?? 0,
         total_amount: statsRes.data?.total_amount ?? 0,
-        pending_amount: statsRes.data?.total_outstanding ?? 0
+        pending_amount: statsRes.data?.total_outstanding ?? 0,
+        this_month_received: thisMonthReceived
       });
     } catch (error) {
       console.error('Failed to fetch invoices:', error);
@@ -107,14 +210,35 @@ const InvoicesPage: React.FC = () => {
     fetchInvoices();
   }, []);
 
+  // Auto-generate invoice number when form is opened
+  useEffect(() => {
+    if (showCreateForm) {
+      const invoiceCount = invoices.length + 1;
+      const invoiceNumber = `INVOICE-${String(invoiceCount).padStart(3, '0')}`;
+      setNewInvoice(prev => ({ ...prev, title: invoiceNumber }));
+    }
+  }, [showCreateForm, invoices.length]);
+
+  // Close filter popups when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.filter-portal') && !target.closest('button')) {
+        setHeaderFilterOpen(null);
+        setToolbarDateOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Validate at least one item with a description
-      const validItems = (newInvoice.items || []).filter((it: any) => (it.description || '').trim() !== '');
-      if (validItems.length === 0) {
+      // Validate at least one selected item
+      if (selectedItems.length === 0) {
         dispatch(addNotification({
           type: 'error',
           title: 'Validation Error',
@@ -123,17 +247,24 @@ const InvoicesPage: React.FC = () => {
         return;
       }
 
-      // Normalize items to backend schema
-      const normalizedItems = validItems.map((item: any) => ({
-        description: item.description,
-        quantity: Number(item.quantity) || 1,
-        unit_price: Math.round(Number(item.unit_price || 0) * 100), // dollars -> cents
-        item_type: 'service',
-        tax_rate: Math.round(Number(item.tax_rate || 0) * 100), // percent -> basis points
-        discount_rate: Math.round(Number(item.discount_rate || 0) * 100), // percent -> basis points
-      }));
+      // Normalize items to backend schema from ItemSelector
+      const normalizedItems = selectedItems
+        .filter((si) => (si.description && si.description.trim().length > 0) || (si.item && si.item.id))
+        .map((si) => {
+          const unitPriceCents = Math.round(Number(si.unit_price || 0) * 100);
+          const qty = Math.max(1, Number(si.quantity) || 1);
+          return {
+            description: si.description,
+            quantity: qty,
+            unit_price: unitPriceCents,
+            item_type: String(si.item?.item_type || 'service'),
+            tax_rate: Math.round(Number(si.tax_rate || 0) * 100),
+            discount_rate: Math.round(Number(si.discount_rate || 0) * 100),
+          };
+        });
 
       // Normalize payload to backend schema
+      // Note: terms_and_conditions will be fetched from Settings by backend
       const payload = {
         title: newInvoice.title,
         description: newInvoice.description || undefined,
@@ -147,7 +278,6 @@ const InvoicesPage: React.FC = () => {
         // due_date is computed by backend from customer payment terms; omit if not set explicitly
         due_date: newInvoice.due_date ? new Date(newInvoice.due_date).toISOString() : undefined,
         notes: newInvoice.notes || undefined,
-        terms_and_conditions: newInvoice.terms_and_conditions || undefined,
         is_recurring: !!newInvoice.is_recurring,
         recurring_interval: newInvoice.recurring_interval || undefined,
         next_invoice_date: newInvoice.next_invoice_date ? new Date(newInvoice.next_invoice_date).toISOString() : undefined,
@@ -158,7 +288,8 @@ const InvoicesPage: React.FC = () => {
 
       await apiClient.post('/invoices/', payload);
 
-      // Reset form
+      // Reset form and selected items
+      setSelectedItems([{ item: null, description: '', quantity: 1, unit_price: 0, tax_rate: 0, discount_rate: 0 }]);
       setNewInvoice({
         title: '',
         description: '',
@@ -171,22 +302,12 @@ const InvoicesPage: React.FC = () => {
         invoice_date: new Date().toISOString().split('T')[0],
         due_date: '',
         notes: '',
-        terms_and_conditions: '',
         is_recurring: false,
         recurring_interval: '1',
         next_invoice_date: '',
         tags: [],
         custom_fields: {},
-        items: [
-          {
-            description: '',
-            quantity: 1,
-            unit_price: 0,
-            item_type: 'service' as any,
-            tax_rate: 0,
-            discount_rate: 0,
-          } as any,
-        ],
+        items: [],
       });
 
       setShowCreateForm(false);
@@ -212,7 +333,84 @@ const InvoicesPage: React.FC = () => {
     }
   };
 
-  const filteredInvoices = invoices; // Search-only filtering retained elsewhere if needed
+  // Filtered and sorted invoices
+  const displayedInvoices = useMemo(() => {
+    let filtered = [...invoices];
+
+    // Search filter
+    if (invoiceSearch && invoiceSearch.trim()) {
+      const searchLower = invoiceSearch.toLowerCase();
+      filtered = filtered.filter(inv => 
+        inv.title?.toLowerCase().includes(searchLower) ||
+        inv.invoice_number?.toLowerCase().includes(searchLower) ||
+        inv.description?.toLowerCase().includes(searchLower) ||
+        customers.find(c => c.id === inv.customer_id)?.display_name?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Status filter
+    if (filterStatuses.length > 0) {
+      filtered = filtered.filter(inv => filterStatuses.includes(inv.status));
+    }
+
+    // Customer filter
+    if (filterCustomerId) {
+      filtered = filtered.filter(inv => inv.customer_id === filterCustomerId);
+    }
+
+    // Toolbar date range filter (created_at)
+    if (filterFromDate || filterToDate) {
+      filtered = filtered.filter(inv => {
+        const invDate = new Date(inv.invoice_date || inv.created_at);
+        const from = filterFromDate ? new Date(filterFromDate) : null;
+        const to = filterToDate ? new Date(filterToDate) : null;
+        if (from && invDate < from) return false;
+        if (to && invDate > to) return false;
+        return true;
+      });
+    }
+
+    // Due date range filter
+    if (dueDateFrom || dueDateTo) {
+      filtered = filtered.filter(inv => {
+        if (!inv.due_date) return false;
+        const dueDate = new Date(inv.due_date);
+        const from = dueDateFrom ? new Date(dueDateFrom) : null;
+        const to = dueDateTo ? new Date(dueDateTo) : null;
+        if (from && dueDate < from) return false;
+        if (to && dueDate > to) return false;
+        return true;
+      });
+    }
+
+    // Sorting
+    if (sortField) {
+      filtered.sort((a, b) => {
+        let aVal: any = null;
+        let bVal: any = null;
+
+        if (sortField === 'status') {
+          aVal = a.status || '';
+          bVal = b.status || '';
+        } else if (sortField === 'amount') {
+          aVal = a.total_amount || 0;
+          bVal = b.total_amount || 0;
+        } else if (sortField === 'balance_due') {
+          aVal = a.balance_due || 0;
+          bVal = b.balance_due || 0;
+        } else if (sortField === 'due_date') {
+          aVal = a.due_date ? new Date(a.due_date).getTime() : 0;
+          bVal = b.due_date ? new Date(b.due_date).getTime() : 0;
+        }
+
+        if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [invoices, invoiceSearch, filterStatuses, filterCustomerId, filterFromDate, filterToDate, dueDateFrom, dueDateTo, sortField, sortDir, customers]);
 
   const handleDeleteInvoice = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this invoice? Only draft invoices can be deleted.')) return;
@@ -234,12 +432,106 @@ const InvoicesPage: React.FC = () => {
     }
   };
 
+  const handleOpenPaymentModal = (invoice: ProjectInvoice) => {
+    setSelectedInvoiceForPayment(invoice);
+    const balanceDue = typeof invoice.balance_due === 'number' ? (invoice.balance_due / 100).toFixed(2) : '0.00';
+    setPaymentAmount(balanceDue);
+    setPaymentDate(new Date().toISOString().split('T')[0]);
+    setShowPaymentModal(true);
+  };
+
+  const handleRecordPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedInvoiceForPayment) return;
+
+    setIsRecordingPayment(true);
+    try {
+      const amountInCents = Math.round(parseFloat(paymentAmount) * 100);
+      
+      const paymentData = {
+        amount: amountInCents,
+        payment_date: new Date(paymentDate).toISOString(),
+        payment_method: 'cash',
+        reference: '',
+        notes: 'Payment recorded from invoices list'
+      };
+
+      await apiClient.post(`/invoices/${selectedInvoiceForPayment.id}/payments`, paymentData);
+      
+      await fetchInvoices();
+      
+      dispatch(addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Payment recorded successfully'
+      }));
+      
+      setShowPaymentModal(false);
+      setSelectedInvoiceForPayment(null);
+      setPaymentAmount('');
+      setPaymentDate(new Date().toISOString().split('T')[0]);
+    } catch (error: any) {
+      console.error('Failed to record payment:', error);
+      dispatch(addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.response?.data?.detail || 'Failed to record payment'
+      }));
+    } finally {
+      setIsRecordingPayment(false);
+    }
+  };
+
+  const getCustomerPendingInvoicesCount = (customerId: string): number => {
+    return invoices.filter(
+      inv => inv.customer_id === customerId && 
+      inv.status !== 'paid' && 
+      inv.status !== 'cancelled' &&
+      inv.status !== 'void'
+    ).length;
+  };
+
+  const onHeaderDblClick = (field: 'status' | 'amount' | 'balance_due' | 'due_date') => {
+    if (sortField === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const handleRefresh = () => {
+    // Close any open popovers
+    setHeaderFilterOpen(null);
+    setToolbarDateOpen(false);
+
+    // Reset search
+    setInvoiceSearch('');
+
+    // Reset sorting
+    setSortField(null);
+    setSortDir('asc');
+
+    // Reset filters
+    setFilterStatuses([]);
+    setFilterCustomerId('');
+    setFilterFromDate('');
+    setFilterToDate('');
+    setDueDateFrom('');
+    setDueDateTo('');
+
+    // Reset pending selections
+    setPendingToolbarFrom('');
+    setPendingToolbarTo('');
+    setPendingDueDateFrom('');
+    setPendingDueDateTo('');
+
+    // Fetch fresh data
+    fetchInvoices();
+  };
+
   if (isLoading && invoices.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="large" />
-      </div>
-    );
+    return <div />;
   }
 
   return (
@@ -247,8 +539,8 @@ const InvoicesPage: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-secondary-900">Invoices</h1>
-          <p className="text-secondary-600 mt-1">
+          <h1 className="page-title font-bold text-gray-900">Invoices</h1>
+          <p className="text-gray-600 mt-1">
             Generate and track invoices linked to projects
           </p>
         </div>
@@ -263,7 +555,7 @@ className="btn-page-action inline-flex items-center"
 
       {/* Create Invoice Form */}
       {showCreateForm && (
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white shadow rounded-lg p-6 mb-6 border border-gray-200">
           <div className="flex items-center mb-6">
             <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
               <BanknotesIcon className="h-5 w-5 text-blue-600" />
@@ -278,28 +570,29 @@ className="btn-page-action inline-flex items-center"
           </div>
           
           <form onSubmit={handleCreateInvoice} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Row 1: Title, Project, Customer */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number *</label>
                 <input
                   type="text"
                   required
                   value={newInvoice.title}
                   onChange={(e) => setNewInvoice({...newInvoice, title: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter invoice title"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
+                  placeholder="INVOICE-001"
+                  readOnly
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Project *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Project</label>
                 <select
-                  required
                   value={newInvoice.project_id}
                   onChange={(e) => setNewInvoice({...newInvoice, project_id: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="">Select a project</option>
+                  <option value="">Select a project (optional)</option>
                   {projects.map(project => (
                     <option key={project.id} value={project.id}>
                       {project.name}
@@ -324,7 +617,10 @@ className="btn-page-action inline-flex items-center"
                   ))}
                 </select>
               </div>
-              
+            </div>
+
+            {/* Row 2: Invoice Type, Invoice Date, Due Date */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Type</label>
                 <select
@@ -360,7 +656,10 @@ className="btn-page-action inline-flex items-center"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              
+            </div>
+
+            {/* Row 3: Payment Terms, Currency, Notes */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Payment Terms</label>
                 <select
@@ -388,147 +687,51 @@ className="btn-page-action inline-flex items-center"
                   <option value="GBP">GBP</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <input
+                  type="text"
+                  value={newInvoice.notes}
+                  onChange={(e) => setNewInvoice({...newInvoice, notes: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Additional notes"
+                />
+              </div>
             </div>
 
+            {/* Row 4: Description - Full Width */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
               <textarea
                 value={newInvoice.description}
                 onChange={(e) => setNewInvoice({...newInvoice, description: e.target.value})}
-                rows={3}
+                rows={2}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Describe the invoice details and services provided"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-              <textarea
-                value={newInvoice.notes}
-                onChange={(e) => setNewInvoice({...newInvoice, notes: e.target.value})}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Additional notes or special instructions"
-              />
-            </div>
-
-            {/* Items Section */}
+            {/* Items Section (from Settings > Items) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Items *</label>
-              <div className="space-y-4">
-                {newInvoice.items.map((item: any, idx: number) => (
-                  <div key={idx} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
-                    <div className="md:col-span-2">
-                      <input
-                        type="text"
-                        required
-                        value={item.description}
-                        onChange={(e) => setNewInvoice({
-                          ...newInvoice,
-                          items: newInvoice.items.map((it: any, i: number) => i === idx ? { ...it, description: e.target.value } : it)
-                        })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Item description"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="number"
-                        min={1}
-                        value={item.quantity}
-                        onChange={(e) => setNewInvoice({
-                          ...newInvoice,
-                          items: newInvoice.items.map((it: any, i: number) => i === idx ? { ...it, quantity: Number(e.target.value) } : it)
-                        })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Qty"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={item.unit_price}
-                        onChange={(e) => setNewInvoice({
-                          ...newInvoice,
-                          items: newInvoice.items.map((it: any, i: number) => i === idx ? { ...it, unit_price: Number(e.target.value) } : it)
-                        })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Unit price (e.g., 99.99)"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={item.tax_rate}
-                        onChange={(e) => setNewInvoice({
-                          ...newInvoice,
-                          items: newInvoice.items.map((it: any, i: number) => i === idx ? { ...it, tax_rate: Number(e.target.value) } : it)
-                        })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Tax % (e.g., 5)"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={item.discount_rate}
-                        onChange={(e) => setNewInvoice({
-                          ...newInvoice,
-                          items: newInvoice.items.map((it: any, i: number) => i === idx ? { ...it, discount_rate: Number(e.target.value) } : it)
-                        })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Discount % (e.g., 2.5)"
-                      />
-                    </div>
-                    <div className="flex">
-                      <button
-                        type="button"
-                        onClick={() => setNewInvoice({
-                          ...newInvoice,
-                          items: newInvoice.items.filter((_: any, i: number) => i !== idx)
-                        })}
-                        className="btn btn-danger"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setNewInvoice({
-                      ...newInvoice,
-                      items: [
-                        ...newInvoice.items,
-                        { description: '', quantity: 1, unit_price: 0, item_type: 'service', tax_rate: 0, discount_rate: 0 } as any,
-                      ]
-                    })}
-                    className="btn btn-secondary"
-                  >
-                    + Add Item
-                  </button>
-                </div>
-              </div>
+              <InvoiceItemsTable selectedItems={selectedItems} onItemsChange={setSelectedItems} />
             </div>
 
             <div className="flex justify-end space-x-3 pt-6 border-t">
               <button
                 type="button"
-                onClick={() => setShowCreateForm(false)}
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setSelectedItems([{ item: null, description: '', quantity: 1, unit_price: 0, tax_rate: 0, discount_rate: 0 }]);
+                }}
                 className="btn btn-secondary"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || selectedItems.filter(si => (si.description?.trim() || si.item)).length === 0}
                 className="btn btn-primary disabled:opacity-50"
               >
                 {isLoading ? 'Creating...' : 'Create Invoice'}
@@ -539,51 +742,63 @@ className="btn-page-action inline-flex items-center"
       )}
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="metric-card metric-blue bg-white px-4 py-3 rounded-lg shadow border-t-4 border-blue-600">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
               <BanknotesIcon className="h-6 w-6 text-blue-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Invoices</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total_invoices}</p>
+              <p className="metric-value text-2xl font-bold">{stats.total_invoices}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="metric-card metric-yellow bg-white px-4 py-3 rounded-lg shadow border-t-4 border-yellow-600">
           <div className="flex items-center">
             <div className="p-2 bg-yellow-100 rounded-lg">
               <ClockIcon className="h-6 w-6 text-yellow-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Pending Invoices</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.sent_invoices}</p>
+              <p className="metric-value text-2xl font-bold">{stats.sent_invoices}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="metric-card metric-green bg-white px-4 py-3 rounded-lg shadow border-t-4 border-green-600">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
               <CheckCircleIcon className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Paid Invoices</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.paid_invoices}</p>
+              <p className="metric-value text-2xl font-bold">{stats.paid_invoices}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="metric-card metric-red bg-white px-4 py-3 rounded-lg shadow border-t-4 border-red-600">
           <div className="flex items-center">
             <div className="p-2 bg-red-100 rounded-lg">
               <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Overdue Invoices</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.overdue_invoices}</p>
+              <p className="metric-value text-2xl font-bold">{stats.overdue_invoices}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="metric-card metric-green bg-white px-4 py-3 rounded-lg shadow border-t-4 border-green-600">
+          <div className="flex items-center">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <CurrencyDollarIcon className="h-6 w-6 text-green-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Received This Month</p>
+              <p className="metric-value text-2xl font-bold">${(stats.this_month_received / 100).toFixed(2)}</p>
             </div>
           </div>
         </div>
@@ -593,11 +808,77 @@ className="btn-page-action inline-flex items-center"
       {/* Invoices List */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">
-            Invoices ({filteredInvoices.length})
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium text-gray-900">
+              All Invoices ({invoices.length})
+            </h3>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search invoices..."
+                  value={invoiceSearch}
+                  onChange={(e) => setInvoiceSearch(e.target.value)}
+                  className="w-40 pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-0 focus:border-gray-300"
+                />
+              </div>
+              <button
+                type="button"
+                title="Refresh"
+                className="p-1 text-gray-500 hover:text-gray-700"
+                onClick={handleRefresh}
+              >
+                <ArrowPathIcon className="w-4 h-4" />
+              </button>
+              <div className="relative" ref={toolbarDateRef}>
+                <button
+                  type="button"
+                  title="Filter by date range"
+                  className="p-1 text-gray-500 hover:text-gray-700"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPendingToolbarFrom(filterFromDate || '');
+                    setPendingToolbarTo(filterToDate || '');
+                    setToolbarDateOpen((o) => !o);
+                  }}
+                >
+                  <CalendarIcon className="w-4 h-4" />
+                </button>
+                {toolbarDateOpen && (
+                  <div className="absolute right-0 top-full mt-1 z-40 w-64 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{borderRadius: '5px'}}>
+                    <div className="px-1 pb-1">
+                      <DateRangeCalendar 
+                        size="sm"
+                        initialFrom={pendingToolbarFrom || null}
+                        initialTo={pendingToolbarTo || null}
+                        onChange={(from, to) => {
+                          setPendingToolbarFrom(from || '');
+                          setPendingToolbarTo(to || '');
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                      <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => {
+                        e.stopPropagation();
+                        setFilterFromDate('');
+                        setFilterToDate('');
+                        setToolbarDateOpen(false);
+                      }}>Clear</button>
+                      <button className="filter-popup-btn filter-popup-btn-filter" onClick={(e) => {
+                        e.stopPropagation();
+                        setFilterFromDate(pendingToolbarFrom || '');
+                        setFilterToDate(pendingToolbarTo || '');
+                        setToolbarDateOpen(false);
+                      }}>Filter</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-        {filteredInvoices.length === 0 ? (
+        {displayedInvoices.length === 0 ? (
           <div className="text-center py-12">
             <BanknotesIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No invoices</h3>
@@ -607,7 +888,7 @@ className="btn-page-action inline-flex items-center"
             <div className="mt-6">
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="btn btn-primary"
+                className="btn-page-action inline-flex items-center"
               >
                 <PlusIcon className="h-5 w-5 mr-2" />
                 New Invoice
@@ -615,7 +896,7 @@ className="btn-page-action inline-flex items-center"
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" style={{backgroundColor: 'rgb(249, 250, 251)'}}>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -626,19 +907,81 @@ className="btn-page-action inline-flex items-center"
                     Project
                   </th>
                   <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                    Customer
+                    <div className="inline-flex items-center gap-1">
+                      <span>Customer</span>
+                      <span className="relative">
+                        <button
+                          type="button"
+                          className="p-0.5 text-gray-500 hover:text-gray-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const isOpening = headerFilterOpen !== 'customer';
+                            if (isOpening) {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setFilterButtonRect(rect);
+                            }
+                            setHeaderFilterOpen(isOpening ? 'customer' : null);
+                          }}
+                        >
+                          <FunnelIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    </div>
                   </th>
                   <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                    Status
+                    Total Invoices
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th onDoubleClick={() => onHeaderDblClick('status')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                    <div className="inline-flex items-center gap-1">
+                      <span>Status</span>
+                      <span className="relative">
+                        <button
+                          type="button"
+                          className="p-0.5 text-gray-500 hover:text-gray-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const isOpening = headerFilterOpen !== 'status';
+                            if (isOpening) {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setFilterButtonRect(rect);
+                            }
+                            setHeaderFilterOpen(isOpening ? 'status' : null);
+                          }}
+                        >
+                          <FunnelIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    </div>
+                  </th>
+                  <th onDoubleClick={() => onHeaderDblClick('amount')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                     Amount
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th onDoubleClick={() => onHeaderDblClick('balance_due')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                     Balance Due
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                    Due Date
+                  <th onDoubleClick={() => onHeaderDblClick('due_date')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                    <div className="inline-flex items-center gap-1">
+                      <span>Due Date</span>
+                      <span className="relative">
+                        <button
+                          type="button"
+                          className="p-0.5 text-gray-500 hover:text-gray-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const isOpening = headerFilterOpen !== 'due_date';
+                            if (isOpening) {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setFilterButtonRect(rect);
+                              setPendingDueDateFrom(dueDateFrom || '');
+                              setPendingDueDateTo(dueDateTo || '');
+                            }
+                            setHeaderFilterOpen(isOpening ? 'due_date' : null);
+                          }}
+                        >
+                          <CalendarIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    </div>
                   </th>
                   <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Actions
@@ -646,7 +989,7 @@ className="btn-page-action inline-flex items-center"
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredInvoices.map((invoice) => (
+                {displayedInvoices.map((invoice) => (
                   <tr key={invoice.id} className="hover:bg-gray-50">
                     <td className="px-3 py-2 whitespace-nowrap">
                       <div className="text-base font-semibold text-black">
@@ -661,6 +1004,11 @@ className="btn-page-action inline-flex items-center"
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-base text-black">
                       {customers.find(c => c.id === invoice.customer_id)?.display_name || 'Unknown Customer'}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-base text-black">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {getCustomerPendingInvoicesCount(invoice.customer_id)} pending
+                      </span>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className={`inline-flex px-1.5 pt-0 pb-0.5 text-xs font-light rounded-sm ${
@@ -682,18 +1030,18 @@ className="btn-page-action inline-flex items-center"
                     <td className="px-3 py-2 whitespace-nowrap text-base text-black">
                       {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : 'No due date'}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
+                    <td className="px-3 py-2 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
                         <button
                           onClick={() => navigate(`/invoices/${invoice.id}`)}
-                          className="btn btn-icon btn-view"
+                          className="inline-flex items-center justify-center p-2 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
                           title="View"
                         >
                           <EyeIcon className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => navigate(`/invoices/${invoice.id}?tab=edit`)}
-                          className="btn btn-icon btn-edit"
+                          className="inline-flex items-center justify-center p-2 rounded-md bg-gray-100 text-black hover:bg-gray-200 transition-colors"
                           title="Edit"
                         >
                           <PencilIcon className="h-4 w-4" />
@@ -714,14 +1062,14 @@ className="btn-page-action inline-flex items-center"
                               console.error('Failed to download invoice PDF:', e);
                             }
                           }}
-                          className="btn btn-icon btn-secondary"
+                          className="inline-flex items-center justify-center p-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
                           title="Download PDF"
                         >
                           <DocumentArrowDownIcon className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteInvoice(invoice.id)}
-                          className="btn btn-icon btn-delete"
+                          className="inline-flex items-center justify-center p-2 rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
                           title="Delete"
                         >
                           <TrashIcon className="h-4 w-4" />
@@ -731,11 +1079,20 @@ className="btn-page-action inline-flex items-center"
                             setSelectedInvoiceForDelivery(invoice);
                             setShowDeliveryNotes(true);
                           }}
-                          className="btn btn-icon btn-secondary"
+                          className="inline-flex items-center justify-center p-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
                           title="Delivery Notes"
                         >
                           <TruckIcon className="h-4 w-4" />
                         </button>
+                        {invoice.status !== 'paid' && invoice.status !== 'cancelled' && invoice.balance_due > 0 && (
+                          <button
+                            onClick={() => handleOpenPaymentModal(invoice)}
+                            className="inline-flex items-center justify-center p-2 rounded-md bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                            title="Record Payment"
+                          >
+                            <BanknotesIcon className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -757,6 +1114,201 @@ className="btn-page-action inline-flex items-center"
             setSelectedInvoiceForDelivery(null);
           }}
         />
+      )}
+
+      {/* Filter Portals */}
+      {headerFilterOpen === 'status' && (
+        <FilterPortal buttonRect={filterButtonRect}>
+          <div ref={headerFilterRef} className="w-40 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
+            <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter status</div>
+            <ul className="max-h-48 overflow-auto">
+              {['draft', 'sent', 'viewed', 'pending', 'paid', 'overdue', 'cancelled'].map((status) => (
+                <li key={status}>
+                  <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={filterStatuses.includes(status)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        if (e.target.checked) {
+                          setFilterStatuses([...filterStatuses, status]);
+                        } else {
+                          setFilterStatuses(filterStatuses.filter(s => s !== status));
+                        }
+                      }}
+                    />
+                    <span className="capitalize">{status}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+              <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); setFilterStatuses([]); }}>Clear</button>
+              <button className="filter-popup-btn filter-popup-btn-close" onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
+            </div>
+          </div>
+        </FilterPortal>
+      )}
+
+      {headerFilterOpen === 'customer' && (
+        <FilterPortal buttonRect={filterButtonRect}>
+          <div ref={headerFilterRef} className="w-52 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
+            <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter customer</div>
+            <ul className="max-h-48 overflow-auto">
+              {customers.map(customer => {
+                const selected = filterCustomerId === customer.id;
+                return (
+                  <li key={customer.id}>
+                    <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={selected}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setFilterCustomerId(selected ? '' : customer.id);
+                        }}
+                      />
+                      <span>{customer.display_name}</span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+              <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); setFilterCustomerId(''); }}>Clear</button>
+              <button className="filter-popup-btn filter-popup-btn-close" onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
+            </div>
+          </div>
+        </FilterPortal>
+      )}
+
+      {headerFilterOpen === 'due_date' && (
+        <FilterPortal buttonRect={filterButtonRect}>
+          <div ref={headerFilterRef} className="w-64 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{borderRadius: '5px'}}>
+            <div className="px-1 pb-1">
+              <DateRangeCalendar 
+                size="sm"
+                initialFrom={pendingDueDateFrom || null}
+                initialTo={pendingDueDateTo || null}
+                onChange={(from, to) => {
+                  if (from && !to) {
+                    setPendingDueDateFrom(from);
+                    setPendingDueDateTo(from);
+                  } else {
+                    setPendingDueDateFrom(from || '');
+                    setPendingDueDateTo(to || '');
+                  }
+                }}
+              />
+            </div>
+            <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+              <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => {
+                e.stopPropagation();
+                setDueDateFrom('');
+                setDueDateTo('');
+                setPendingDueDateFrom('');
+                setPendingDueDateTo('');
+                setHeaderFilterOpen(null);
+              }}>Clear</button>
+              <button className="filter-popup-btn filter-popup-btn-filter" onClick={(e) => {
+                e.stopPropagation();
+                setDueDateFrom(pendingDueDateFrom || '');
+                setDueDateTo(pendingDueDateTo || '');
+                setHeaderFilterOpen(null);
+              }}>Filter</button>
+            </div>
+          </div>
+        </FilterPortal>
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && selectedInvoiceForPayment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Record Payment</h3>
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ×
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">
+                Invoice: {selectedInvoiceForPayment.title}
+              </p>
+            </div>
+            
+            <form onSubmit={handleRecordPayment} className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Balance Due
+                </label>
+                <div className="text-xl font-bold text-gray-900">
+                  ${typeof selectedInvoiceForPayment.balance_due === 'number' 
+                    ? (selectedInvoiceForPayment.balance_due / 100).toFixed(2) 
+                    : '0.00'}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Payment Amount *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                  <input
+                    type="number"
+                    required
+                    min="0.01"
+                    step="0.01"
+                    max={typeof selectedInvoiceForPayment.balance_due === 'number' 
+                      ? (selectedInvoiceForPayment.balance_due / 100).toFixed(2) 
+                      : '0.00'}
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Payment Date *
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                  disabled={isRecordingPayment}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isRecordingPayment || !paymentAmount || parseFloat(paymentAmount) <= 0}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isRecordingPayment ? 'Recording...' : 'Record Payment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

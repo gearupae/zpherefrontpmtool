@@ -444,11 +444,7 @@ const TaskDetailPage: React.FC = () => {
   };
 
   if (tasksLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="large" />
-      </div>
-    );
+    return <div />;
   }
 
   if (!task) {

@@ -7,6 +7,7 @@ import dashboardSlice from './slices/dashboardSlice';
 import teamSlice from './slices/teamSlice';
 import uiSlice from './slices/uiSlice';
 import notificationSlice from './slices/notificationSlice';
+import rbacSlice from './slices/rbacSlice';
 
 export const store = configureStore({
   reducer: {
@@ -18,6 +19,7 @@ export const store = configureStore({
     team: teamSlice,
     ui: uiSlice,
     notifications: notificationSlice,
+    rbac: rbacSlice,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

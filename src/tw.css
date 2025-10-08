@@ -35,6 +35,9 @@
   h1, h2, h3, h4, h5, h6 {
     color: var(--color-text);
   }
+  /* Admin requirement: global page heading size exactly 30px */
+  h1 { font-size: 30px; line-height: 1.4; }
+  h2 { font-size: 30px; line-height: 1.4; }
 
   /* Subtle form defaults */
   input, select, textarea {
@@ -91,6 +94,9 @@
 }
 
 @layer components {
+  /* Page title utility for headings */
+  .page-title { font-size: 30px; line-height: 1.4; }
+
   /* Container and surface helpers */
   .page-container {
     @apply w-full px-3 sm:px-4 lg:px-6 py-4;
@@ -102,6 +108,14 @@
     border-top-color: var(--color-border);
     padding: 0.75rem; /* p-3 */
   }
+
+  /* Global detail card padding utility for inner detail pages */
+  .detail-card { padding: 1rem; }
+  @media (min-width: 640px) { .detail-card { padding: 1.25rem; } }
+  @media (min-width: 1024px) { .detail-card { padding: 1.5rem; } }
+
+  /* Slightly larger table header font for Projects list */
+  .projects-table thead th { font-size: 0.9375rem; }
 
   /* Base button and variants */
   .btn {

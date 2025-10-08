@@ -3,7 +3,6 @@ import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { fetchProjects } from '../../store/slices/projectSlice';
 import { fetchTasks } from '../../store/slices/taskSlice';
 import { fetchTeamMembers } from '../../store/slices/teamSlice';
-import LoadingSpinner from '../../components/UI/LoadingSpinner';
 import ProjectAnalytics from '../../components/Analytics/ProjectAnalytics';
 import TeamPerformance from '../../components/Analytics/TeamPerformance';
 import {
@@ -117,11 +116,7 @@ const AnalyticsPage: React.FC = () => {
   const analyticsData = getAnalyticsData();
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="large" />
-      </div>
-    );
+    return <div />;
   }
 
   if (!analyticsData) {
@@ -147,7 +142,7 @@ const AnalyticsPage: React.FC = () => {
         <div className="px-4 py-5 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-secondary-900">Analytics Dashboard</h1>
+              <h1 className="page-title font-bold text-secondary-900">Analytics Dashboard</h1>
               <p className="text-secondary-600 mt-1">
                 Comprehensive insights into your projects, tasks, and team performance
               </p>

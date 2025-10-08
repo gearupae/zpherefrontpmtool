@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 import { store } from './store';
 import { useAppDispatch, useAppSelector } from './hooks/redux';
 import { getCurrentUser } from './store/slices/authSlice';
+import { fetchUserPermissions } from './store/slices/rbacSlice';
 import { detectTenantContext, redirectToAppropriateContext } from './utils/tenantUtils';
 import { applyTheme } from './utils/theme';
 
@@ -28,11 +29,13 @@ import CustomersPage from './pages/Customers/CustomersPage';
 import CustomerOverviewPage from './pages/Customers/CustomerOverviewPage';
 import ProposalsPage from './pages/Proposals/ProposalsPage';
 import ProposalDetailOverviewPage from './pages/Proposals/ProposalDetailOverviewPage';
-import InvoicesPage from './pages/Invoices/InvoicesPage';
+import InvoicesPage from './pages/Invoices';
 import InvoiceDetailOverviewPage from './pages/Invoices/InvoiceDetailOverviewPage';
 import AnalyticsPage from './pages/Analytics/AnalyticsPage';
 import SettingsPage from './pages/Settings/SettingsPage';
 import SharedProjectPage from './pages/Public/SharedProjectPage';
+import SharedProposalPage from './pages/Public/SharedProposalPage';
+import VanityRedirect from './pages/Public/VanityRedirect';
 import KnowledgeHubPage from './pages/Knowledge/KnowledgeHubPage';
 import ContextCardsPage from './pages/Knowledge/ContextCardsPage';
 import HandoffSummariesPage from './pages/Knowledge/HandoffSummariesPage';
@@ -50,6 +53,8 @@ import BillingPage from './pages/Billing/BillingPage';
 import CalendarPage from './pages/Calendar/CalendarPage';
 import TodoPage from './pages/Todo/TodoPage';
 import ChatPage from './pages/Chat/ChatPage';
+import NotificationTestPage from './pages/Test/NotificationTestPage';
+import NotificationDebugPage from './pages/Test/NotificationDebugPage';
 
 // Admin Pages
 import AdminDashboardPage from './pages/Admin/AdminDashboardPage';
@@ -58,6 +63,7 @@ import TenantDetailPage from './pages/Admin/TenantDetailPage';
 import SubscriptionsPage from './pages/Admin/SubscriptionsPage';
 import AdminAnalyticsPage from './pages/Admin/AdminAnalyticsPage';
 import BillingManagementPage from './pages/Admin/BillingManagementPage';
+import AdminSettingsPage from './pages/Admin/AdminSettingsPage';
 
 // Auth Components
 import AdminRedirect from './components/Auth/AdminRedirect';
@@ -77,6 +83,7 @@ function AppContent() {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
 
+
   useEffect(() => {
     // Check if user is already logged in on app start
     const token = localStorage.getItem('access_token');
@@ -90,8 +97,16 @@ function AppContent() {
     if (user) {
       const tenantContext = detectTenantContext(user.role, user.organization);
       console.log('Tenant context detected:', tenantContext);
+      // Fetch user permissions
+      try {
+        if (user.id) {
+          dispatch(fetchUserPermissions(user.id));
+        }
+      } catch (e) {
+        // ignore
+      }
     }
-  }, [user]);
+  }, [user, dispatch]);
 
   // Apply theme based on user preference (light | dark | system)
   useEffect(() => {
@@ -128,8 +143,20 @@ function AppContent() {
             element={<SharedProjectPage />}
           />
           <Route 
+            path="/shared/proposal/:shareId" 
+            element={<SharedProposalPage />}
+          />
+          <Route 
             path="/pricing" 
             element={<PricingPage />}
+          />
+          <Route 
+            path="/p/:vanity" 
+            element={<VanityRedirect />}
+          />
+          <Route 
+            path="/pr/:vanity" 
+            element={<VanityRedirect />}
           />
 
           {/* Protected routes */}
@@ -164,6 +191,9 @@ function AppContent() {
             <Route path="chat" element={<TenantOnlyRoute><Layout><ChatPage /></Layout></TenantOnlyRoute>} />
             {/* AI */}
             <Route path="ai" element={<TenantOnlyRoute><Layout><AIDashboardPage /></Layout></TenantOnlyRoute>} />
+            {/* Test Pages (Dev/Debug) */}
+            <Route path="test/notifications" element={<TenantOnlyRoute><Layout><NotificationTestPage /></Layout></TenantOnlyRoute>} />
+            <Route path="test/notification-debug" element={<TenantOnlyRoute><Layout><NotificationDebugPage /></Layout></TenantOnlyRoute>} />
             <Route path="settings" element={<TenantOnlyRoute><Layout><SettingsPage /></Layout></TenantOnlyRoute>} />
             <Route path="billing" element={<TenantOnlyRoute><Layout><BillingPage /></Layout></TenantOnlyRoute>} />
             <Route path="collaboration" element={<TenantOnlyRoute><Layout><TeamCollaborationPage /></Layout></TenantOnlyRoute>} />
@@ -211,6 +241,7 @@ function AppContent() {
             <Route path="admin/subscriptions" element={<AdminOnlyRoute><Layout><SubscriptionsPage /></Layout></AdminOnlyRoute>} />
             <Route path="admin/analytics" element={<AdminOnlyRoute><Layout><AdminAnalyticsPage /></Layout></AdminOnlyRoute>} />
             <Route path="admin/billing" element={<AdminOnlyRoute><Layout><BillingManagementPage /></Layout></AdminOnlyRoute>} />
+            <Route path="admin/settings" element={<AdminOnlyRoute><Layout><AdminSettingsPage /></Layout></AdminOnlyRoute>} />
           </Route>
 
           {/* Catch all route */}

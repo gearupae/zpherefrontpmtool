@@ -81,6 +81,8 @@ const KnowledgeHubPage: React.FC = () => {
   // Create article modal state
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [viewArticleId, setViewArticleId] = useState<string | null>(null);
+  const [viewArticle, setViewArticle] = useState<KnowledgeArticle | null>(null);
   const [newArticle, setNewArticle] = useState({
     title: '',
     content: '',
@@ -207,9 +209,13 @@ const KnowledgeHubPage: React.FC = () => {
                 tags: newArticle.tags,
               } as any;
               const resp = await apiClient.post('/knowledge/articles/', payload);
+              // Optimistically prepend the new article so it appears instantly
+              if (resp && resp.data) {
+                setArticles(prev => [resp.data, ...prev]);
+              }
               setShowCreate(false);
               setNewArticle({ title: '', content: '', summary: '', knowledge_type: 'documentation', category: '', tags: [], is_public: false });
-              // Refresh list
+              // Refresh list in background to ensure consistency
               if (activeTab !== 'articles') setActiveTab('articles');
               await fetchData();
             } catch (e: any) {
@@ -378,6 +384,14 @@ const KnowledgeHubPage: React.FC = () => {
                           </div>
                         )}
                       </div>
+                      <div className="ml-4">
+                        <button
+                          onClick={() => { setViewArticleId(article.id); setViewArticle(article); }}
+                          className="px-3 py-1.5 text-sm bg-black text-white rounded hover:bg-gray-800"
+                        >
+                          View
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -396,6 +410,103 @@ const KnowledgeHubPage: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Article Details Modal */}
+      {viewArticleId && (
+        <ArticleDetailsModal
+          articleId={viewArticleId}
+          initialArticle={viewArticle}
+          onClose={() => { setViewArticleId(null); setViewArticle(null); }}
+        />
+      )}
+    </div>
+  );
+};
+
+const ArticleDetailsModal: React.FC<{ articleId: string; initialArticle?: any; onClose: () => void }> = ({ articleId, initialArticle, onClose }) => {
+  const [article, setArticle] = React.useState<any>(initialArticle || null);
+  const [loading, setLoading] = React.useState(true);
+  const dispatch = useAppDispatch();
+
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const { default: apiClient } = await import('../../api/client');
+        const res = await apiClient.get(`/knowledge/articles/${articleId}`);
+        setArticle(res.data);
+      } catch (e: any) {
+        console.error('Failed to load article', e);
+        // Fall back to initial article if provided
+        if (initialArticle) {
+          setArticle(initialArticle);
+        } else {
+          dispatch(addNotification({ type: 'error', title: 'Error', message: 'Failed to load article', duration: 5000 }));
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    // Always attempt fresh load; if it fails, we display the fallback
+    load();
+  }, [articleId, initialArticle, dispatch]);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 className="text-lg font-medium text-gray-900">Article Details</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <div className="px-6 py-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
+          ) : article ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-semibold text-gray-900">{article.title}</h2>
+                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                  article.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {article.status}
+                </span>
+              </div>
+              {article.summary && <p className="text-gray-600">{article.summary}</p>}
+              <div className="text-sm text-gray-500 flex items-center gap-2">
+                <span>By {article.author_name || 'Unknown'}</span>
+                <span>•</span>
+                <span>{article.estimated_read_time} min read</span>
+                {article.project_name && (
+                  <>
+                    <span>•</span>
+                    <span>Project: {article.project_name}</span>
+                  </>
+                )}
+              </div>
+              {Array.isArray(article.tags) && article.tags.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <TagIcon className="h-4 w-4 text-gray-400" />
+                  <div className="flex flex-wrap gap-1">
+                    {article.tags.map((t: string, idx: number) => (
+                      <span key={idx} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">{t}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="prose prose-sm max-w-none">
+                <pre className="whitespace-pre-wrap text-gray-800">{article.content}</pre>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center text-gray-500 py-8">Article not found.</div>
+          )}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+          <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm">Close</button>
+        </div>
+      </div>
     </div>
   );
 };

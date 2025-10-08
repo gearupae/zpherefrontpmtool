@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { encodeShareIdCompact, slugify } from '../../utils/shortLink';
 import {
   CalendarIcon,
   CurrencyDollarIcon,
@@ -94,6 +95,42 @@ const SharedProjectPage: React.FC = () => {
   const [newComments, setNewComments] = useState<Record<string, { content: string; name: string; email: string }>>({});
   const [projectComment, setProjectComment] = useState({ content: '', name: '', email: '' });
   const [isSubmittingProjectComment, setIsSubmittingProjectComment] = useState(false);
+
+  // Short link state must be declared unconditionally (before any early returns)
+  const [copied, setCopied] = useState(false);
+  const shortLink = useMemo(() => {
+    const name = projectData?.project?.name || 'project';
+    if (!shareId) return null;
+    const code = encodeShareIdCompact(shareId);
+    if (!code) return null;
+    const slug = slugify(name);
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `${origin}/p/${slug}-${code}`;
+  }, [shareId, projectData?.project?.name]);
+
+  const copyShortLink = async () => {
+    if (!shortLink) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shortLink);
+      } else {
+        // Fallback
+        const el = document.createElement('textarea');
+        el.value = shortLink;
+        el.setAttribute('readonly', '');
+        el.style.position = 'absolute';
+        el.style.left = '-9999px';
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     const fetchSharedProject = async () => {
@@ -218,6 +255,7 @@ const SharedProjectPage: React.FC = () => {
 
   const { project, tasks, organization, team, customer } = projectData;
 
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -232,6 +270,15 @@ const SharedProjectPage: React.FC = () => {
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-bold text-black mb-2 px-1">{project.name}</h1>
               <div className="flex flex-wrap items-center gap-3">
+                {shortLink ? (
+                  <button
+                    onClick={copyShortLink}
+                    className="ml-auto inline-flex items-center px-3 py-1.5 rounded-lg bg-black text-white text-xs font-medium hover:bg-gray-800 transition-colors"
+                    title={shortLink}
+                  >
+                    {copied ? 'Copied!' : 'Copy short link'}
+                  </button>
+                ) : null}
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 border border-gray-200 text-xs font-medium">
                   <BuildingOfficeIcon className="h-4 w-4 mr-1.5 text-gray-700" />
                   {organization.name}

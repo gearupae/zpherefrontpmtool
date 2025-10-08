@@ -214,33 +214,24 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
     }));
   };
 
-  const calculateSubtotal = () => {
-    return selectedItems.reduce((total, selectedItem) => {
-      const subtotal = selectedItem.quantity * selectedItem.unit_price;
-      const taxAmount = subtotal * (selectedItem.tax_rate / 100);
-      const discountAmount = subtotal * (selectedItem.discount_rate / 100);
-      return total + subtotal + taxAmount - discountAmount;
-    }, 0);
+  // Per-line computations in dollars (UI values)
+  const calcLineNet = (si: SelectedItem) => {
+    const subtotal = (Number(si.quantity) || 0) * (Number(si.unit_price) || 0);
+    const discount = subtotal * ((Number(si.discount_rate) || 0) / 100);
+    return subtotal - discount; // excl. VAT
+  };
+  const calcLineVat = (si: SelectedItem) => {
+    const net = calcLineNet(si);
+    return net * ((Number(si.tax_rate) || 0) / 100);
+  };
+  const calculateTotals = () => {
+    const net = selectedItems.reduce((acc, si) => acc + calcLineNet(si), 0);
+    const vat = selectedItems.reduce((acc, si) => acc + calcLineVat(si), 0);
+    const gross = net + vat;
+    return { net, vat, gross };
   };
 
-  const calculateTax = () => {
-    const subtotal = calculateSubtotal();
-    return Math.round((subtotal * formData.tax_rate) / 10000); // tax_rate is in basis points
-  };
-
-  const calculateDiscount = () => {
-    const subtotal = calculateSubtotal();
-    return Math.round((subtotal * formData.discount_rate) / 10000); // discount_rate is in basis points
-  };
-
-  const calculateTotal = () => {
-    const subtotal = calculateSubtotal();
-    const tax = calculateTax();
-    const discount = calculateDiscount();
-    return subtotal + tax - discount;
-  };
-
-  const formatCurrency = (cents: number) => (cents / 100).toFixed(2);
+  const formatCurrency = (amount: number) => amount.toFixed(2);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -280,7 +271,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
   );
 
   return (
-    <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg">
+    <div className="bg-white rounded-lg shadow-lg">
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
@@ -296,7 +287,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 space-y-8">
+      <form onSubmit={handleSubmit} className="px-6 py-6 space-y-8">
         {/* Basic Information */}
         <div className="space-y-6">
           <h3 className="text-lg font-medium text-gray-900 flex items-center space-x-2">
@@ -500,355 +491,36 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
         </div>
 
         {/* Invoice Summary */}
-        {selectedItems.length > 0 && (
-          <div className="bg-secondary-50 rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Invoice Summary</h3>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span>${formatCurrency(calculateSubtotal())}</span>
-              </div>
-              {formData.discount_rate > 0 && (
-                <div className="flex justify-between text-red-600">
-                  <span>Discount ({(formData.discount_rate / 100).toFixed(2)}%):</span>
-                  <span>-${formatCurrency(calculateDiscount())}</span>
-                </div>
-              )}
-              {formData.tax_rate > 0 && (
+        {selectedItems.length > 0 && (() => {
+          const { net, vat, gross } = calculateTotals();
+          return (
+            <div className="bg-secondary-50 rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Invoice Summary</h3>
+              <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span>Tax ({(formData.tax_rate / 100).toFixed(2)}%):</span>
-                  <span>${formatCurrency(calculateTax())}</span>
+                  <span>Total (excl. VAT):</span>
+                  <span>${formatCurrency(net)}</span>
                 </div>
-              )}
-              <div className="border-t border-gray-300 pt-2">
-                <div className="flex justify-between text-lg font-semibold">
-                  <span>Total:</span>
-                  <span className="text-user-blue">${formatCurrency(calculateTotal())}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Status & Payment Management */}
-        <div className="space-y-6">
-          <h3 className="text-lg font-medium text-gray-900 flex items-center space-x-2">
-            <ExclamationTriangleIcon className="h-5 w-5 text-gray-500" />
-            <span>Status & Payment Management</span>
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Invoice Status
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="draft">Draft</option>
-                <option value="sent">Sent</option>
-                <option value="viewed">Viewed</option>
-                <option value="pending">Pending</option>
-                <option value="partially_paid">Partially Paid</option>
-                <option value="paid">Paid</option>
-                <option value="overdue">Overdue</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="void">Void</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Amount Paid
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.amount_paid ? (formData.amount_paid / 100).toFixed(2) : ''}
-                onChange={(e) => {
-                  const paid = parseFloat(e.target.value || '0') * 100;
-                  const total = formData.total_amount || calculateTotal();
-                  const balance = Math.max(0, total - paid);
-                  const percentage = total > 0 ? (paid / total) * 100 : 0;
-                  
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    amount_paid: paid,
-                    balance_due: balance,
-                    payment_percentage: percentage
-                  }));
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="0.00"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Balance Due
-              </label>
-              <input
-                type="text"
-                value={`$${((formData.balance_due || 0) / 100).toFixed(2)}`}
-                readOnly
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
-              />
-            </div>
-          </div>
-          
-          {formData.amount_paid && formData.amount_paid > 0 && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <CheckCircleIcon className="h-5 w-5 text-green-600" />
-                  <span className="text-green-800 font-medium">
-                    Payment Progress: {((formData.payment_percentage || 0)).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="text-green-700">
-                  ${((formData.amount_paid || 0) / 100).toFixed(2)} paid of ${((formData.total_amount || calculateTotal()) / 100).toFixed(2)}
-                </div>
-              </div>
-              <div className="mt-2 w-full bg-green-200 rounded-full h-2">
-                <div 
-                  className="bg-green-600 h-2 rounded-full transition-all duration-300" 
-                  style={{width: `${Math.min(100, formData.payment_percentage || 0)}%`}}
-                ></div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Payment History */}
-        {mode === 'edit' && formData.payment_history && formData.payment_history.length > 0 && (
-          <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center space-x-2">
-              <CreditCardIcon className="h-5 w-5 text-gray-500" />
-              <span>Payment History</span>
-            </h3>
-            
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="space-y-3">
-                {formData.payment_history.map((payment, index) => (
-                  <div key={index} className="bg-white rounded-lg p-3 border border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <div>
-                          <div className="font-medium text-gray-900">
-                            ${(payment.amount / 100).toFixed(2)}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {payment.payment_method} • {new Date(payment.payment_date).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                      {payment.reference && (
-                        <div className="text-sm text-gray-600">
-                          Ref: {payment.reference}
-                        </div>
-                      )}
-                    </div>
-                    {payment.notes && (
-                      <div className="mt-2 text-sm text-gray-600">
-                        {payment.notes}
-                      </div>
-                    )}
+                {vat > 0 && (
+                  <div className="flex justify-between">
+                    <span>VAT:</span>
+                    <span>${formatCurrency(vat)}</span>
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Add Payment Section */}
-        {mode === 'edit' && formData.status && !['paid', 'cancelled', 'void'].includes(formData.status) && (
-          <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center space-x-2">
-              <CreditCardIcon className="h-5 w-5 text-gray-500" />
-              <span>Record Payment</span>
-            </h3>
-            
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Payment Amount
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    max={((formData.balance_due || 0) / 100).toFixed(2)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder={`Max: $${((formData.balance_due || 0) / 100).toFixed(2)}`}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Payment Method
-                  </label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent">
-                    <option value="cash">Cash</option>
-                    <option value="check">Check</option>
-                    <option value="credit_card">Credit Card</option>
-                    <option value="bank_transfer">Bank Transfer</option>
-                    <option value="paypal">PayPal</option>
-                    <option value="stripe">Stripe</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Payment Date
-                  </label>
-                  <input
-                    type="date"
-                    defaultValue={new Date().toISOString().split('T')[0]}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Reference Number
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="Transaction ID, Check #, etc."
-                  />
+                )}
+                <div className="border-t border-gray-300 pt-2">
+                  <div className="flex justify-between text-lg font-semibold">
+                    <span>Subtotal (incl. VAT):</span>
+                    <span className="text-user-blue">${formatCurrency(gross)}</span>
+                  </div>
                 </div>
               </div>
-              
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Notes
-                </label>
-                <textarea
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  placeholder="Optional notes about this payment..."
-                />
-              </div>
-              
-              <div className="mt-4 flex justify-end">
-                <button
-                  type="button"
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                >
-                  Record Payment
-                </button>
-              </div>
             </div>
-          </div>
-        )}
-
-        {/* Tags & Tracking */}
-        <div className="space-y-6">
-          <h3 className="text-lg font-medium text-gray-900 flex items-center space-x-2">
-            <TagIcon className="h-5 w-5 text-gray-500" />
-            <span>Tags & Tracking</span>
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tags (comma-separated)
-              </label>
-              <input
-                type="text"
-                value={formData.tags?.join(', ') || ''}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  tags: e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
-                }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="e.g., urgent, monthly, recurring"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Late Fees
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.late_fees ? (formData.late_fees / 100).toFixed(2) : ''}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  late_fees: Math.round(parseFloat(e.target.value || '0') * 100)
-                }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-          
-          {mode === 'edit' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Date Sent
-                </label>
-                <input
-                  type="date"
-                  value={formData.sent_date ? new Date(formData.sent_date).toISOString().split('T')[0] : ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, sent_date: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Date Viewed
-                </label>
-                <input
-                  type="date"
-                  value={formData.viewed_date ? new Date(formData.viewed_date).toISOString().split('T')[0] : ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, viewed_date: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Date Paid
-                </label>
-                <input
-                  type="date"
-                  value={formData.paid_date ? new Date(formData.paid_date).toISOString().split('T')[0] : ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, paid_date: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-          )}
-        </div>
+          );
+        })()}
 
         {/* Terms and Notes */}
         <div className="space-y-6">
           <h3 className="text-lg font-medium text-gray-900">Additional Information</h3>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Terms & Conditions
-            </label>
-            <textarea
-              rows={4}
-              value={formData.terms_and_conditions}
-              onChange={(e) => setFormData(prev => ({ ...prev, terms_and_conditions: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              placeholder="Payment terms, late fees, etc."
-            />
-          </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -862,6 +534,9 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
               placeholder="Internal notes (not visible to client)"
             />
           </div>
+          <p className="text-sm text-gray-500">
+            <strong>Note:</strong> Terms & Conditions are managed in Settings and will be applied automatically.
+          </p>
         </div>
 
         {/* Submit Buttons */}

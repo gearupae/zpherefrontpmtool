@@ -1,17 +1,74 @@
 import React, { useEffect, useState, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux';
-import { fetchTasks, createTask, updateTask, deleteTask } from '../../store/slices/taskSlice';
-import { fetchProjects } from '../../store/slices/projectSlice';
-import { addNotification } from '../../store/slices/notificationSlice';
 import { Task, TaskStatus, TaskPriority, TaskType, Project } from '../../types';
-import LoadingSpinner from '../../components/UI/LoadingSpinner';
+import { addNotification } from '../../store/slices/notificationSlice';
+import { useHasPermission } from '../../utils/permissions';
 import FlexibleTaskViews from '../../components/Views/FlexibleTaskViews';
 import KanbanBoard from '../../components/Views/KanbanBoard';
 import CalendarView from '../../components/Views/CalendarView';
 import GanttChart from '../../components/Views/GanttChart';
-import { PlusIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon, EyeIcon, Squares2X2Icon, CalendarIcon, ChartBarIcon, ListBulletIcon, CogIcon, ViewfinderCircleIcon, PencilIcon, TrashIcon, CheckIcon, MagnifyingGlassIcon, FunnelIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { fetchTasks, createTask, updateTask, deleteTask } from '../../store/slices/taskSlice';
+import { fetchProjects } from '../../store/slices/projectSlice';
+import { PlusIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon, EyeIcon, Squares2X2Icon, CalendarIcon, ChartBarIcon, ListBulletIcon, CogIcon, ViewfinderCircleIcon, PencilIcon, TrashIcon, CheckIcon, MagnifyingGlassIcon, FunnelIcon, ArrowPathIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import DateRangeCalendar from '../../components/UI/DateRangeCalendar';
+import './FilterButtons.css';
+import ListenMeetingButton from '../../components/Audio/ListenMeetingButton';
+
+// Portal component for rendering filter popups outside table overflow context
+const FilterPortal: React.FC<{ children: React.ReactNode; buttonRect: DOMRect | null; align?: 'left' | 'right' }> = ({ children, buttonRect, align = 'left' }) => {
+  if (!buttonRect) return null;
+  
+  // Calculate position based on alignment
+  const getPosition = () => {
+    if (align === 'right') {
+      // Get the child element width to calculate right alignment
+      // We'll use transform to shift it right-aligned
+      return {
+        position: 'fixed' as const,
+        right: `${window.innerWidth - buttonRect.right}px`,
+        top: `${buttonRect.bottom + 4}px`,
+        zIndex: 99999,
+      };
+    }
+    return {
+      position: 'fixed' as const,
+      left: `${buttonRect.left}px`,
+      top: `${buttonRect.bottom + 4}px`,
+      zIndex: 99999,
+    };
+  };
+  
+  return ReactDOM.createPortal(
+    <div
+      style={getPosition()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>,
+    document.body
+  );
+};
+
+// Portal for inline edit popovers (assignees, assigner)
+const InlineEditPortal: React.FC<{ children: React.ReactNode; rect: DOMRect | null }> = ({ children, rect }) => {
+  if (!rect) return null;
+  return ReactDOM.createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        left: `${rect.left}px`,
+        top: `${rect.bottom + 4}px`,
+        zIndex: 99999,
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>,
+    document.body
+  );
+};
 
 const TasksPage: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -24,6 +81,8 @@ const TasksPage: React.FC = () => {
   const [currentView, setCurrentView] = useState<'list' | 'kanban' | 'calendar' | 'gantt'>('list');
   const [useFlexibleViews, setUseFlexibleViews] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
+  const hasPermission = useHasPermission();
+  const canCreateTasks = hasPermission('Tasks', 'create');
   const [tasksWithAssignees, setTasksWithAssignees] = useState<any[]>([]);
   const [availability, setAvailability] = useState<Record<string, { available: boolean; conflicts: any[] }>>({});
   const [checkingAvailability, setCheckingAvailability] = useState(false);
@@ -38,7 +97,15 @@ const TasksPage: React.FC = () => {
   const [taskSearch, setTaskSearch] = useState('');
   const [filterStatusHead, setFilterStatusHead] = useState<TaskStatus[]>([]);
   const [filterPriorityHead, setFilterPriorityHead] = useState<TaskPriority[]>([]);
-  const [headerFilterOpen, setHeaderFilterOpen] = useState<null | 'status' | 'priority'>(null);
+  const [filterAssigneeIds, setFilterAssigneeIds] = useState<string[]>([]);
+  const [filterAssignerIds, setFilterAssignerIds] = useState<string[]>([]);
+  const [filterProjectIds, setFilterProjectIds] = useState<string[]>([]);
+  const [filterDueDateFrom, setFilterDueDateFrom] = useState('');
+  const [filterDueDateTo, setFilterDueDateTo] = useState('');
+  const [pendingDueFrom, setPendingDueFrom] = useState('');
+  const [pendingDueTo, setPendingDueTo] = useState('');
+  const [headerFilterOpen, setHeaderFilterOpen] = useState<null | 'status' | 'priority' | 'due_date' | 'assignees' | 'assigner' | 'project'>(null);
+  const [filterButtonRect, setFilterButtonRect] = useState<DOMRect | null>(null);
   const headerFilterRef = useRef<HTMLDivElement | null>(null);
 
   // Toolbar date filter state
@@ -47,6 +114,7 @@ const TasksPage: React.FC = () => {
   const [toolbarDateOpen, setToolbarDateOpen] = useState(false);
   const [pendingToolbarFrom, setPendingToolbarFrom] = useState('');
   const [pendingToolbarTo, setPendingToolbarTo] = useState('');
+  const [toolbarDateButtonRect, setToolbarDateButtonRect] = useState<DOMRect | null>(null);
   const toolbarDateRef = useRef<HTMLDivElement | null>(null);
 
   // Inline edit state for list (match Projects inline UX)
@@ -54,6 +122,18 @@ const TasksPage: React.FC = () => {
   const [editingField, setEditingField] = useState<'status' | 'priority' | 'due_date' | null>(null);
   const [editValue, setEditValue] = useState<any>(null);
   const inlinePopoverRef = useRef<HTMLDivElement | null>(null);
+  
+  // Inline edit for assignees and assigner
+  const [assigneesEditorOpen, setAssigneesEditorOpen] = useState<string | null>(null);
+  const [assignerEditorOpen, setAssignerEditorOpen] = useState<string | null>(null);
+  const [assigneesEditorRect, setAssigneesEditorRect] = useState<DOMRect | null>(null);
+  const [assignerEditorRect, setAssignerEditorRect] = useState<DOMRect | null>(null);
+  const [assigneesSelection, setAssigneesSelection] = useState<string[]>([]);
+  const [assignerSelection, setAssignerSelection] = useState<string | null>(null);
+  const [assigneesInlineFilter, setAssigneesInlineFilter] = useState('');
+  const [assignerInlineFilter, setAssignerInlineFilter] = useState('');
+  const assigneesEditorRef = useRef<HTMLDivElement | null>(null);
+  const assignerEditorRef = useRef<HTMLDivElement | null>(null);
   // Sprint UI state
   const [showSprintPanel, setShowSprintPanel] = useState(false);
   const selectedSprint = '';
@@ -83,6 +163,9 @@ const TasksPage: React.FC = () => {
     frequency: 'weekly',
     interval: 1,
   });
+  // Pending attachments during creation
+  const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
 
   // Calculate task statistics
   const taskStats = React.useMemo(() => {
@@ -91,7 +174,8 @@ const TasksPage: React.FC = () => {
         total: 0,
         notStarted: 0,
         inProgress: 0,
-        completed: 0
+        completed: 0,
+        critical: 0,
       };
     }
 
@@ -99,7 +183,8 @@ const TasksPage: React.FC = () => {
       total: tasks.length,
       notStarted: tasks.filter((task: Task) => task.status === TaskStatus.TODO).length,
       inProgress: tasks.filter((task: Task) => task.status === TaskStatus.IN_PROGRESS).length,
-      completed: tasks.filter((task: Task) => task.status === TaskStatus.COMPLETED).length
+      completed: tasks.filter((task: Task) => task.status === TaskStatus.COMPLETED).length,
+      critical: tasks.filter((task: Task) => task.priority === TaskPriority.CRITICAL).length,
     };
   }, [tasks]);
 
@@ -114,10 +199,18 @@ const TasksPage: React.FC = () => {
         setEditingField(null);
         setEditValue(null);
       }
+      if (assigneesEditorOpen && assigneesEditorRef.current && !assigneesEditorRef.current.contains(e.target as Node)) {
+        setAssigneesEditorOpen(null);
+        setAssigneesSelection([]);
+      }
+      if (assignerEditorOpen && assignerEditorRef.current && !assignerEditorRef.current.contains(e.target as Node)) {
+        setAssignerEditorOpen(null);
+        setAssignerSelection(null);
+      }
     };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
-  }, []);
+  }, [assigneesEditorOpen, assignerEditorOpen, editingTaskId, headerFilterOpen, toolbarDateOpen]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -304,7 +397,7 @@ const TasksPage: React.FC = () => {
       
       try {
         // If recurrence is enabled, create a template and generate the first task
-        if (repeatEnabled && repeatPreset !== 'none') {
+        if (repeatPreset !== 'none') {
           const { default: apiClient } = await import('../../api/client');
 
           // Map preset to frequency/interval
@@ -384,11 +477,26 @@ const TasksPage: React.FC = () => {
             }
           }
 
-          addNotification({
+          // Upload pending attachments
+          if (pendingAttachments.length > 0 && createdTaskId) {
+            for (const file of pendingAttachments) {
+              try {
+                const fd = new FormData();
+                fd.append('file', file);
+                await apiClient.post(`/tasks/${createdTaskId}/attachments`, fd, {
+                  headers: { 'Content-Type': 'multipart/form-data' },
+                });
+              } catch (err) {
+                console.warn('Failed to upload attachment for recurring task', err);
+              }
+            }
+          }
+
+          dispatch(addNotification({
             title: 'Success',
             type: 'success',
             message: 'Recurring task created successfully',
-          });
+          }));
 
           // Reset form and close
           setNewTask({
@@ -425,10 +533,25 @@ const TasksPage: React.FC = () => {
         // Create the task with single assignee_id (first assignee if multiple)
         // Remove created_by_id as it's set automatically by the API
         const { created_by_id, assignee_ids, ...taskFields } = newTask;
-        const taskData = {
+        // Normalize sprint date fields to ISO 8601 datetimes expected by backend
+        // Only include dates if they have values, and ensure proper formatting
+        const taskData: any = {
           ...taskFields,
-          assignee_id: assignee_ids.length > 0 ? assignee_ids[0] : undefined
+          assignee_id: assignee_ids.length > 0 ? assignee_ids[0] : undefined,
         };
+        
+        // Convert date strings (YYYY-MM-DD) to full ISO 8601 datetime strings
+        if (taskFields.sprint_start_date) {
+          taskData.sprint_start_date = `${taskFields.sprint_start_date}T00:00:00.000Z`;
+        } else {
+          delete taskData.sprint_start_date;
+        }
+        
+        if (taskFields.sprint_end_date) {
+          taskData.sprint_end_date = `${taskFields.sprint_end_date}T23:59:59.999Z`;
+        } else {
+          delete taskData.sprint_end_date;
+        }
         
         console.log('=== DEBUGGING: Task data for main API:', taskData);
         console.log('=== DEBUGGING: Assignee IDs to process:', assignee_ids);
@@ -466,12 +589,28 @@ const TasksPage: React.FC = () => {
             }
           }
         }
+
+        // Upload pending attachments
+        if (pendingAttachments.length > 0) {
+          const { default: apiClient } = await import('../../api/client');
+          for (const file of pendingAttachments) {
+            try {
+              const fd = new FormData();
+              fd.append('file', file);
+              await apiClient.post(`/tasks/${createdTask.id}/attachments`, fd, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+              });
+            } catch (err) {
+              console.warn('Failed to upload attachment for task', err);
+            }
+          }
+        }
         
-        addNotification({
+        dispatch(addNotification({
           title: 'Success',
           type: 'success',
           message: 'Task created successfully'
-        });
+        }));
         
         setNewTask({
           title: '',
@@ -490,6 +629,7 @@ const TasksPage: React.FC = () => {
           created_by_id: '',
           visible_to_customer: false,
         });
+        setPendingAttachments([]);
         setShowCreateForm(false);
         
         // Refresh tasks with assignees
@@ -497,13 +637,14 @@ const TasksPage: React.FC = () => {
         if (taskAction.type === 'tasks/fetchTasks/fulfilled') {
           await fetchTaskAssignees(taskAction.payload);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('=== DEBUGGING: Failed to create task:', error);
-        addNotification({
+        const msg = typeof error === 'string' ? error : (error?.response?.data?.detail || 'Failed to create task');
+        dispatch(addNotification({
           title: 'Error',
           type: 'error',
-          message: 'Failed to create task'
-        });
+          message: msg
+        }));
       }
     } else {
       console.log('=== DEBUGGING: Form validation failed!');
@@ -591,8 +732,16 @@ const TasksPage: React.FC = () => {
     }
   };
 
+  const [inlineEditRect, setInlineEditRect] = useState<DOMRect | null>(null);
+
   const startInlineEditTask = (e: React.MouseEvent, task: Task, field: 'status' | 'priority' | 'due_date') => {
     e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    if (target && typeof target.getBoundingClientRect === 'function') {
+      setInlineEditRect(target.getBoundingClientRect());
+    } else {
+      setInlineEditRect(null);
+    }
     setEditingTaskId(task.id);
     setEditingField(field);
     if (field === 'status') setEditValue(task.status);
@@ -624,25 +773,144 @@ const TasksPage: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="large" />
-      </div>
-    );
-  }
+  // Inline edit functions for assignees
+  const openAssigneesInlineEditor = (e: React.MouseEvent, taskId: string) => {
+    e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    if (target && typeof target.getBoundingClientRect === 'function') {
+      setAssigneesEditorRect(target.getBoundingClientRect());
+    } else {
+      setAssigneesEditorRect(null);
+    }
+    setAssigneesEditorOpen(taskId);
+    // Seed selection from current task assignees
+    const task = tasksWithAssignees.find((t: any) => t.id === taskId);
+    if (task) {
+      const ids = task.assignee_ids || (task.assignee_id ? [task.assignee_id] : []);
+      setAssigneesSelection(ids);
+    }
+  };
+
+  const toggleAssigneesSelect = (userId: string) => {
+    setAssigneesSelection(prev => (prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]));
+  };
+
+  const saveAssigneesInlineEdit = async (taskId: string) => {
+    try {
+      const { default: apiClient } = await import('../../api/client');
+      
+      // Remove all existing assignees first
+      const task = tasksWithAssignees.find((t: any) => t.id === taskId);
+      const existingIds = task?.assignee_ids || (task?.assignee_id ? [task.assignee_id] : []);
+      for (const uid of existingIds) {
+        try {
+          await apiClient.delete(`/task-assignees/tasks/${taskId}/assignees/${uid}`);
+        } catch (e) {
+          console.warn('Failed to remove assignee:', e);
+        }
+      }
+      
+      // Add new assignees
+      for (let i = 0; i < assigneesSelection.length; i++) {
+        const userId = assigneesSelection[i];
+        await apiClient.post(`/task-assignees/tasks/${taskId}/assignees`, {
+          user_id: userId,
+          is_primary: i === 0
+        });
+      }
+      
+      // Update local state
+      setTasksWithAssignees((prev) => {
+        return prev.map(t => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              assignee_ids: assigneesSelection,
+              assignee_id: assigneesSelection[0] || null
+            };
+          }
+          return t;
+        });
+      });
+      
+      setAssigneesEditorOpen(null);
+      setAssigneesSelection([]);
+    } catch (e) {
+      console.error('Failed to save assignees:', e);
+    }
+  };
+
+  const cancelAssigneesInlineEdit = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setAssigneesEditorOpen(null);
+    setAssigneesSelection([]);
+    setAssigneesEditorRect(null);
+  };
+
+  // Inline edit functions for assigner
+  const openAssignerInlineEditor = (e: React.MouseEvent, taskId: string) => {
+    e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    if (target && typeof target.getBoundingClientRect === 'function') {
+      setAssignerEditorRect(target.getBoundingClientRect());
+    } else {
+      setAssignerEditorRect(null);
+    }
+    setAssignerEditorOpen(taskId);
+    // Seed selection from current task assigner
+    const task = tasksWithAssignees.find((t: any) => t.id === taskId);
+    if (task && task.created_by_id) {
+      setAssignerSelection(task.created_by_id);
+    }
+  };
+
+  const saveAssignerInlineEdit = async (taskId: string) => {
+    try {
+      if (!assignerSelection) return;
+      await dispatch(updateTask({ id: taskId, data: { created_by_id: assignerSelection } })).unwrap();
+      
+      // Update local state
+      setTasksWithAssignees((prev) => {
+        return prev.map(t => {
+          if (t.id === taskId) {
+            return { ...t, created_by_id: assignerSelection };
+          }
+          return t;
+        });
+      });
+      
+      setAssignerEditorOpen(null);
+      setAssignerSelection(null);
+    } catch (e) {
+      console.error('Failed to save assigner:', e);
+    }
+  };
+
+  const cancelAssignerInlineEdit = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setAssignerEditorOpen(null);
+    setAssignerSelection(null);
+    setAssignerEditorRect(null);
+  };
+
+  // Avoid blocking spinner; render the page and let data populate quietly
 
   return (
     <div className="space-y-6">
       {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-secondary-900">Tasks</h1>
+            <h1 className="page-title font-bold text-gray-900">Tasks</h1>
             <p className="text-secondary-600 mt-1">
               Manage and track your project tasks
             </p>
           </div>
+          {!canCreateTasks && (
+            <div className="text-sm text-gray-600 mr-4">You don’t have permission to create tasks.</div>
+          )}
           <div className="flex space-x-3">
+            {/* Listen Meeting just before sprint */}
+            <ListenMeetingButton />
             {/* Sprint quick setup */}
             <button
               onClick={() => setShowSprintPanel(true)}
@@ -652,66 +920,73 @@ const TasksPage: React.FC = () => {
               <span>🏁 Sprint</span>
             </button>
             <button
-            onClick={() => setUseFlexibleViews(!useFlexibleViews)}
-            className={`flex items-center space-x-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border ${
-              useFlexibleViews
-                ? 'bg-blue-50 border-blue-200 text-blue-700'
-                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-            title={useFlexibleViews ? 'Switch to Classic Views' : 'Switch to Enhanced Views'}
-          >
-            {useFlexibleViews ? (
-              <>
-                <ViewfinderCircleIcon className="w-4 h-4" />
-                <span>Enhanced Views</span>
-              </>
-            ) : (
-              <>
-                <CogIcon className="w-4 h-4" />
-                <span>Classic Views</span>
-              </>
+              onClick={() => setUseFlexibleViews(!useFlexibleViews)}
+              className={`flex items-center space-x-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border ${
+                useFlexibleViews
+                  ? 'bg-blue-50 border-blue-200 text-blue-700'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+              title={useFlexibleViews ? 'Switch to Classic Views' : 'Switch to Enhanced Views'}
+            >
+              {useFlexibleViews ? (
+                <>
+                  <ViewfinderCircleIcon className="w-4 h-4" />
+                  <span>Enhanced Views</span>
+                </>
+              ) : (
+                <>
+                  <CogIcon className="w-4 h-4" />
+                  <span>Classic Views</span>
+                </>
+              )}
+            </button>
+            {!useFlexibleViews && (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setCurrentView('list')}
+                  className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border ${currentView === 'list' ? 'bg-black text-white border-black' : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'}`}
+                  aria-pressed={currentView === 'list'}
+                >
+                  <ListBulletIcon className="w-4 h-4" />
+                  <span>List</span>
+                </button>
+                <button
+                  onClick={() => setCurrentView('kanban')}
+                  className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border ${currentView === 'kanban' ? 'bg-black text-white border-black' : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'}`}
+                  aria-pressed={currentView === 'kanban'}
+                >
+                  <Squares2X2Icon className="w-4 h-4" />
+                  <span>Kanban</span>
+                </button>
+                <button
+                  onClick={() => setCurrentView('calendar')}
+                  className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border ${currentView === 'calendar' ? 'bg-black text-white border-black' : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'}`}
+                  aria-pressed={currentView === 'calendar'}
+                >
+                  <CalendarIcon className="w-4 h-4" />
+                  <span>Calendar</span>
+                </button>
+                <button
+                  onClick={() => setCurrentView('gantt')}
+                  className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border ${currentView === 'gantt' ? 'bg-black text-white border-black' : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'}`}
+                  aria-pressed={currentView === 'gantt'}
+                >
+                  <ChartBarIcon className="w-4 h-4" />
+                  <span>Timeline</span>
+                </button>
+              </div>
             )}
-          </button>
-          {!useFlexibleViews && (
-            <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setCurrentView('list')}
-className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-gray-900"
-            >
-              <ListBulletIcon className="w-4 h-4" />
-              <span>List</span>
+        <button
+          onClick={() => setShowCreateForm(true)}
+          disabled={!canCreateTasks}
+          title={canCreateTasks ? 'Create a new task' : 'You do not have permission to create tasks'}
+          className={`btn-page-action flex items-center btn-styled btn-create-auto ${!canCreateTasks ? 'opacity-50 cursor-not-allowed' : ''}`}
+          style={{ backgroundColor: 'rgb(0, 0, 0)', color: 'white', borderColor: 'rgb(0, 0, 0)', fontSize: '0.875rem', padding: '0.2rem 0.75rem' }}
+        >
+              <PlusIcon className="h-5 w-5" />
+              <span>New Task</span>
             </button>
-            <button
-              onClick={() => setCurrentView('kanban')}
-className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-gray-900"
-            >
-              <Squares2X2Icon className="w-4 h-4" />
-              <span>Kanban</span>
-            </button>
-            <button
-              onClick={() => setCurrentView('calendar')}
-className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-gray-900"
-            >
-              <CalendarIcon className="w-4 h-4" />
-              <span>Calendar</span>
-            </button>
-            <button
-              onClick={() => setCurrentView('gantt')}
-className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-gray-900"
-            >
-              <ChartBarIcon className="w-4 h-4" />
-              <span>Timeline</span>
-            </button>
-            </div>
-          )}
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="btn-page-action flex items-center btn-styled btn-create-auto" style={{ backgroundColor: 'rgb(0, 0, 0)', color: 'white', borderColor: 'rgb(0, 0, 0)', fontSize: '0.875rem', padding: '0.2rem 0.75rem' }}
-          >
-            <PlusIcon className="h-5 w-5" />
-            <span>New Task</span>
-          </button>
-      </div>
+          </div>
         </div>
 
       {/* Sprint Panel */}
@@ -765,11 +1040,12 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
       )}
 
       {/* Create Task Form */}
-      {showCreateForm && (
+      {showCreateForm && canCreateTasks && (
         <div className="bg-white shadow rounded-lg p-6">
           <h2 className="text-lg font-medium text-secondary-900 mb-4">Create New Task</h2>
           <form onSubmit={handleCreateTask} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Row 1: Title, Project, Assignees */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="title" className="block text-sm font-medium text-secondary-700">
                   Task Title
@@ -803,80 +1079,7 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                   ))}
                 </select>
               </div>
-            </div>
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-secondary-700">
-                Description
-              </label>
-              <textarea
-                id="description"
-                rows={3}
-                value={newTask.description}
-                onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
-                placeholder="Enter task description"
-              />
-            </div>
-            
-            {/* Sprint (in form) */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-secondary-700">Sprint Name</label>
-                <input
-                  type="text"
-                  value={newTask.sprint_name}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, sprint_name: e.target.value }))}
-                  className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
-                  placeholder="e.g. Sprint 12"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-secondary-700">Start Date</label>
-                <input
-                  type="date"
-                  value={newTask.sprint_start_date || ''}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, sprint_start_date: e.target.value }))}
-                  className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-secondary-700">End Date</label>
-                <input
-                  type="date"
-                  value={newTask.sprint_end_date || ''}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, sprint_end_date: e.target.value }))}
-                  className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-secondary-700">Goal</label>
-                <input
-                  type="text"
-                  value={newTask.sprint_goal}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, sprint_goal: e.target.value }))}
-                  className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
-                  placeholder="Sprint goal"
-                />
-              </div>
-            </div>
-
-            {/* Customer Visibility */}
-            <div className="grid grid-cols-1 gap-4">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-medium text-secondary-700">Visible to customer</label>
-                <button
-                  type="button"
-                  onClick={() => setNewTask((prev) => ({ ...prev, visible_to_customer: !prev.visible_to_customer }))}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${newTask.visible_to_customer ? 'bg-user-blue' : 'bg-secondary-200'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newTask.visible_to_customer ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-            </div>
-
-            {/* Assignment Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Assignees - Styled Dropdown Multi-select */}
+              {/* Assignees */}
               <div ref={assigneesRef}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Assign To (Assignees)
@@ -929,7 +1132,7 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                 )}
                 {assigneesOpen && (
                   <div className="relative">
-                    <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-auto">
+                    <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-auto" style={{ zIndex: 99999 }}>
                       <div className="p-2 border-b border-gray-100 sticky top-0 bg-white">
                         <div className="relative">
                           <MagnifyingGlassIcon className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -982,7 +1185,65 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                   </div>
                 )}
               </div>
+            </div>
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-secondary-700">
+                Description
+              </label>
+              <textarea
+                id="description"
+                rows={3}
+                value={newTask.description}
+                onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
+                placeholder="Enter task description"
+              />
+            </div>
+            
+            {/* Row 3: Start Date, End Date, Sprint */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-secondary-700">Start Date</label>
+                <input
+                  type="date"
+                  value={newTask.sprint_start_date || ''}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, sprint_start_date: e.target.value }))}
+                  className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary-700">End Date</label>
+                <input
+                  type="date"
+                  value={newTask.sprint_end_date || ''}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, sprint_end_date: e.target.value }))}
+                  className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary-700">Sprint</label>
+                <input
+                  type="text"
+                  value={newTask.sprint_name}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, sprint_name: e.target.value }))}
+                  className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
+                  placeholder="e.g. Sprint 12"
+                />
+              </div>
+            </div>
 
+            {/* Row 4: Goal, Assigned By, Status */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-secondary-700">Goal</label>
+                <input
+                  type="text"
+                  value={newTask.sprint_goal}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, sprint_goal: e.target.value }))}
+                  className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
+                  placeholder="Sprint goal"
+                />
+              </div>
               {/* Assigner - Styled Dropdown (single-select) */}
               <div ref={assignerRef}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1005,7 +1266,7 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                 </div>
                 {assignerOpen && (
                   <div className="relative">
-                    <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-auto">
+                    <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-auto" style={{ zIndex: 99999 }}>
                       <div className="p-2 border-b border-gray-100 sticky top-0 bg-white">
                         <div className="relative">
                           <MagnifyingGlassIcon className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -1043,80 +1304,7 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                     </div>
                   </div>
                 )}
-                <p className="text-xs text-gray-500 mt-1">Assigner is stored as a single user (created_by). Multi-select not supported by backend.</p>
               </div>
-            </div>
-
-            {/* Repeat Every (Recurrence) */}
-            <div className="grid grid-cols-1 gap-4">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-medium text-secondary-700">Repeat Every</label>
-                <div className="flex items-center space-x-3">
-                  <span className="text-sm text-gray-600">Enable</span>
-                  <button
-                    type="button"
-                    onClick={() => setRepeatEnabled((v) => !v)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${repeatEnabled ? 'bg-user-blue' : 'bg-secondary-200'}`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${repeatEnabled ? 'translate-x-6' : 'translate-x-1'}`}
-                    />
-                  </button>
-                </div>
-              </div>
-              {repeatEnabled && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-secondary-700 mb-1">Preset</label>
-                    <select
-                      value={repeatPreset}
-                      onChange={(e) => setRepeatPreset(e.target.value as any)}
-                      className="block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
-                    >
-                      <option value="none">None</option>
-                      <option value="weekday">Every weekday (Mon-Fri)</option>
-                      <option value="1w">Every 1 week</option>
-                      <option value="2w">Every 2 weeks</option>
-                      <option value="1m">Every 1 month</option>
-                      <option value="3m">Every 3 months</option>
-                      <option value="quarterly">Every quarter</option>
-                      <option value="yearly">Every year</option>
-                      <option value="custom">Custom</option>
-                    </select>
-                  </div>
-                  {repeatPreset === 'custom' && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-secondary-700 mb-1">Frequency</label>
-                        <select
-                          value={customRepeat.frequency}
-                          onChange={(e) => setCustomRepeat((c) => ({ ...c, frequency: e.target.value as any }))}
-                          className="block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
-                        >
-                          <option value="daily">Daily</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="monthly">Monthly</option>
-                          <option value="quarterly">Quarterly</option>
-                          <option value="yearly">Yearly</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-secondary-700 mb-1">Interval</label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={customRepeat.interval}
-                          onChange={(e) => setCustomRepeat((c) => ({ ...c, interval: parseInt(e.target.value) || 1 }))}
-                          className="block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label htmlFor="status" className="block text-sm font-medium text-secondary-700">
                   Status
@@ -1133,6 +1321,101 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                   <option value={TaskStatus.BLOCKED}>Blocked</option>
                 </select>
               </div>
+            </div>
+
+            {/* Row 6: Repeat Every, Visible to Customer, Attachments */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-1">Repeat Every</label>
+                <select
+                  value={repeatPreset}
+                  onChange={(e) => setRepeatPreset(e.target.value as any)}
+                  className="block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
+                >
+                  <option value="none">None</option>
+                  <option value="weekday">Every weekday (Mon-Fri)</option>
+                  <option value="1w">Every 1 week</option>
+                  <option value="2w">Every 2 weeks</option>
+                  <option value="1m">Every 1 month</option>
+                  <option value="3m">Every 3 months</option>
+                  <option value="quarterly">Every quarter</option>
+                  <option value="yearly">Every year</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-1">Visible to Customer</label>
+                <select
+                  value={newTask.visible_to_customer ? 'yes' : 'no'}
+                  onChange={(e) => setNewTask((prev) => ({ ...prev, visible_to_customer: e.target.value === 'yes' }))}
+                  className="block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
+                >
+                  <option value="no">No</option>
+                  <option value="yes">Yes</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-1">Attachments</label>
+                <div
+                  onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingFiles(true); }}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingFiles(false); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDraggingFiles(false);
+                    const files = Array.from(e.dataTransfer.files || []);
+                    if (files.length) {
+                      setPendingAttachments((prev) => [...prev, ...files]);
+                    }
+                  }}
+                  className={`border-2 border-dashed rounded-md p-3 text-center ${isDraggingFiles ? 'border-blue-500 bg-blue-50' : 'border-secondary-300 hover:border-secondary-400'}`}
+                >
+                  <p className="text-xs text-secondary-600">Drag and drop files here or</p>
+                  <div className="mt-2">
+                    <label className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          if (files.length) {
+                            setPendingAttachments((prev) => [...prev, ...files]);
+                          }
+                          // reset input
+                          if (e.target) {
+                            (e.target as HTMLInputElement).value = '';
+                          }
+                        }}
+                      />
+                      Choose Files
+                    </label>
+                  </div>
+                </div>
+                {pendingAttachments.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <div className="text-xs text-secondary-700 font-medium">Selected:</div>
+                    <ul className="max-h-24 overflow-auto text-xs text-secondary-700 space-y-1">
+                      {pendingAttachments.map((f, idx) => (
+                        <li key={`${f.name}-${idx}`} className="flex items-center justify-between">
+                          <span className="truncate mr-2">{f.name}</span>
+                          <button
+                            type="button"
+                            className="text-red-600 hover:text-red-800"
+                            onClick={() => setPendingAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                          >
+                            remove
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Row 5: Priority, Est. Hours, Story Points */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="priority" className="block text-sm font-medium text-secondary-700">
                   Priority
@@ -1197,51 +1480,63 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
       )}
 
       {/* Task Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="metric-card metric-blue bg-white px-4 py-3 rounded-lg shadow border-t-4 border-blue-600">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
               <CheckCircleIcon className="h-6 w-6 text-blue-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Tasks</p>
-              <p className="text-2xl font-bold text-gray-900">{taskStats.total}</p>
+              <p className="metric-value text-2xl font-bold">{taskStats.total}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="metric-card metric-yellow bg-white px-4 py-3 rounded-lg shadow border-t-4 border-yellow-600">
           <div className="flex items-center">
             <div className="p-2 bg-yellow-100 rounded-lg">
               <ClockIcon className="h-6 w-6 text-yellow-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Not Started</p>
-              <p className="text-2xl font-bold text-gray-900">{taskStats.notStarted}</p>
+              <p className="metric-value text-2xl font-bold">{taskStats.notStarted}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="metric-card metric-red bg-white px-4 py-3 rounded-lg shadow border-t-4 border-orange-600">
           <div className="flex items-center">
             <div className="p-2 bg-orange-100 rounded-lg">
               <ExclamationTriangleIcon className="h-6 w-6 text-orange-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">In Progress</p>
-              <p className="text-2xl font-bold text-gray-900">{taskStats.inProgress}</p>
+              <p className="metric-value text-2xl font-bold">{taskStats.inProgress}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="metric-card metric-green bg-white px-4 py-3 rounded-lg shadow border-t-4 border-green-600">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
               <CheckCircleIcon className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Completed</p>
-              <p className="text-2xl font-bold text-gray-900">{taskStats.completed}</p>
+              <p className="metric-value text-2xl font-bold">{taskStats.completed}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="metric-card metric-red bg-white px-4 py-3 rounded-lg shadow border-t-4 border-red-600">
+          <div className="flex items-center">
+            <div className="p-2 bg-red-100 rounded-lg">
+              <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Critical</p>
+              <p className="metric-value text-2xl font-bold">{taskStats.critical}</p>
             </div>
           </div>
         </div>
@@ -1266,7 +1561,22 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
         if (filterPriorityHead.length > 0) {
           filteredList = filteredList.filter((t: any) => filterPriorityHead.includes(t.priority));
         }
-        // Apply date range (due date)
+        // Apply assignees filter
+        if (filterAssigneeIds.length > 0) {
+          filteredList = filteredList.filter((t: any) => {
+            const taskAssigneeIds = t.assignee_ids || (t.assignee_id ? [t.assignee_id] : []);
+            return filterAssigneeIds.some(id => taskAssigneeIds.includes(id));
+          });
+        }
+        // Apply assigner filter
+        if (filterAssignerIds.length > 0) {
+          filteredList = filteredList.filter((t: any) => t.created_by_id && filterAssignerIds.includes(t.created_by_id));
+        }
+        // Apply project filter
+        if (filterProjectIds.length > 0) {
+          filteredList = filteredList.filter((t: any) => t.project_id && filterProjectIds.includes(t.project_id));
+        }
+        // Apply toolbar date range (toolbar due date filter using filterFromDate/filterToDate)
         const withinRange = (dueStr?: string) => {
           if (!filterFromDate && !filterToDate) return true;
           if (!dueStr) return false;
@@ -1278,6 +1588,19 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
           return true;
         };
         filteredList = filteredList.filter((t: any) => withinRange(t.due_date));
+        
+        // Apply header due date filter (filterDueDateFrom/filterDueDateTo)
+        const withinHeaderRange = (dueStr?: string) => {
+          if (!filterDueDateFrom && !filterDueDateTo) return true;
+          if (!dueStr) return false;
+          const d = new Date(dueStr);
+          const start = filterDueDateFrom ? new Date(filterDueDateFrom) : null;
+          const end = filterDueDateTo ? new Date(filterDueDateTo) : null;
+          if (start && d < new Date(start.getFullYear(), start.getMonth(), start.getDate())) return false;
+          if (end && d > new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999)) return false;
+          return true;
+        };
+        filteredList = filteredList.filter((t: any) => withinHeaderRange(t.due_date));
 
         // Apply search (title/description)
         if (taskSearch && taskSearch.trim()) {
@@ -1317,7 +1640,7 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
             {currentView === 'list' && (
               <div className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <h3 className="text-lg font-medium text-gray-900">All Tasks ({filteredList.length})</h3>
                     <div className="flex items-center gap-2">
                       <div className="relative">
@@ -1327,7 +1650,7 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                           placeholder="Search tasks..."
                           value={taskSearch}
                           onChange={(e) => setTaskSearch(e.target.value)}
-                          className="w-48 pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-0 focus:border-gray-300"
+                          className="w-36 sm:w-48 md:w-64 pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-0 focus:border-gray-300"
                         />
                       </div>
                       <button
@@ -1343,61 +1666,28 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                       >
                         <ArrowPathIcon className="w-4 h-4" />
                       </button>
-                      <div className="relative" ref={toolbarDateRef}>
-                        <button
-                          type="button"
-                          title="Filter by date range"
-                          className="p-1 text-gray-500 hover:text-gray-700"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPendingToolbarFrom(filterFromDate || '');
-                            setPendingToolbarTo(filterToDate || '');
-                            setToolbarDateOpen((o) => !o);
-                          }}
-                        >
-                          <CalendarIcon className="w-4 h-4" />
-                        </button>
-                        {toolbarDateOpen && (
-                          <div className="absolute right-0 top-full mt-1 z-40 w-56 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-1 text-xs">
-                            <div className="px-1 pb-1">
-                              <DateRangeCalendar
-                                size="sm"
-                                initialFrom={pendingToolbarFrom || null}
-                                initialTo={pendingToolbarTo || null}
-                                onChange={(from, to) => {
-                                  if (from && !to) {
-                                    setPendingToolbarFrom(from);
-                                    setPendingToolbarTo(from);
-                                  } else {
-                                    setPendingToolbarFrom(from || '');
-                                    setPendingToolbarTo(to || '');
-                                  }
-                                }}
-                              />
-                            </div>
-                            <div className="flex justify-end gap-2 px-1 py-0 border-t border-gray-100">
-                              <button className="text-[13px] font-medium text-red-600 hover:underline" onClick={(e) => {
-                                e.stopPropagation();
-                                setFilterFromDate('');
-                                setFilterToDate('');
-                                setToolbarDateOpen(false);
-                              }}>Clear</button>
-                              <button className="text-[13px] font-medium text-black hover:underline" onClick={(e) => {
-                                e.stopPropagation();
-                                const from = pendingToolbarFrom || '';
-                                const to = pendingToolbarTo || pendingToolbarFrom || '';
-                                setFilterFromDate(from);
-                                setFilterToDate(to);
-                                setToolbarDateOpen(false);
-                              }}>Filter</button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      <button
+                        type="button"
+                        title="Filter by date range"
+                        className="p-1 text-gray-500 hover:text-gray-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const isOpening = !toolbarDateOpen;
+                          if (isOpening) {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setToolbarDateButtonRect(rect);
+                          }
+                          setPendingToolbarFrom(filterFromDate || '');
+                          setPendingToolbarTo(filterToDate || '');
+                          setToolbarDateOpen((o) => !o);
+                        }}
+                      >
+                        <CalendarIcon className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto projects-table">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
@@ -1405,13 +1695,70 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                           Task
                         </th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                          Project
+                          <div className="inline-flex items-center gap-1">
+                            <span>Project</span>
+                            <span className="relative">
+                              <button
+                                type="button"
+                                className="p-0.5 text-gray-500 hover:text-gray-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const isOpening = headerFilterOpen !== 'project';
+                                  if (isOpening) {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setFilterButtonRect(rect);
+                                  }
+                                  setHeaderFilterOpen(isOpening ? 'project' : null);
+                                }}
+                              >
+                                <FunnelIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </span>
+                          </div>
                         </th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                          Assignees
+                          <div className="inline-flex items-center gap-1">
+                            <span>Assignees</span>
+                            <span className="relative">
+                              <button
+                                type="button"
+                                className="p-0.5 text-gray-500 hover:text-gray-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const isOpening = headerFilterOpen !== 'assignees';
+                                  if (isOpening) {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setFilterButtonRect(rect);
+                                  }
+                                  setHeaderFilterOpen(isOpening ? 'assignees' : null);
+                                }}
+                              >
+                                <FunnelIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </span>
+                          </div>
                         </th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                          Assigner
+                          <div className="inline-flex items-center gap-1">
+                            <span>Assigner</span>
+                            <span className="relative">
+                              <button
+                                type="button"
+                                className="p-0.5 text-gray-500 hover:text-gray-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const isOpening = headerFilterOpen !== 'assigner';
+                                  if (isOpening) {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setFilterButtonRect(rect);
+                                  }
+                                  setHeaderFilterOpen(isOpening ? 'assigner' : null);
+                                }}
+                              >
+                                <FunnelIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </span>
+                          </div>
                         </th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-black uppercase tracking-wider">
                           <div className="inline-flex items-center gap-1">
@@ -1420,36 +1767,18 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                               <button
                                 type="button"
                                 className="p-0.5 text-gray-500 hover:text-gray-700"
-                                onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(headerFilterOpen === 'status' ? null : 'status'); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const isOpening = headerFilterOpen !== 'status';
+                                  if (isOpening) {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setFilterButtonRect(rect);
+                                  }
+                                  setHeaderFilterOpen(isOpening ? 'status' : null);
+                                }}
                               >
                                 <FunnelIcon className="w-3.5 h-3.5" />
                               </button>
-                              {headerFilterOpen === 'status' && (
-                                <div ref={headerFilterRef} className="absolute left-0 top-full mt-1 z-40 w-48 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-2 text-xs font-medium">
-                                  <div className="px-2 py-1 text-xs text-gray-800 font-medium">Filter status</div>
-                                  <ul className="max-h-48 overflow-auto">
-                                    {[TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW, TaskStatus.BLOCKED, TaskStatus.COMPLETED].map(st => {
-                                      const checked = filterStatusHead.includes(st);
-                                      const label = String(st).replace('_',' ');
-                                      return (
-                                        <li key={st}>
-                                          <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
-                                            <input type="checkbox" className="h-3.5 w-3.5" checked={checked} onChange={(e) => {
-                                              e.stopPropagation();
-                                              setFilterStatusHead(prev => checked ? prev.filter(x => x !== st) : [...prev, st]);
-                                            }} />
-                                            <span className="capitalize">{label}</span>
-                                          </label>
-                                        </li>
-                                      );
-                                    })}
-                                  </ul>
-                                  <div className="flex justify-end gap-3 px-2 py-0 border-t border-gray-100">
-                                    <button className="text-[13px] font-medium text-red-600 hover:underline" onClick={(e) => { e.stopPropagation(); setFilterStatusHead([]); }}>Clear</button>
-                                    <button className="text-[13px] font-medium text-gray-800 hover:underline" onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
-                                  </div>
-                                </div>
-                              )}
                             </span>
                           </div>
                         </th>
@@ -1460,35 +1789,18 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                               <button
                                 type="button"
                                 className="p-0.5 text-gray-500 hover:text-gray-700"
-                                onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(headerFilterOpen === 'priority' ? null : 'priority'); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const isOpening = headerFilterOpen !== 'priority';
+                                  if (isOpening) {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setFilterButtonRect(rect);
+                                  }
+                                  setHeaderFilterOpen(isOpening ? 'priority' : null);
+                                }}
                               >
                                 <FunnelIcon className="w-3.5 h-3.5" />
                               </button>
-                              {headerFilterOpen === 'priority' && (
-                                <div ref={headerFilterRef} className="absolute left-0 top-full mt-1 z-40 w-48 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-2 text-xs font-medium">
-                                  <div className="px-2 py-0.5 text-xs text-gray-700 font-normal">Filter priority</div>
-                                  <ul className="max-h-48 overflow-auto">
-                                    {[TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH, TaskPriority.CRITICAL].map(pr => {
-                                      const checked = filterPriorityHead.includes(pr);
-                                      return (
-                                        <li key={pr}>
-                                          <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
-                                            <input type="checkbox" className="h-3.5 w-3.5" checked={checked} onChange={(e) => {
-                                              e.stopPropagation();
-                                              setFilterPriorityHead(prev => checked ? prev.filter(x => x !== pr) : [...prev, pr]);
-                                            }} />
-                                            <span className="capitalize">{pr}</span>
-                                          </label>
-                                        </li>
-                                      );
-                                    })}
-                                  </ul>
-                                  <div className="flex justify-end gap-3 px-2 py-0 border-t border-gray-100">
-                                    <button className="text-[13px] font-medium text-red-600 hover:underline" onClick={(e) => { e.stopPropagation(); setFilterPriorityHead([]); }}>Clear</button>
-                                    <button className="text-[13px] font-medium text-gray-800 hover:underline" onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
-                                  </div>
-                                </div>
-                              )}
                             </span>
                           </div>
                         </th>
@@ -1496,7 +1808,28 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                           Type
                         </th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                          Due Date
+                          <div className="inline-flex items-center gap-1">
+                            <span>Due Date</span>
+                            <span className="relative">
+                              <button
+                                type="button"
+                                className="p-0.5 text-gray-500 hover:text-gray-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const isOpening = headerFilterOpen !== 'due_date';
+                                  if (isOpening) {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setFilterButtonRect(rect);
+                                    setPendingDueFrom(filterDueDateFrom || '');
+                                    setPendingDueTo(filterDueDateTo || '');
+                                  }
+                                  setHeaderFilterOpen(isOpening ? 'due_date' : null);
+                                }}
+                              >
+                                <CalendarIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </span>
+                          </div>
                         </th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-black uppercase tracking-wider">
                           Effort
@@ -1507,9 +1840,9 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredList.map((task: Task) => {
-                        return (
-                          <tr key={task.id} className="hover:bg-gray-50">
+                  {filteredList.map((task: Task) => {
+                    return (
+                      <tr key={task.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/tasks/${task.id}`)}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 mr-3">
@@ -1542,7 +1875,8 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                             {(task.project_id && projects.find((p: Project) => p.id === task.project_id)?.name) || 'No project'}
                           </div>
                         </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap cursor-pointer select-none" onClick={(e) => openAssigneesInlineEditor(e, task.id)}>
+                          <div className="relative inline-flex items-center gap-2">
                           {(() => {
                             // Handle both single assignee_id and multiple assignee_ids
                             let assigneeIds: string[] = [];
@@ -1555,7 +1889,9 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
 
                             if (assigneeIds.length === 0) {
                               return (
-                                <span className="text-gray-400 text-sm">Unassigned</span>
+                                <div className="flex items-center text-gray-500">
+                                  <span className="text-sm">Unassigned</span>
+                                </div>
                               );
                             }
 
@@ -1565,34 +1901,24 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                                 <span className="text-gray-400 text-sm">Loading...</span>
                               );
                             }
-
-                            console.log(`=== DEBUGGING: Looking up assignees for task ${task.title}:`, {
-                              assigneeIds,
-                              usersAvailable: users.length,
-                              users: users.map(u => ({ id: u.id, name: `${u.first_name} ${u.last_name}` }))
-                            });
                             
                             const assignees = assigneeIds.map(id => {
                               const user = users.find((u: any) => u.id === id);
-                              console.log(`=== DEBUGGING: Looking for user ${id}:`, user ? `${user.first_name} ${user.last_name}` : 'NOT FOUND');
                               return user;
                             }).filter(Boolean);
                             
-                            console.log(`=== DEBUGGING: Found assignees for ${task.title}:`, assignees.map(a => `${a.first_name} ${a.last_name}`));
-                            
                             if (assignees.length === 0) {
                               return (
-                                <span className="text-gray-400 text-sm">Unknown User (ID: {assigneeIds.join(', ')}) - Users loaded: {users.length}</span>
+                                <span className="text-gray-400 text-sm">Unknown User</span>
                               );
                             }
 
                             return (
-                              <div className="flex items-center">
-                                <div className="flex -space-x-2">
+                              <div className="flex -space-x-2">
                                   {assignees.slice(0, 3).map((assignee: any, index: number) => (
                                     <div
                                       key={assignee.id || index}
-                                      className="relative inline-block h-8 w-8 rounded-full ring-2 ring-white"
+                                      className="relative inline-block h-8 w-8 rounded-full ring-2 ring-white bg-gray-100"
                                       title={`${assignee.first_name} ${assignee.last_name} (${assignee.email})`}
                                     >
                                       {assignee.avatar_url ? (
@@ -1601,66 +1927,130 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                                           src={assignee.avatar_url}
                                           alt={`${assignee.first_name} ${assignee.last_name}`}
                                           onError={(e) => {
-                                            // Fallback to initials if image fails to load
                                             const target = e.target as HTMLImageElement;
                                             target.style.display = 'none';
                                             const nextSibling = target.nextElementSibling as HTMLElement;
-                                            if (nextSibling) {
-                                              nextSibling.style.display = 'flex';
-                                            }
+                                            if (nextSibling) nextSibling.style.display = 'flex';
                                           }}
                                         />
                                       ) : null}
-                                      <div
-                                        className={`h-8 w-8 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-medium ${assignee.avatar_url ? 'hidden' : 'flex'}`}
-                                        style={{ display: assignee.avatar_url ? 'none' : 'flex' }}
-                                      >
-                                        {assignee.first_name?.[0] || 'U'}{assignee.last_name?.[0] || ''}
+                                      <div className={`h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-medium ${assignee.avatar_url ? 'hidden' : 'flex'}`} style={{ display: assignee.avatar_url ? 'none' : 'flex' }}>
+                                        {assignee.first_name ? assignee.first_name.charAt(0).toUpperCase() : 'U'}
                                       </div>
                                     </div>
                                   ))}
                                   {assignees.length > 3 && (
-                                    <div
-                                      className="relative inline-block h-8 w-8 rounded-full ring-2 ring-white bg-gray-100 flex items-center justify-center"
-                                      title={`+${assignees.length - 3} more assignees`}
-                                    >
-                                      <span className="text-xs font-medium text-gray-600">
-                                        +{assignees.length - 3}
-                            </span>
+                                    <div className="relative inline-block h-8 w-8 rounded-full ring-2 ring-white bg-gray-100 flex items-center justify-center">
+                                      <span className="text-xs font-medium text-gray-600">+{assignees.length - 3}</span>
                                     </div>
                                   )}
-                                </div>
-                                {assignees.length === 1 && (
-                                  <div className="ml-3">
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {assignees[0].first_name} {assignees[0].last_name}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      {assignees[0].email}
-                                    </div>
-                                  </div>
-                                )}
-                                {assignees.length > 1 && (
-                                  <div className="ml-3">
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {assignees.length} assignees
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      {assignees.slice(0, 2).map(a => `${a.first_name} ${a.last_name}`).join(', ')}
-                                      {assignees.length > 2 && ` +${assignees.length - 2} more`}
-                                    </div>
-                                  </div>
-                            )}
-                          </div>
+                              </div>
                             );
                           })()}
+                          <ChevronDownIcon className="h-4 w-4 text-gray-400" />
+
+                          {assigneesEditorOpen === task.id && (
+                            <InlineEditPortal rect={assigneesEditorRect}>
+                              <div ref={assigneesEditorRef} className="w-56 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{ borderRadius: '5px' }}>
+                                <div className="px-2 py-0.5 border-b border-gray-100 sticky top-0 bg-white rounded-t-md">
+                                  <div className="mt-1 relative">
+                                    <MagnifyingGlassIcon className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                      type="text"
+                                      value={assigneesInlineFilter}
+                                      onChange={(e) => setAssigneesInlineFilter(e.target.value)}
+                                      placeholder="Search assignees..."
+                                      className="w-full pl-7 pr-2 py-0.5 text-xs border border-gray-200 rounded-sm focus:outline-none focus:ring-0 focus:border-gray-300"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="max-h-64 overflow-auto">
+                                  <ul className="py-1.5 text-xs space-y-1.5">
+                                    {users
+                                      .filter((u: any) => {
+                                        const name = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || '').toLowerCase();
+                                        const email = (u.email || '').toLowerCase();
+                                        const q = (assigneesInlineFilter || '').toLowerCase();
+                                        return !q || name.includes(q) || email.includes(q);
+                                      })
+                                      .map((user: any) => {
+                                        const name = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+                                        const selected = assigneesSelection.includes(user.id);
+                                        return (
+                                          <li key={user.id} className="px-1.5 py-0.5 text-[11px]">
+                                            <button
+                                              type="button"
+                                              className={`w-full flex items-center justify-between text-left px-1.5 py-0 rounded-sm border !min-h-0 h-auto leading-none ${selected ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-transparent hover:bg-gray-50 text-gray-700'}`}
+                                              style={{ minHeight: 0, paddingTop: 10 }}
+                                              onClick={(e) => { e.stopPropagation(); toggleAssigneesSelect(user.id); }}
+                                            >
+                                              <div className="flex flex-col">
+                                                <span>{name}</span>
+                                                <span className="text-[10px] text-gray-500">{user.email}</span>
+                                              </div>
+                                              {selected && <CheckIcon className="w-3 h-3 text-blue-600" />}
+                                            </button>
+                                          </li>
+                                        );
+                                      })}
+                                    {users.filter((u: any) => {
+                                      const name = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || '').toLowerCase();
+                                      const email = (u.email || '').toLowerCase();
+                                      const q = (assigneesInlineFilter || '').toLowerCase();
+                                      return !q || name.includes(q) || email.includes(q);
+                                    }).length === 0 && (
+                                      <li className="px-3 py-2 text-sm text-gray-500">No users found</li>
+                                    )}
+                                  </ul>
+                                </div>
+                                <div className="flex justify-end items-center gap-3 p-1 border-t border-gray-100 rounded-b-md">
+                                  <button
+                                    type="button"
+                                    className="filter-popup-btn filter-popup-btn-clear"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const ids = users
+                                        .filter((u: any) => {
+                                          const name = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || '').toLowerCase();
+                                          const email = (u.email || '').toLowerCase();
+                                          const q = (assigneesInlineFilter || '').toLowerCase();
+                                          return !q || name.includes(q) || email.includes(q);
+                                        })
+                                        .map((u: any) => u.id);
+                                      setAssigneesSelection((prev) => Array.from(new Set([...(prev || []), ...ids])));
+                                    }}
+                                  >
+                                    Select all
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="filter-popup-btn filter-popup-btn-clear"
+                                    onClick={(e) => { e.stopPropagation(); setAssigneesSelection([]); }}
+                                  >
+                                    Clear
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="filter-popup-btn filter-popup-btn-filter"
+                                    onClick={(e) => { e.stopPropagation(); saveAssigneesInlineEdit(task.id); }}
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                              </div>
+                            </InlineEditPortal>
+                          )}
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap cursor-pointer select-none" onClick={(e) => openAssignerInlineEditor(e, task.id)}>
+                          <div className="relative inline-flex items-center gap-2">
                           {(() => {
                             // Display the assigner (created_by_id)
                             if (!task.created_by_id) {
                               return (
-                                <span className="text-gray-400 text-sm">No assigner</span>
+                                <div className="flex items-center text-gray-500">
+                                  <span className="text-sm">No assigner</span>
+                                </div>
                               );
                             }
 
@@ -1670,61 +2060,119 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                                 <span className="text-gray-400 text-sm">Loading...</span>
                               );
                             }
-
-                            console.log(`=== DEBUGGING: Looking up assigner for task ${task.title}:`, {
-                              created_by_id: task.created_by_id,
-                              usersAvailable: users.length
-                            });
                             
                             const assigner = users.find((u: any) => u.id === task.created_by_id);
                             
-                            console.log(`=== DEBUGGING: Found assigner for ${task.title}:`, assigner ? `${assigner.first_name} ${assigner.last_name}` : 'NOT FOUND');
-                            
                             if (!assigner) {
                               return (
-                                <span className="text-gray-400 text-sm">Unknown User (ID: {task.created_by_id}) - Users loaded: {users.length}</span>
+                                <span className="text-gray-400 text-sm">Unknown User</span>
                               );
                             }
 
                             return (
                               <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                  <div className="relative inline-block h-8 w-8 rounded-full">
-                                    {assigner.avatar_url ? (
-                                      <img
-                                        className="h-8 w-8 rounded-full object-cover"
-                                        src={assigner.avatar_url}
-                                        alt={`${assigner.first_name} ${assigner.last_name}`}
-                                        onError={(e) => {
-                                          // Fallback to initials if image fails to load
-                                          const target = e.target as HTMLImageElement;
-                                          target.style.display = 'none';
-                                          const nextSibling = target.nextElementSibling as HTMLElement;
-                                          if (nextSibling) {
-                                            nextSibling.style.display = 'flex';
-                                          }
-                                        }}
-                                      />
-                                    ) : null}
-                                    <div
-                                      className={`h-8 w-8 rounded-full bg-gradient-to-r from-green-400 to-teal-500 flex items-center justify-center text-white text-xs font-medium ${assigner.avatar_url ? 'hidden' : 'flex'}`}
-                                      style={{ display: assigner.avatar_url ? 'none' : 'flex' }}
-                                    >
-                                      {assigner.first_name?.[0] || 'U'}{assigner.last_name?.[0] || ''}
-                        </div>
-                      </div>
+                                <div className="relative inline-block h-8 w-8 rounded-full ring-2 ring-white bg-gray-100">
+                                  {assigner.avatar_url ? (
+                                    <img
+                                      className="h-8 w-8 rounded-full object-cover"
+                                      src={assigner.avatar_url}
+                                      alt={`${assigner.first_name} ${assigner.last_name}`}
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                        const nextSibling = target.nextElementSibling as HTMLElement;
+                                        if (nextSibling) nextSibling.style.display = 'flex';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div className={`h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-xs font-medium ${assigner.avatar_url ? 'hidden' : 'flex'}`} style={{ display: assigner.avatar_url ? 'none' : 'flex' }}>
+                                    {assigner.first_name ? assigner.first_name.charAt(0).toUpperCase() : 'U'}
+                                  </div>
                                 </div>
                                 <div className="ml-3">
                                   <div className="text-sm font-medium text-gray-900">
                                     {assigner.first_name} {assigner.last_name}
                                   </div>
-                                  <div className="text-xs text-gray-500">
-                                    {assigner.email}
-                                  </div>
                                 </div>
                               </div>
                             );
                           })()}
+                          <ChevronDownIcon className="h-4 w-4 text-gray-400" />
+
+                          {assignerEditorOpen === task.id && (
+                            <InlineEditPortal rect={assignerEditorRect}>
+                              <div ref={assignerEditorRef} className="w-56 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{ borderRadius: '5px' }}>
+                                <div className="px-2 py-0.5 border-b border-gray-100 sticky top-0 bg-white rounded-t-md">
+                                  <div className="mt-1 relative">
+                                    <MagnifyingGlassIcon className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                      type="text"
+                                      value={assignerInlineFilter}
+                                      onChange={(e) => setAssignerInlineFilter(e.target.value)}
+                                      placeholder="Search assigner..."
+                                      className="w-full pl-7 pr-2 py-0.5 text-xs border border-gray-200 rounded-sm focus:outline-none focus:ring-0 focus:border-gray-300"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="max-h-64 overflow-auto">
+                                  <ul className="py-1.5 text-xs space-y-1.5">
+                                    {users
+                                      .filter((u: any) => {
+                                        const name = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || '').toLowerCase();
+                                        const email = (u.email || '').toLowerCase();
+                                        const q = (assignerInlineFilter || '').toLowerCase();
+                                        return !q || name.includes(q) || email.includes(q);
+                                      })
+                                      .map((user: any) => {
+                                        const name = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+                                        const selected = assignerSelection === user.id;
+                                        return (
+                                          <li key={user.id} className="px-1.5 py-0.5 text-[11px]">
+                                            <button
+                                              type="button"
+                                              className={`w-full flex items-center justify-between text-left px-1.5 py-0 rounded-sm border !min-h-0 h-auto leading-none ${selected ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-transparent hover:bg-gray-50 text-gray-700'}`}
+                                              style={{ minHeight: 0, paddingTop: 10 }}
+                                              onClick={(e) => { e.stopPropagation(); setAssignerSelection(user.id); }}
+                                            >
+                                              <div className="flex flex-col">
+                                                <span>{name}</span>
+                                                <span className="text-[10px] text-gray-500">{user.email}</span>
+                                              </div>
+                                              {selected && <CheckIcon className="w-3 h-3 text-blue-600" />}
+                                            </button>
+                                          </li>
+                                        );
+                                      })}
+                                    {users.filter((u: any) => {
+                                      const name = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || '').toLowerCase();
+                                      const email = (u.email || '').toLowerCase();
+                                      const q = (assignerInlineFilter || '').toLowerCase();
+                                      return !q || name.includes(q) || email.includes(q);
+                                    }).length === 0 && (
+                                      <li className="px-3 py-2 text-sm text-gray-500">No users found</li>
+                                    )}
+                                  </ul>
+                                </div>
+                                <div className="flex justify-end items-center gap-3 p-1 border-t border-gray-100 rounded-b-md">
+                                  <button
+                                    type="button"
+                                    className="filter-popup-btn filter-popup-btn-clear"
+                                    onClick={(e) => { e.stopPropagation(); setAssignerSelection(null); }}
+                                  >
+                                    Clear
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="filter-popup-btn filter-popup-btn-filter"
+                                    onClick={(e) => { e.stopPropagation(); saveAssignerInlineEdit(task.id); }}
+                                  >
+                                    Set
+                                  </button>
+                                </div>
+                              </div>
+                            </InlineEditPortal>
+                          )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => startInlineEditTask(e, task, 'status')}>
                           <div className="relative inline-block">
@@ -1732,16 +2180,18 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                               {task.status}
                             </span>
                             {editingTaskId === task.id && editingField === 'status' && (
-                              <div ref={inlinePopoverRef} className="absolute z-40 mt-1 w-44 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-0.5">
-                                <ul className="text-xs">
-                                  {[TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW, TaskStatus.BLOCKED, TaskStatus.COMPLETED].map((opt) => (
-                                    <li key={opt} className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${opt===task.status ? 'bg-gray-50' : ''}`} onClick={() => saveInlineEditTask(task.id, opt)}>
-                                      <span className="capitalize">{String(opt).replace('_',' ')}</span>
-                                      {opt===task.status && <CheckIcon className="w-4 h-4 text-user-blue" />}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
+                              <InlineEditPortal rect={inlineEditRect}>
+                                <div ref={inlinePopoverRef} className="w-44 border border-gray-200 bg-white shadow-sm p-0.5" style={{borderRadius: '5px'}}>
+                                  <ul className="text-xs">
+                                    {[TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW, TaskStatus.BLOCKED, TaskStatus.COMPLETED].map((opt) => (
+                                      <li key={opt} className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${opt===task.status ? 'bg-gray-50' : ''}`} onClick={() => saveInlineEditTask(task.id, opt)}>
+                                        <span className="capitalize">{String(opt).replace('_',' ')}</span>
+                                        {opt===task.status && <CheckIcon className="w-4 h-4 text-user-blue" />}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </InlineEditPortal>
                             )}
                           </div>
                         </td>
@@ -1751,16 +2201,18 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                               {task.priority}
                             </span>
                             {editingTaskId === task.id && editingField === 'priority' && (
-                              <div ref={inlinePopoverRef} className="absolute z-40 mt-1 w-40 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-0.5">
-                                <ul className="text-xs">
-                                  {[TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH, TaskPriority.CRITICAL].map((opt) => (
-                                    <li key={opt} className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${opt===task.priority ? 'bg-gray-50' : ''}`} onClick={() => saveInlineEditTask(task.id, opt)}>
-                                      <span className="capitalize">{opt}</span>
-                                      {opt===task.priority && <CheckIcon className="w-4 h-4 text-user-blue" />}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
+                              <InlineEditPortal rect={inlineEditRect}>
+                                <div ref={inlinePopoverRef} className="w-40 border border-gray-200 bg-white shadow-sm p-0.5" style={{borderRadius: '5px'}}>
+                                  <ul className="text-xs">
+                                    {[TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH, TaskPriority.CRITICAL].map((opt) => (
+                                      <li key={opt} className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${opt===task.priority ? 'bg-gray-50' : ''}`} onClick={() => saveInlineEditTask(task.id, opt)}>
+                                        <span className="capitalize">{opt}</span>
+                                        {opt===task.priority && <CheckIcon className="w-4 h-4 text-user-blue" />}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </InlineEditPortal>
                             )}
                           </div>
                         </td>
@@ -1773,15 +2225,17 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                           <div className="relative inline-block">
                             <span>{task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}</span>
                             {editingTaskId === task.id && editingField === 'due_date' && (
-                              <div ref={inlinePopoverRef} className="absolute z-40 mt-1 w-56 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-2">
-                                <input
-                                  type="date"
-                                  value={editValue || ''}
-                                  onChange={(e) => { saveInlineEditTask(task.id, e.target.value); }}
-                                  className="block w-full h-8 px-2 py-1 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
-                                  autoFocus
-                                />
-                              </div>
+                              <InlineEditPortal rect={inlineEditRect}>
+                                <div ref={inlinePopoverRef} className="w-56 border border-gray-200 bg-white shadow-sm p-1.5" style={{borderRadius: '5px'}}>
+                                  <input
+                                    type="date"
+                                    value={editValue || ''}
+                                    onChange={(e) => { saveInlineEditTask(task.id, e.target.value); }}
+                                    className="block w-full h-8 px-2 py-1 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
+                                    autoFocus
+                                  />
+                                </div>
+                              </InlineEditPortal>
                             )}
                           </div>
                         </td>
@@ -1795,30 +2249,30 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => navigate(`/tasks/${task.id}`)}
-                          className="bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full p-2 transition-colors"
-                          title="View Details"
-                        >
-                          <EyeIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => navigate(`/tasks/${task.id}?tab=edit`)}
-                          className="bg-green-100 hover:bg-green-200 text-green-600 rounded-full p-2 transition-colors"
-                          title="Edit Task"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-2 transition-colors"
-                          title="Delete Task"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                      </div>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => navigate(`/tasks/${task.id}`)}
+                              className="inline-flex items-center justify-center p-2 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                              title="View Details"
+                            >
+                              <EyeIcon className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => navigate(`/tasks/${task.id}?tab=edit`)}
+                              className="inline-flex items-center justify-center p-2 rounded-md bg-gray-100 text-black hover:bg-gray-200 transition-colors"
+                              title="Edit Task"
+                            >
+                              <PencilIcon className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTask(task.id)}
+                              className="inline-flex items-center justify-center p-2 rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                              title="Delete Task"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1826,6 +2280,237 @@ className="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-
                     </tbody>
                   </table>
                 </div>
+                {/* Render all filter popups via portal */}
+                {headerFilterOpen === 'status' && (
+                  <FilterPortal buttonRect={filterButtonRect}>
+                    <div ref={headerFilterRef} className="w-40 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
+                      <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter status</div>
+                      <ul className="max-h-48 overflow-auto">
+                        {[TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW, TaskStatus.BLOCKED, TaskStatus.COMPLETED].map(st => {
+                          const checked = filterStatusHead.includes(st);
+                          const label = String(st).replace('_',' ');
+                          return (
+                            <li key={st}>
+                              <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
+                                <input type="checkbox" className="h-3.5 w-3.5" checked={checked} onChange={(e) => {
+                                  e.stopPropagation();
+                                  setFilterStatusHead(prev => checked ? prev.filter(x => x !== st) : [...prev, st]);
+                                }} />
+                                <span className="capitalize">{label}</span>
+                              </label>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                        <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); setFilterStatusHead([]); }}>Clear</button>
+                        <button className="filter-popup-btn filter-popup-btn-close" onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
+                      </div>
+                    </div>
+                  </FilterPortal>
+                )}
+                {headerFilterOpen === 'priority' && (
+                  <FilterPortal buttonRect={filterButtonRect}>
+                    <div ref={headerFilterRef} className="w-36 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
+                      <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter priority</div>
+                      <ul className="max-h-48 overflow-auto">
+                        {[TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH, TaskPriority.CRITICAL].map(pr => {
+                          const checked = filterPriorityHead.includes(pr);
+                          return (
+                            <li key={pr}>
+                              <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
+                                <input type="checkbox" className="h-3.5 w-3.5" checked={checked} onChange={(e) => {
+                                  e.stopPropagation();
+                                  setFilterPriorityHead(prev => checked ? prev.filter(x => x !== pr) : [...prev, pr]);
+                                }} />
+                                <span className="capitalize">{pr}</span>
+                              </label>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                        <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); setFilterPriorityHead([]); }}>Clear</button>
+                        <button className="filter-popup-btn filter-popup-btn-close" onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
+                      </div>
+                    </div>
+                  </FilterPortal>
+                )}
+                {headerFilterOpen === 'due_date' && (
+                  <FilterPortal buttonRect={filterButtonRect}>
+                    <div ref={headerFilterRef} className="w-64 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{borderRadius: '5px'}}>
+                      <div className="px-1 pb-1">
+                        <DateRangeCalendar size="sm"
+                          initialFrom={pendingDueFrom || null}
+                          initialTo={pendingDueTo || null}
+                          onChange={(from, to) => {
+                            if (from && !to) {
+                              setPendingDueFrom(from);
+                              setPendingDueTo(from);
+                            } else {
+                              setPendingDueFrom(from || '');
+                              setPendingDueTo(to || '');
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                        <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => {
+                          e.stopPropagation();
+                          setFilterDueDateFrom('');
+                          setFilterDueDateTo('');
+                          setHeaderFilterOpen(null);
+                        }}>Clear</button>
+                        <button className="filter-popup-btn filter-popup-btn-filter" onClick={(e) => {
+                          e.stopPropagation();
+                          const from = pendingDueFrom || '';
+                          const to = pendingDueTo || pendingDueFrom || '';
+                          setFilterDueDateFrom(from);
+                          setFilterDueDateTo(to);
+                          setHeaderFilterOpen(null);
+                        }}>Filter</button>
+                      </div>
+                    </div>
+                  </FilterPortal>
+                )}
+                {headerFilterOpen === 'assignees' && (
+                  <FilterPortal buttonRect={filterButtonRect}>
+                    <div ref={headerFilterRef} className="w-52 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
+                      <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter assignees</div>
+                      <ul className="max-h-48 overflow-auto">
+                        {users.map((u: any) => {
+                          const selected = filterAssigneeIds.includes(u.id);
+                          const label = u.full_name || `${u.first_name||''} ${u.last_name||''}`.trim() || u.email;
+                          return (
+                            <li key={u.id}>
+                              <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4"
+                                  checked={selected}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    setFilterAssigneeIds(prev => selected ? prev.filter(id => id !== u.id) : [...prev, u.id]);
+                                  }}
+                                />
+                                <span>{label}</span>
+                              </label>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                        <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e)=>{ e.stopPropagation(); setFilterAssigneeIds([]); }}>Clear</button>
+                        <button className="filter-popup-btn filter-popup-btn-close" onClick={(e)=>{ e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
+                      </div>
+                    </div>
+                  </FilterPortal>
+                )}
+                {headerFilterOpen === 'assigner' && (
+                  <FilterPortal buttonRect={filterButtonRect}>
+                    <div ref={headerFilterRef} className="w-52 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
+                      <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter assigners</div>
+                      <ul className="max-h-48 overflow-auto">
+                        {users.map((u: any) => {
+                          const selected = filterAssignerIds.includes(u.id);
+                          const label = u.full_name || `${u.first_name||''} ${u.last_name||''}`.trim() || u.email;
+                          return (
+                            <li key={u.id}>
+                              <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4"
+                                  checked={selected}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    setFilterAssignerIds(prev => selected ? prev.filter(id => id !== u.id) : [...prev, u.id]);
+                                  }}
+                                />
+                                <span>{label}</span>
+                              </label>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                        <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e)=>{ e.stopPropagation(); setFilterAssignerIds([]); }}>Clear</button>
+                        <button className="filter-popup-btn filter-popup-btn-close" onClick={(e)=>{ e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
+                      </div>
+                    </div>
+                  </FilterPortal>
+                )}
+                {headerFilterOpen === 'project' && (
+                  <FilterPortal buttonRect={filterButtonRect}>
+                    <div ref={headerFilterRef} className="w-52 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
+                      <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter projects</div>
+                      <ul className="max-h-48 overflow-auto">
+                        {projects.map((p: Project) => {
+                          const selected = filterProjectIds.includes(p.id);
+                          const label = p.name || 'Unnamed Project';
+                          return (
+                            <li key={p.id}>
+                              <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4"
+                                  checked={selected}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    setFilterProjectIds(prev => selected ? prev.filter(id => id !== p.id) : [...prev, p.id]);
+                                  }}
+                                />
+                                <span>{label}</span>
+                              </label>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                        <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e)=>{ e.stopPropagation(); setFilterProjectIds([]); }}>Clear</button>
+                        <button className="filter-popup-btn filter-popup-btn-close" onClick={(e)=>{ e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
+                      </div>
+                    </div>
+                  </FilterPortal>
+                )}
+                {/* Toolbar date filter portal */}
+                {toolbarDateOpen && (
+                  <FilterPortal buttonRect={toolbarDateButtonRect} align="right">
+                    <div ref={toolbarDateRef} className="w-64 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{borderRadius: '5px'}}>
+                      <div className="px-1 pb-1">
+                        <DateRangeCalendar
+                          size="sm"
+                          initialFrom={pendingToolbarFrom || null}
+                          initialTo={pendingToolbarTo || null}
+                          onChange={(from, to) => {
+                            if (from && !to) {
+                              setPendingToolbarFrom(from);
+                              setPendingToolbarTo(from);
+                            } else {
+                              setPendingToolbarFrom(from || '');
+                              setPendingToolbarTo(to || '');
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                        <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => {
+                          e.stopPropagation();
+                          setFilterFromDate('');
+                          setFilterToDate('');
+                          setToolbarDateOpen(false);
+                        }}>Clear</button>
+                        <button className="filter-popup-btn filter-popup-btn-filter" onClick={(e) => {
+                          e.stopPropagation();
+                          const from = pendingToolbarFrom || '';
+                          const to = pendingToolbarTo || pendingToolbarFrom || '';
+                          setFilterFromDate(from);
+                          setFilterToDate(to);
+                          setToolbarDateOpen(false);
+                        }}>Filter</button>
+                      </div>
+                    </div>
+                  </FilterPortal>
+                )}
               </div>
             )}
 

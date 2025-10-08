@@ -38,8 +38,25 @@ export interface CustomFieldUpdateDTO extends Partial<CustomFieldCreateDTO> {
 
 export async function getCustomFields(params?: { entityType?: string; include_inactive?: boolean }): Promise<CustomFieldDTO[]> {
   const query: Record<string, any> = {};
-  if (params?.entityType && params.entityType !== 'all') query.entity = params.entityType;
-  if (typeof params?.include_inactive === 'boolean') query.include_inactive = params.include_inactive;
+  if (params?.entityType && params.entityType !== 'all') {
+    // Backend expects singular entity_type enum (project, task, customer, etc.)
+    const singularMap: Record<string, string> = {
+      projects: 'project',
+      tasks: 'task',
+      customers: 'customer',
+      teams: 'team',
+      goals: 'goal',
+      proposals: 'proposal',
+      invoices: 'invoice',
+      vendors: 'vendor',
+      purchase_orders: 'purchase_order'
+    };
+    query.entity_type = singularMap[params.entityType] || params.entityType;
+  }
+  // Backend uses active_only (default true). If include_inactive is true, set active_only=false
+  if (typeof params?.include_inactive === 'boolean') {
+    query.active_only = !params.include_inactive;
+  }
   const res = await apiClient.get('/custom-fields/', { params: query });
   return Array.isArray(res.data) ? res.data : (res.data?.fields || []);
 }
@@ -57,4 +74,14 @@ export async function updateCustomField(id: string, payload: CustomFieldUpdateDT
 export async function deactivateCustomField(id: string): Promise<CustomFieldDTO> {
   const res = await apiClient.put(`/custom-fields/${id}`, { is_active: false });
   return res.data as CustomFieldDTO;
+}
+
+export async function getCustomFieldValues(entityType: string, entityId: string): Promise<Record<string, any>> {
+  const res = await apiClient.get(`/custom-fields/values/${entityType}/${entityId}`);
+  return res.data?.values || {};
+}
+
+export async function setCustomFieldValues(entityType: string, entityId: string, values: Record<string, any>): Promise<void> {
+  // Backend expects entity_type and entity_id as query params and the values map as body
+  await apiClient.post(`/custom-fields/values`, values, { params: { entity_type: entityType, entity_id: entityId } });
 }

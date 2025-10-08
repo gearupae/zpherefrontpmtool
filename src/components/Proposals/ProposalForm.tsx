@@ -75,6 +75,7 @@ const ProposalForm: React.FC<ProposalFormProps> = ({
 }) => {
   const dispatch = useAppDispatch();
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [selectedCustomerLabel, setSelectedCustomerLabel] = useState<string>('');
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
   
   const [formData, setFormData] = useState<ProposalFormData>({
@@ -110,8 +111,10 @@ const ProposalForm: React.FC<ProposalFormProps> = ({
   const fetchCustomers = useCallback(async () => {
     try {
       const { default: apiClient } = await import('../../api/client');
-      const response = await apiClient.get('/customers');
-      setCustomers(response.data.customers || []);
+      // Use trailing slash to avoid 307 redirect dropping headers
+      const response = await apiClient.get('/customers/');
+      const customersData = response.data?.customers || response.data?.items || response.data || [];
+      setCustomers(Array.isArray(customersData) ? customersData : []);
     } catch (error) {
       console.error('Failed to fetch customers:', error);
       dispatch(addNotification({
@@ -136,6 +139,30 @@ const ProposalForm: React.FC<ProposalFormProps> = ({
       }));
     }
   }, [fetchCustomers, mode]);
+
+  // Ensure selected customer displays in edit mode even if not in initial list
+  useEffect(() => {
+    const currentId = (formData.customer_id || '').trim();
+    if (!currentId) return;
+    // If already present in list, set label from it
+    const found = customers.find(c => c.id === currentId);
+    if (found) {
+      setSelectedCustomerLabel(found.display_name || (found as any).full_name || found.company_name || found.email || currentId);
+      return;
+    }
+    // Fetch single customer as fallback
+    (async () => {
+      try {
+        const { default: apiClient } = await import('../../api/client');
+        const res = await apiClient.get(`/customers/${currentId}/`);
+        const c = res.data || {};
+        const label = c.display_name || c.full_name || c.company_name || c.email || currentId;
+        setSelectedCustomerLabel(label);
+      } catch (e) {
+        setSelectedCustomerLabel(currentId);
+      }
+    })();
+  }, [formData.customer_id, customers]);
 
   // Populate form with initial data when editing
   useEffect(() => {
@@ -224,105 +251,124 @@ const ProposalForm: React.FC<ProposalFormProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
-            <DocumentTextIcon className="h-6 w-6 text-user-blue" />
-            <span>{mode === 'edit' ? 'Edit Proposal' : 'Create Proposal'}</span>
-          </h2>
-          <button
-            onClick={onCancel}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <XMarkIcon className="h-6 w-6" />
-          </button>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="p-6 space-y-8">
+    <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Information */}
-        <div className="space-y-6">
-          <h3 className="text-lg font-medium text-gray-900 flex items-center space-x-2">
-            <UserIcon className="h-5 w-5 text-gray-500" />
-            <span>Basic Information</span>
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Proposal Title *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="e.g., Website Development Proposal"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Customer *
-              </label>
-              <select
-                required
-                value={formData.customer_id}
-                onChange={(e) => setFormData(prev => ({ ...prev, customer_id: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="">Select a customer</option>
-                {customers.map(customer => (
-                  <option key={customer.id} value={customer.id}>
-                    {customer.full_name} {customer.company_name ? `(${customer.company_name})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Proposal Type
-              </label>
-              <select
-                value={formData.proposal_type}
-                onChange={(e) => setFormData(prev => ({ ...prev, proposal_type: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="project">Project</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="support">Support</option>
-                <option value="custom">Custom</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Valid Until
-              </label>
-              <input
-                type="date"
-                value={formData.valid_until}
-                onChange={(e) => setFormData(prev => ({ ...prev, valid_until: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Proposal Title *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.title}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder="e.g., Website Development Proposal"
+            />
           </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
+              Customer *
             </label>
-            <textarea
-              rows={3}
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+            <select
+              required
+              value={formData.customer_id}
+              onChange={(e) => setFormData(prev => ({ ...prev, customer_id: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              placeholder="Brief description of the proposal"
+            >
+              <option value="">Select a customer</option>
+              {/* Ensure current selection is visible even if not in list yet */}
+              {formData.customer_id && !customers.some(c => c.id === formData.customer_id) && (
+                <option value={formData.customer_id}>
+                  {selectedCustomerLabel || `Selected customer (${formData.customer_id})`}
+                </option>
+              )}
+              {customers.map(customer => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.display_name || (customer as any).full_name || customer.company_name || customer.email || customer.id}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Proposal Type
+            </label>
+            <select
+              value={formData.proposal_type}
+              onChange={(e) => setFormData(prev => ({ ...prev, proposal_type: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+              <option value="project">Project</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="support">Support</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Valid Until
+            </label>
+            <input
+              type="date"
+              value={formData.valid_until}
+              onChange={(e) => setFormData(prev => ({ ...prev, valid_until: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Status
+            </label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+              <option value="draft">Draft</option>
+              <option value="sent">Sent</option>
+              <option value="viewed">Viewed</option>
+              <option value="accepted">Accepted</option>
+              <option value="rejected">Rejected</option>
+              <option value="expired">Expired</option>
+              <option value="withdrawn">Withdrawn</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Currency
+            </label>
+            <select
+              value={formData.currency}
+              onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+              <option value="usd">USD - US Dollar</option>
+              <option value="eur">EUR - Euro</option>
+              <option value="gbp">GBP - British Pound</option>
+              <option value="aud">AUD - Australian Dollar</option>
+              <option value="cad">CAD - Canadian Dollar</option>
+            </select>
+          </div>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Description
+          </label>
+          <textarea
+            rows={4}
+            value={formData.description}
+            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            placeholder="Brief description of the proposal"
+          />
         </div>
 
         {/* Content Sections */}
@@ -395,199 +441,57 @@ const ProposalForm: React.FC<ProposalFormProps> = ({
           )}
         </div>
 
-        {/* Status & Management */}
-        <div className="space-y-6">
-          <h3 className="text-lg font-medium text-gray-900 flex items-center space-x-2">
-            <ExclamationTriangleIcon className="h-5 w-5 text-gray-500" />
-            <span>Status & Management</span>
-          </h3>
+        {/* Additional Fields */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Follow-up Date
+            </label>
+            <input
+              type="date"
+              value={formData.follow_up_date}
+              onChange={(e) => setFormData(prev => ({ ...prev, follow_up_date: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+          </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Status
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="draft">Draft</option>
-                <option value="sent">Sent</option>
-                <option value="viewed">Viewed</option>
-                <option value="accepted">Accepted</option>
-                <option value="rejected">Rejected</option>
-                <option value="expired">Expired</option>
-                <option value="withdrawn">Withdrawn</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Currency
-              </label>
-              <select
-                value={formData.currency}
-                onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="usd">USD - US Dollar</option>
-                <option value="eur">EUR - Euro</option>
-                <option value="gbp">GBP - British Pound</option>
-                <option value="aud">AUD - Australian Dollar</option>
-                <option value="cad">CAD - Canadian Dollar</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Follow-up Date
-              </label>
-              <input
-                type="date"
-                value={formData.follow_up_date}
-                onChange={(e) => setFormData(prev => ({ ...prev, follow_up_date: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Total Amount (Optional)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.total_amount || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, total_amount: parseFloat(e.target.value) || 0 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="Manual total amount override"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Total Amount (Optional)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.total_amount || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, total_amount: parseFloat(e.target.value) || 0 }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder="Manual total amount override"
+            />
           </div>
         </div>
 
         {/* Tags */}
-        <div className="space-y-6">
-          <h3 className="text-lg font-medium text-gray-900 flex items-center space-x-2">
-            <TagIcon className="h-5 w-5 text-gray-500" />
-            <span>Tags & Categories</span>
-          </h3>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tags (comma-separated)
-            </label>
-            <input
-              type="text"
-              value={formData.tags.join(', ')}
-              onChange={(e) => setFormData(prev => ({ 
-                ...prev, 
-                tags: e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
-              }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              placeholder="e.g., urgent, website, design, development"
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Tags (comma-separated)
+          </label>
+          <input
+            type="text"
+            value={formData.tags.join(', ')}
+            onChange={(e) => setFormData(prev => ({ 
+              ...prev, 
+              tags: e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
+            }))}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            placeholder="e.g., urgent, website, design, development"
+          />
         </div>
 
-        {/* Response Tracking */}
-        {(formData.status === 'rejected' || formData.status === 'accepted') && (
-          <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center space-x-2">
-              <ChatBubbleLeftRightIcon className="h-5 w-5 text-gray-500" />
-              <span>Response Tracking</span>
-            </h3>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Response Notes
-              </label>
-              <textarea
-                rows={3}
-                value={formData.response_notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, response_notes: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="Client response notes and feedback"
-              />
-            </div>
-            
-            {formData.status === 'rejected' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rejection Reason
-                </label>
-                <textarea
-                  rows={2}
-                  value={formData.rejection_reason}
-                  onChange={(e) => setFormData(prev => ({ ...prev, rejection_reason: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  placeholder="Reason for proposal rejection"
-                />
-              </div>
-            )}
-          </div>
-        )}
 
-        {/* Email Options */}
-        <div className="space-y-6">
-          <h3 className="text-lg font-medium text-gray-900 flex items-center space-x-2">
-            <EnvelopeIcon className="h-5 w-5 text-gray-500" />
-            <span>Email Notification</span>
-          </h3>
-          
-          <div className="flex items-center space-x-3">
-            <input
-              type="checkbox"
-              id="send_email"
-              checked={formData.send_email}
-              onChange={(e) => setFormData(prev => ({ ...prev, send_email: e.target.checked }))}
-              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-            />
-            <label htmlFor="send_email" className="text-sm font-medium text-gray-700">
-              Send email notification to customer
-            </label>
-          </div>
-          
-          {formData.send_email && (
-            <div className="space-y-4 pl-7">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Subject
-                </label>
-                <input
-                  type="text"
-                  value={formData.email_subject}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email_subject: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  placeholder="Proposal: [Proposal Title]"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Message
-                </label>
-                <textarea
-                  rows={4}
-                  value={formData.email_message}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email_message: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  placeholder="Please find attached our proposal for your review..."
-                />
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* Terms and Notes */}
-        <div className="space-y-6">
-          <h3 className="text-lg font-medium text-gray-900 flex items-center space-x-2">
-            <DocumentTextIcon className="h-5 w-5 text-gray-500" />
-            <span>Terms & Additional Information</span>
-          </h3>
-          
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Terms & Conditions
@@ -606,7 +510,7 @@ const ProposalForm: React.FC<ProposalFormProps> = ({
               Internal Notes
             </label>
             <textarea
-              rows={3}
+              rows={4}
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -616,11 +520,11 @@ const ProposalForm: React.FC<ProposalFormProps> = ({
         </div>
 
         {/* Submit Buttons */}
-        <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+        <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-2 border border-secondary-300 rounded-md text-secondary-700 hover:bg-secondary-50 transition-colors"
+            className="px-4 py-2 border border-secondary-300 rounded-md text-secondary-700 hover:bg-secondary-50 transition-colors"
             disabled={isLoading}
           >
             Cancel
@@ -628,7 +532,7 @@ const ProposalForm: React.FC<ProposalFormProps> = ({
           <button
             type="submit"
             disabled={isLoading || !formData.title || !formData.customer_id}
-            className="px-6 py-2 bg-user-blue text-white rounded-md hover:bg-user-blue transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading 
               ? (mode === 'edit' ? 'Updating...' : 'Creating...') 
@@ -637,7 +541,6 @@ const ProposalForm: React.FC<ProposalFormProps> = ({
           </button>
         </div>
       </form>
-    </div>
   );
 };
 

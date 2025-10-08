@@ -4,7 +4,6 @@ import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { fetchProjects } from '../../store/slices/projectSlice';
 import { fetchTasks } from '../../store/slices/taskSlice';
 import { Project, Task, TaskStatus, TaskPriority } from '../../types';
-import LoadingSpinner from '../../components/UI/LoadingSpinner';
 import {
   ArrowLeftIcon,
   FolderIcon,
@@ -51,15 +50,12 @@ const ProjectDetailPage: React.FC = () => {
     }
   }, [tasks, id]);
 
-  if (projectsLoading || tasksLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="large" />
-      </div>
-    );
-  }
+  // Avoid blocking spinner; do not render a centered loader while data is loading
 
   if (!project) {
+    if (projectsLoading || tasksLoading) {
+      return <div />;
+    }
     return (
       <div className="text-center py-12">
         <FolderIcon className="mx-auto h-12 w-12 text-secondary-400" />

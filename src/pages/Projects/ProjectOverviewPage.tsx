@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { fetchProjects, createProject, updateProject, deleteProject } from '../../store/slices/projectSlice';
 import { Project, ProjectStatus, ProjectPriority, Customer, User } from '../../types';
-import LoadingSpinner from '../../components/UI/LoadingSpinner';
 import { addNotification } from '../../store/slices/notificationSlice';
 import { detectTenantContext } from '../../utils/tenantUtils';
 import KanbanBoard from '../../components/Views/KanbanBoard';
@@ -31,10 +31,13 @@ import {
   CheckIcon,
   MagnifyingGlassIcon,
   ChevronDownIcon,
+  ChevronUpIcon,
   FunnelIcon,
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import DateRangeCalendar from '../../components/UI/DateRangeCalendar';
+import './FilterButtons.css';
+import ListenMeetingButton from '../../components/Audio/ListenMeetingButton';
 
 interface ProjectStats {
   total: number;
@@ -52,6 +55,45 @@ interface ProjectStats {
 }
 
 
+
+// Portal component for rendering filter popups outside table overflow context
+const FilterPortal: React.FC<{ children: React.ReactNode; buttonRect: DOMRect | null }> = ({ children, buttonRect }) => {
+  if (!buttonRect) return null;
+  
+  return ReactDOM.createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        left: `${buttonRect.left}px`,
+        top: `${buttonRect.bottom + 4}px`,
+        zIndex: 99999,
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>,
+    document.body
+  );
+};
+
+// Portal for inline edit popovers (status, priority, dates, team)
+const InlineEditPortal: React.FC<{ children: React.ReactNode; rect: DOMRect | null }> = ({ children, rect }) => {
+  if (!rect) return null;
+  return ReactDOM.createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        left: `${rect.left}px`,
+        top: `${rect.bottom + 4}px`,
+        zIndex: 99999,
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>,
+    document.body
+  );
+};
 
 const ProjectOverviewPage: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -135,10 +177,15 @@ const ProjectOverviewPage: React.FC = () => {
   const [teamSelection, setTeamSelection] = useState<string[]>([]);
   const [teamInlineFilter, setTeamInlineFilter] = useState('');
 
+  // Inline edit anchoring rects
+  const [inlineEditRect, setInlineEditRect] = useState<DOMRect | null>(null);
+  const [teamEditorRect, setTeamEditorRect] = useState<DOMRect | null>(null);
+
   // Header filters
   const [filterStatus, setFilterStatus] = useState<ProjectStatus[]>([]);
   const [filterPriority, setFilterPriority] = useState<ProjectPriority[]>([]);
   const [filterTeamUserIds, setFilterTeamUserIds] = useState<string[]>([]);
+  const [filterClientIds, setFilterClientIds] = useState<string[]>([]);
   const [teamFilterQuery, setTeamFilterQuery] = useState('');
   // Header date filters
   const [startFilterFrom, setStartFilterFrom] = useState('');
@@ -155,16 +202,38 @@ const ProjectOverviewPage: React.FC = () => {
   // Toolbar date popover
   const [toolbarDateOpen, setToolbarDateOpen] = useState(false);
 
-  // Table sorting state
-  const [sortField, setSortField] = useState<'status' | 'priority' | 'team' | 'start_date' | 'due_date' | 'time_log' | 'completion' | 'budget' | null>(null);
-  const [headerFilterOpen, setHeaderFilterOpen] = useState<null | 'status' | 'priority' | 'team' | 'start_date' | 'due_date'>(null);
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const onHeaderDblClick = (field: 'status' | 'priority' | 'start_date' | 'due_date' | 'time_log' | 'completion' | 'budget') => {
+  // Inline tag input state (for "Add tag")
+  const [showTagInput, setShowTagInput] = useState(false);
+  const tagEditRef = useRef<HTMLSpanElement | null>(null);
+  const commitTagFromRef = () => {
+    const clean = (tagEditRef.current?.innerText || '').trim();
+    if (clean) {
+      const prev = (newProject.tags || '').trim();
+      const newTags = prev ? `${prev}${prev.endsWith(',') ? ' ' : ', '}${clean}` : clean;
+      setNewProject({ ...newProject, tags: newTags });
+    }
+    if (tagEditRef.current) tagEditRef.current.innerText = '';
+    setShowTagInput(false);
+  };
+  useEffect(() => {
+    if (showTagInput) {
+      // Focus the contentEditable span when shown
+      setTimeout(() => tagEditRef.current?.focus(), 0);
+    }
+  }, [showTagInput]);
+ 
+// Table sorting state
+  const [sortField, setSortField] = useState<'created_at' | 'name' | 'status' | 'priority' | 'team' | 'start_date' | 'due_date' | 'tasks' | 'time_log' | 'completion' | 'budget'>('created_at');
+  const [headerFilterOpen, setHeaderFilterOpen] = useState<null | 'status' | 'priority' | 'team' | 'client' | 'start_date' | 'due_date'>(null);
+  const [filterButtonRect, setFilterButtonRect] = useState<DOMRect | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const onHeaderDblClick = (field: 'created_at' | 'name' | 'status' | 'priority' | 'start_date' | 'due_date' | 'tasks' | 'time_log' | 'completion' | 'budget') => {
     if (sortField === field) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(field);
-      setSortDir('asc');
+      // Default to desc for created_at, asc otherwise
+      setSortDir(field === 'created_at' ? 'desc' : 'asc');
     }
   };
 
@@ -173,6 +242,12 @@ const ProjectOverviewPage: React.FC = () => {
 
   const startInlineEdit = (e: React.MouseEvent, project: Project, field: 'status' | 'priority' | 'start_date' | 'due_date') => {
     e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    if (target && typeof target.getBoundingClientRect === 'function') {
+      setInlineEditRect(target.getBoundingClientRect());
+    } else {
+      setInlineEditRect(null);
+    }
     setEditingProjectId(project.id);
     setEditingField(field);
     if (field === 'status') setEditValue(project.status);
@@ -219,10 +294,17 @@ const ProjectOverviewPage: React.FC = () => {
     setEditingProjectId(null);
     setEditingField(null);
     setEditValue(null);
+    setInlineEditRect(null);
   };
 
   const openTeamInlineEditor = (e: React.MouseEvent, projectId: string) => {
     e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    if (target && typeof target.getBoundingClientRect === 'function') {
+      setTeamEditorRect(target.getBoundingClientRect());
+    } else {
+      setTeamEditorRect(null);
+    }
     setTeamEditorOpen(projectId);
     // Seed selection from current members if available
     const current = projectData[projectId]?.members || [];
@@ -265,6 +347,7 @@ const ProjectOverviewPage: React.FC = () => {
     if (e) e.stopPropagation();
     setTeamEditorOpen(null);
     setTeamSelection([]);
+    setTeamEditorRect(null);
   };
 
   useEffect(() => {
@@ -510,6 +593,20 @@ const handleCreateProject = async (e: React.FormEvent) => {
           }));
         }
 
+        // Normalize tags into custom_fields.tags as an array
+        if ((newProject.tags || '').trim()) {
+          const tagArray = (newProject.tags || '')
+            .split(',')
+            .map(t => t.trim())
+            .filter(Boolean);
+          projectData.custom_fields = {
+            ...(projectData.custom_fields || {}),
+            tags: tagArray,
+          };
+          // also remove plain string tags from root to avoid backend rejecting unknown fields
+          delete projectData.tags;
+        }
+
         const created = await dispatch(createProject(projectData)).unwrap();
 
         dispatch(addNotification({
@@ -729,6 +826,9 @@ const handleCreateProject = async (e: React.FormEvent) => {
         return Array.isArray(members) && members.some((m: any) => filterTeamUserIds.includes(m.id));
       });
     }
+    if (filterClientIds && filterClientIds.length > 0) {
+      arr = arr.filter(p => (p as any).customer_id && filterClientIds.includes((p as any).customer_id));
+    }
     // Start date header filters
     if (startFilterFrom) {
       const from = startOfDayLocal(startFilterFrom);
@@ -749,7 +849,6 @@ const handleCreateProject = async (e: React.FormEvent) => {
     }
 
     // Apply sorting
-    if (!sortField) return arr;
     const statusOrder: Record<string, number> = { planning: 1, active: 2, on_hold: 3, completed: 4, cancelled: 5, archived: 6 };
     const priorityOrder: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
 
@@ -757,6 +856,14 @@ const handleCreateProject = async (e: React.FormEvent) => {
       let av: any = 0;
       let bv: any = 0;
       switch (sortField) {
+        case 'created_at':
+          av = a.created_at ? new Date(a.created_at).getTime() : 0;
+          bv = b.created_at ? new Date(b.created_at).getTime() : 0;
+          break;
+        case 'name':
+          av = (a.name || '').toLowerCase();
+          bv = (b.name || '').toLowerCase();
+          break;
         case 'status':
           av = statusOrder[a.status] ?? 0;
           bv = statusOrder[b.status] ?? 0;
@@ -779,6 +886,12 @@ const handleCreateProject = async (e: React.FormEvent) => {
           av = a.due_date ? new Date(a.due_date).getTime() : 0;
           bv = b.due_date ? new Date(b.due_date).getTime() : 0;
           break;
+        case 'tasks': {
+          const at = projectData[a.id]?.pendingTasks ?? 0;
+          const bt = projectData[b.id]?.pendingTasks ?? 0;
+          av = at; bv = bt;
+          break;
+        }
         case 'time_log':
           av = a.actual_hours || 0;
           bv = b.actual_hours || 0;
@@ -799,63 +912,65 @@ const handleCreateProject = async (e: React.FormEvent) => {
       return 0;
     });
     return arr;
-  }, [projects, projectData, sortField, sortDir, filterStatus, filterPriority, filterTeamUserIds, startFilterFrom, startFilterTo, dueFilterFrom, dueFilterTo]);
+  }, [projects, projectData, sortField, sortDir, filterStatus, filterPriority, filterTeamUserIds, filterClientIds, startFilterFrom, startFilterTo, dueFilterFrom, dueFilterTo]);
 
-  if (isLoading && !hasLoadedOnce) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="large" />
-      </div>
-    );
-  }
-
+  // Avoid blocking spinner; render the page and let data populate without an overlay
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center">
         <div className="flex-[0.35]">
-          <h1 className="text-3xl font-bold text-gray-900">Project Overview</h1>
+          <h1 className="page-title font-bold text-gray-900">Project Overview</h1>
+          <div className="text-gray-600 mt-1 text-sm">Plan, track, and deliver projects efficiently</div>
         </div>
         <div className="flex-[0.65] flex justify-end">
           <div className="flex space-x-3">
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setViewMode('cards')}
-              className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white text-gray-900 shadow-sm"
+              className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border ${viewMode === 'cards' ? 'bg-black text-white border-black' : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'}`}
+              aria-pressed={viewMode === 'cards'}
             >
               <FolderIcon className="w-4 h-4" />
               <span className="text-sm font-medium">Cards</span>
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white text-gray-900 shadow-sm"
+              className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border ${viewMode === 'table' ? 'bg-black text-white border-black' : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'}`}
+              aria-pressed={viewMode === 'table'}
             >
               <ListBulletIcon className="w-4 h-4" />
               <span className="text-sm font-medium">List</span>
             </button>
             <button
               onClick={() => setViewMode('kanban')}
-              className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white text-gray-900 shadow-sm"
+              className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border ${viewMode === 'kanban' ? 'bg-black text-white border-black' : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'}`}
+              aria-pressed={viewMode === 'kanban'}
             >
               <Squares2X2Icon className="w-4 h-4" />
               <span className="text-sm font-medium">Kanban</span>
             </button>
             <button
               onClick={() => setViewMode('calendar')}
-              className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white text-gray-900 shadow-sm"
+              className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border ${viewMode === 'calendar' ? 'bg-black text-white border-black' : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'}`}
+              aria-pressed={viewMode === 'calendar'}
             >
               <CalendarIcon className="w-4 h-4" />
               <span className="text-sm font-medium">Calendar</span>
             </button>
             <button
               onClick={() => setViewMode('gantt')}
-              className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white text-gray-900 shadow-sm"
+              className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border ${viewMode === 'gantt' ? 'bg-black text-white border-black' : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'}`}
+              aria-pressed={viewMode === 'gantt'}
             >
               <ChartBarIcon className="w-4 h-4" />
               <span className="text-sm font-medium">Timeline</span>
             </button>
           </div>
           
+            {/* Listen Meeting button next to view controls */}
+            <ListenMeetingButton />
+
             <button
               onClick={() => setShowCreateForm(true)}
               className="btn-page-action flex items-center btn-styled btn-create-auto" style={{ backgroundColor: 'rgb(0, 0, 0)', color: 'white', borderColor: 'rgb(0, 0, 0)', fontSize: '0.875rem', padding: '0.2rem 0.75rem' }}
@@ -879,7 +994,7 @@ const handleCreateProject = async (e: React.FormEvent) => {
         <div className="bg-white shadow rounded-lg p-6 mb-6">
           <h2 className="text-lg font-medium text-secondary-900 mb-4">Create New Project</h2>
           <form onSubmit={handleCreateProject} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-secondary-700">
                   Project Name
@@ -895,9 +1010,37 @@ const handleCreateProject = async (e: React.FormEvent) => {
                 />
               </div>
               <div>
-                <label htmlFor="customer_id" className="block text-sm font-medium text-secondary-700">
-                  Customer
-                </label>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="customer_id" className="block text-sm font-medium text-secondary-700">
+                    Customer
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {newProject.tags?.trim() && (
+                      <span className="text-sm text-gray-800">{newProject.tags}</span>
+                    )}
+                    {!showTagInput ? (
+                      <span
+                        className="text-sm text-gray-600 hover:text-black cursor-text select-none"
+                        onClick={() => setShowTagInput(true)}
+                      >
+                        add tag
+                      </span>
+                    ) : (
+                      <span
+                        ref={tagEditRef}
+                        contentEditable
+                        role="textbox"
+                        aria-label="Add tag"
+                        className="text-sm bg-transparent border-none outline-none focus:outline-none px-0 py-0 min-w-[1ch]"
+                        onBlur={commitTagFromRef}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); commitTagFromRef(); }
+                          if (e.key === 'Escape') { e.preventDefault(); if (tagEditRef.current) tagEditRef.current.innerText = ''; setShowTagInput(false); }
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
                 <select
                   id="customer_id"
                   value={newProject.customer_id}
@@ -912,96 +1055,6 @@ const handleCreateProject = async (e: React.FormEvent) => {
                   ))}
                 </select>
               </div>
-            </div>
-
-            {/* Team Members */}
-            <div ref={teamDropdownRef}>
-              <label className="block text-sm font-medium text-secondary-700">
-                Team Members
-              </label>
-              <div
-                className="mt-1 w-full border border-secondary-300 rounded-md bg-white cursor-pointer"
-                onClick={() => setIsTeamDropdownOpen((o) => !o)}
-              >
-                <div className="px-3 py-2 flex flex-wrap gap-1 min-h-[40px]">
-                  {selectedMemberIds.length === 0 ? (
-                    <span className="text-sm text-gray-500">Select team members</span>
-                  ) : (
-                    availableUsers
-                      .filter(u => selectedMemberIds.includes(u.id))
-                      .slice(0, 4)
-                      .map(u => (
-                        <span key={u.id} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700 border border-gray-200">
-                          {u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim()}
-                        </span>
-                      ))
-                  )}
-                  {selectedMemberIds.length > 4 && (
-                    <span className="text-xs text-gray-500">+{selectedMemberIds.length - 4} more</span>
-                  )}
-                </div>
-              </div>
-
-              {isTeamDropdownOpen && (
-                <div className="relative">
-                  <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-auto">
-                    <div className="p-2 border-b border-gray-100 sticky top-0 bg-white">
-                      <div className="relative">
-                        <MagnifyingGlassIcon className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          value={teamFilter}
-                          onChange={(e) => setTeamFilter(e.target.value)}
-                          placeholder="Search members..."
-                          className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-                    <ul className="py-1">
-                      {availableUsers
-                        .filter((u) => {
-                          const name = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).toLowerCase();
-                          return name.includes(teamFilter.toLowerCase()) || (u.email || '').toLowerCase().includes(teamFilter.toLowerCase());
-                        })
-                        .map((user) => {
-                          const name = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim();
-                          const selected = selectedMemberIds.includes(user.id);
-                          return (
-                            <li
-                              key={user.id}
-                              className={`px-3 py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
-                              onClick={() => toggleMember(user.id)}
-                            >
-                              <div className="flex flex-col">
-                                <span className="text-gray-900">{name}</span>
-                                <span className="text-xs text-gray-500">{user.email}</span>
-                              </div>
-                              {selected && <CheckIcon className="w-4 h-4 text-user-blue" />}
-                            </li>
-                          );
-                        })}
-                      {availableUsers.length === 0 && (
-                        <li className="px-3 py-2 text-sm text-gray-500">No team members found</li>
-                      )}
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-secondary-700">
-                Description
-              </label>
-              <textarea
-                id="description"
-                rows={3}
-                value={newProject.description}
-                onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-                className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
-                placeholder="Brief description of the project..."
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="status" className="block text-sm font-medium text-secondary-700">
                   Status
@@ -1019,6 +1072,9 @@ const handleCreateProject = async (e: React.FormEvent) => {
                   <option value={ProjectStatus.CANCELLED}>Cancelled</option>
                 </select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="priority" className="block text-sm font-medium text-secondary-700">
                   Priority
@@ -1035,8 +1091,6 @@ const handleCreateProject = async (e: React.FormEvent) => {
                   <option value={ProjectPriority.CRITICAL}>Critical</option>
                 </select>
               </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="start_date" className="block text-sm font-medium text-secondary-700">
                   Start Date
@@ -1062,6 +1116,84 @@ const handleCreateProject = async (e: React.FormEvent) => {
                 />
               </div>
             </div>
+
+            {/* Team Members moved near budget row */}
+            <div className="grid grid-cols-1">
+              <div ref={teamDropdownRef}>
+                <label className="block text-sm font-medium text-secondary-700">
+                  Team Members
+                </label>
+                <div
+                  className="mt-1 w-full border border-secondary-300 rounded-md bg-white cursor-pointer"
+                  onClick={() => setIsTeamDropdownOpen((o) => !o)}
+                >
+                  <div className="px-3 py-2 flex flex-wrap gap-1 min-h-[40px]">
+                    {selectedMemberIds.length === 0 ? (
+                      <span className="text-sm text-gray-500">Select team members</span>
+                    ) : (
+                      availableUsers
+                        .filter(u => selectedMemberIds.includes(u.id))
+                        .slice(0, 4)
+                        .map(u => (
+                          <span key={u.id} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700 border border-gray-200">
+                            {u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim()}
+                          </span>
+                        ))
+                    )}
+                    {selectedMemberIds.length > 4 && (
+                      <span className="text-xs text-gray-500">+{selectedMemberIds.length - 4} more</span>
+                    )}
+                  </div>
+                </div>
+
+                {isTeamDropdownOpen && (
+                  <div className="relative">
+                    <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-auto">
+                      <div className="p-2 border-b border-gray-100 sticky top-0 bg-white">
+                        <div className="relative">
+                          <MagnifyingGlassIcon className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="text"
+                            value={teamFilter}
+                            onChange={(e) => setTeamFilter(e.target.value)}
+                            placeholder="Search members..."
+                            className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                      <ul className="py-1">
+                        {availableUsers
+                          .filter((u) => {
+                            const name = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).toLowerCase();
+                            return name.includes(teamFilter.toLowerCase()) || (u.email || '').toLowerCase().includes(teamFilter.toLowerCase());
+                          })
+                          .map((user) => {
+                            const name = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim();
+                            const selected = selectedMemberIds.includes(user.id);
+                            return (
+                              <li
+                                key={user.id}
+                                className={`px-3 py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
+                                onClick={() => toggleMember(user.id)}
+                              >
+                                <div className="flex flex-col">
+                                  <span className="text-gray-900">{name}</span>
+                                  <span className="text-xs text-gray-500">{user.email}</span>
+                                </div>
+                                {selected && <CheckIcon className="w-4 h-4 text-user-blue" />}
+                              </li>
+                            );
+                          })}
+                        {availableUsers.length === 0 && (
+                          <li className="px-3 py-2 text-sm text-gray-500">No team members found</li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="budget" className="block text-sm font-medium text-secondary-700">
@@ -1110,16 +1242,16 @@ const handleCreateProject = async (e: React.FormEvent) => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="tags" className="block text-sm font-medium text-secondary-700">
-                  Tags
+                <label htmlFor="description" className="block text-sm font-medium text-secondary-700">
+                  Description
                 </label>
-                <input
-                  type="text"
-                  id="tags"
-                  value={newProject.tags}
-                  onChange={(e) => setNewProject({ ...newProject, tags: e.target.value })}
+                <textarea
+                  id="description"
+                  rows={3}
+                  value={newProject.description}
+                  onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
                   className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
-                  placeholder="web, mobile, design"
+                  placeholder="Brief description of the project..."
                 />
               </div>
               <div>
@@ -1175,58 +1307,70 @@ const handleCreateProject = async (e: React.FormEvent) => {
       )}
 
       {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white px-4 py-3 rounded-lg shadow">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="metric-card metric-blue bg-white px-4 py-3 rounded-lg shadow border-t-4 border-blue-600">
           <div className="flex items-center">
             <div className="p-2 bg-blue-50 rounded-lg">
               <FolderIcon className="h-6 w-6 text-blue-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Projects</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+              <p className="metric-value text-2xl font-bold">{stats.total}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white px-4 py-3 rounded-lg shadow">
+        <div className="metric-card metric-green bg-white px-4 py-3 rounded-lg shadow border-t-4 border-green-600">
           <div className="flex items-center">
             <div className="p-2 bg-green-50 rounded-lg">
               <ArrowTrendingUpIcon className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Active Projects</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
+              <p className="metric-value text-2xl font-bold">{stats.active}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white px-4 py-3 rounded-lg shadow">
+        <div className="metric-card metric-yellow bg-white px-4 py-3 rounded-lg shadow border-t-4 border-yellow-600">
           <div className="flex items-center">
             <div className="p-2 bg-yellow-50 rounded-lg">
               <CurrencyDollarIcon className="h-6 w-6 text-yellow-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Budget</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalBudget)}</p>
+              <p className="metric-value text-2xl font-bold">{formatCurrency(stats.totalBudget)}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white px-4 py-3 rounded-lg shadow">
+        <div className="metric-card metric-purple bg-white px-4 py-3 rounded-lg shadow border-t-4 border-purple-600">
           <div className="flex items-center">
             <div className="p-2 bg-purple-50 rounded-lg">
               <ClockIcon className="h-6 w-6 text-purple-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Hours</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalHours}</p>
+              <p className="metric-value text-2xl font-bold">{stats.totalHours}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="metric-card metric-red bg-white px-4 py-3 rounded-lg shadow border-t-4 border-red-600">
+          <div className="flex items-center">
+            <div className="p-2 bg-red-100 rounded-lg">
+              <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Critical Projects</p>
+              <p className="metric-value text-2xl font-bold">{stats.priorityDistribution[ProjectPriority.CRITICAL]}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Projects View */}
-      {projects.length === 0 ? (
+      {projects.length === 0 && hasLoadedOnce ? (
         <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
           <FolderIcon className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">No projects yet</h3>
@@ -1322,9 +1466,9 @@ const handleCreateProject = async (e: React.FormEvent) => {
                     // Reset search
                     setProjectSearch('');
 
-                    // Reset sorting
-                    setSortField(null);
-                    setSortDir('asc');
+                    // Reset sorting to default: latest created first
+                    setSortField('created_at');
+                    setSortDir('desc');
 
                     // Reset header filters
                     setFilterStatus([]);
@@ -1369,7 +1513,7 @@ setFilterTeamUserIds([]);
                     <CalendarIcon className="w-4 h-4" />
                   </button>
                   {toolbarDateOpen && (
-                    <div className="absolute right-0 top-full mt-1 z-40 w-56 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-1 text-xs">
+                    <div className="absolute right-0 top-full mt-1 z-40 w-64 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{borderRadius: '5px'}}>
                       <div className="px-1 pb-1">
 <DateRangeCalendar size="sm"
                           initialFrom={pendingToolbarFrom || null}
@@ -1377,7 +1521,7 @@ setFilterTeamUserIds([]);
                           onChange={(from, to) => {
                             if (from && !to) {
                               setPendingToolbarFrom(from);
-                              setPendingToolbarTo(from);
+                              setPendingToolbarFrom(from);
                             } else {
                               setPendingToolbarFrom(from || '');
                               setPendingToolbarTo(to || '');
@@ -1385,9 +1529,9 @@ setFilterTeamUserIds([]);
                           }}
                         />
                       </div>
-<div className="flex justify-end gap-2 px-1 py-1 border-t border-gray-100">
-<button className="text-[13px] text-red-600 hover:underline" onClick={(e) => { e.stopPropagation(); const newFrom = ''; const newTo = ''; setFilterFromDate(newFrom); setFilterToDate(newTo); setToolbarDateOpen(false); const fromCandidates = [newFrom, startFilterFrom, dueFilterFrom].filter(Boolean) as string[]; const toCandidates = [newTo, startFilterTo, dueFilterTo].filter(Boolean) as string[]; const toDateObj = (s: string) => new Date(s); const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; const minFrom = fromCandidates.length > 0 ? ymd(new Date(Math.min(...fromCandidates.map(s => toDateObj(s).getTime())))) : ''; const maxTo = toCandidates.length > 0 ? ymd(new Date(Math.max(...toCandidates.map(s => toDateObj(s).getTime())))) : ''; const params: { q?: string; from_date?: string; to_date?: string } = {}; if (projectSearch && projectSearch.trim()) params.q = projectSearch.trim(); if (minFrom) params.from_date = minFrom; if (maxTo) params.to_date = maxTo; dispatch(fetchProjects(Object.keys(params).length ? params : undefined)); }}>Clear</button>
-<button className="text-[13px] text-black hover:underline font-medium" onClick={(e) => {
+<div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+<button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); const newFrom = ''; const newTo = ''; setFilterFromDate(newFrom); setFilterToDate(newTo); setToolbarDateOpen(false); const fromCandidates = [newFrom, startFilterFrom, dueFilterFrom].filter(Boolean) as string[]; const toCandidates = [newTo, startFilterTo, dueFilterTo].filter(Boolean) as string[]; const toDateObj = (s: string) => new Date(s); const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; const minFrom = fromCandidates.length > 0 ? ymd(new Date(Math.min(...fromCandidates.map(s => toDateObj(s).getTime())))) : ''; const maxTo = toCandidates.length > 0 ? ymd(new Date(Math.max(...toCandidates.map(s => toDateObj(s).getTime())))) : ''; const params: { q?: string; from_date?: string; to_date?: string } = {}; if (projectSearch && projectSearch.trim()) params.q = projectSearch.trim(); if (minFrom) params.from_date = minFrom; if (maxTo) params.to_date = maxTo; dispatch(fetchProjects(Object.keys(params).length ? params : undefined)); }}>Clear</button>
+<button className="filter-popup-btn filter-popup-btn-filter" onClick={(e) => {
                           e.stopPropagation();
                           const from = pendingToolbarFrom || '';
                           const to = pendingToolbarTo || pendingToolbarFrom || '';
@@ -1413,15 +1557,43 @@ setFilterTeamUserIds([]);
               </div>
             </div>
       </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto projects-table" style={{backgroundColor: 'rgb(249, 250, 251)'}}>
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                      Project
+                    <th onDoubleClick={() => onHeaderDblClick('name')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none" title="Double‑click to sort by Project Name">
+                      <div className="inline-flex items-center gap-1">
+                        <span>Project</span>
+                        {sortField === 'name' && (
+                          sortDir === 'asc' ? (
+                            <ChevronUpIcon className="w-3.5 h-3.5 text-gray-600" />
+                          ) : (
+                            <ChevronDownIcon className="w-3.5 h-3.5 text-gray-600" />
+                          )
+                        )}
+                      </div>
                     </th>
                     <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                      Client
+                      <div className="inline-flex items-center gap-1">
+                        <span>Client</span>
+                        <span className="relative">
+                          <button
+                            type="button"
+                            className="p-0.5 text-gray-500 hover:text-gray-700"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const isOpening = headerFilterOpen !== 'client';
+                              if (isOpening) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setFilterButtonRect(rect);
+                              }
+                              setHeaderFilterOpen(isOpening ? 'client' : null);
+                            }}
+                          >
+                            <FunnelIcon className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
+                      </div>
                     </th>
                     <th onDoubleClick={() => onHeaderDblClick('status')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                       <div className="inline-flex items-center gap-1">
@@ -1430,40 +1602,18 @@ setFilterTeamUserIds([]);
                           <button
                             type="button"
                             className="p-0.5 text-gray-500 hover:text-gray-700"
-                            onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(headerFilterOpen === 'status' ? null : 'status'); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const isOpening = headerFilterOpen !== 'status';
+                              if (isOpening) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setFilterButtonRect(rect);
+                              }
+                              setHeaderFilterOpen(isOpening ? 'status' : null);
+                            }}
                           >
                             <FunnelIcon className="w-3.5 h-3.5" />
                           </button>
-                          {headerFilterOpen === 'status' && (
-<div ref={headerFilterRef} className="absolute left-0 top-full mt-1 z-40 w-48 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-2 text-xs font-medium">
-<div className="px-2 py-1 text-xs text-gray-800 font-medium">Filter status</div>
-                              <ul className="max-h-48 overflow-auto">
-                                {(['planning','active','on_hold','completed','cancelled','archived'] as ProjectStatus[]).map(st => {
-                                  const checked = filterStatus.includes(st);
-                                  return (
-                                    <li key={st}>
-<label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
-<input
-                                          type="checkbox"
-                                          className="h-4 w-4"
-                                          checked={checked}
-                                          onChange={(e) => {
-                                            e.stopPropagation();
-                                            setFilterStatus(prev => checked ? prev.filter(x => x !== st) : [...prev, st]);
-                                          }}
-                                        />
-<span className="capitalize">{st.replace('_',' ')}</span>
-                                      </label>
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-<div className="flex justify-end gap-3 px-2 py-0 border-t border-gray-100">
-<button className="text-[13px] font-medium text-red-600 hover:underline" onClick={(e) => { e.stopPropagation(); setFilterStatus([]); }}>Clear</button>
-<button className="text-[13px] font-medium text-gray-800 hover:underline" onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
-                              </div>
-                            </div>
-                          )}
                         </span>
                       </div>
                     </th>
@@ -1474,40 +1624,18 @@ setFilterTeamUserIds([]);
                           <button
                             type="button"
                             className="p-0.5 text-gray-500 hover:text-gray-700"
-                            onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(headerFilterOpen === 'priority' ? null : 'priority'); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const isOpening = headerFilterOpen !== 'priority';
+                              if (isOpening) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setFilterButtonRect(rect);
+                              }
+                              setHeaderFilterOpen(isOpening ? 'priority' : null);
+                            }}
                           >
                             <FunnelIcon className="w-3.5 h-3.5" />
                           </button>
-                          {headerFilterOpen === 'priority' && (
-<div ref={headerFilterRef} className="absolute left-0 top-full mt-1 z-40 w-48 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-2 text-xs font-medium">
-<div className="px-2 py-0.5 text-xs text-gray-700 font-normal">Filter priority</div>
-                              <ul className="max-h-48 overflow-auto">
-                                {(['low','medium','high','critical'] as ProjectPriority[]).map(pr => {
-                                  const checked = filterPriority.includes(pr);
-                                  return (
-                                    <li key={pr}>
-<label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
-<input
-                                          type="checkbox"
-className="h-3 w-3"
-                                          checked={checked}
-                                          onChange={(e) => {
-                                            e.stopPropagation();
-                                            setFilterPriority(prev => checked ? prev.filter(x => x !== pr) : [...prev, pr]);
-                                          }}
-                                        />
-<span className="capitalize">{pr}</span>
-                                      </label>
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-<div className="flex justify-end gap-3 px-2 py-0 border-t border-gray-100">
-<button className="text-[13px] font-medium text-red-600 hover:underline" onClick={(e) => { e.stopPropagation(); setFilterPriority([]); }}>Clear</button>
-<button className="text-[13px] font-medium text-gray-800 hover:underline" onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
-                              </div>
-                            </div>
-                          )}
                         </span>
                       </div>
                     </th>
@@ -1518,40 +1646,18 @@ className="h-3 w-3"
                           <button
                             type="button"
                             className="p-0.5 text-gray-500 hover:text-gray-700"
-                            onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(headerFilterOpen === 'team' ? null : 'team'); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const isOpening = headerFilterOpen !== 'team';
+                              if (isOpening) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setFilterButtonRect(rect);
+                              }
+                              setHeaderFilterOpen(isOpening ? 'team' : null);
+                            }}
                           >
                             <FunnelIcon className="w-3.5 h-3.5" />
                           </button>
-                          {headerFilterOpen === 'team' && (
-<div ref={headerFilterRef} className="absolute left-0 top-full mt-1 z-40 w-48 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-2 text-xs font-medium">
-                              <ul className="max-h-48 overflow-auto">
-{availableUsers.map(u => {
-                                  const selected = filterTeamUserIds.includes(u.id);
-                                  const label = u.full_name || `${u.first_name||''} ${u.last_name||''}`.trim() || u.email;
-                                  return (
-                                    <li key={u.id}>
-<label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
-<input
-                                          type="checkbox"
-                                          className="h-3 w-3"
-                                          checked={selected}
-                                          onChange={(e) => {
-                                            e.stopPropagation();
-                                            setFilterTeamUserIds(prev => selected ? prev.filter(id => id !== u.id) : [...prev, u.id]);
-                                          }}
-                                        />
-                                        <span>{label}</span>
-                                      </label>
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-<div className="flex justify-end gap-3 px-2 py-0 border-t border-gray-100">
-<button className="text-[13px] font-medium text-red-600 hover:underline" onClick={(e)=>{ e.stopPropagation(); setFilterTeamUserIds([]); }}>Clear</button>
-<button className="text-[13px] font-medium text-gray-800 hover:underline" onClick={(e)=>{ e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
-                              </div>
-                            </div>
-                          )}
                         </span>
                       </div>
                     </th>
@@ -1564,57 +1670,18 @@ className="h-3 w-3"
                             className="p-0.5 text-gray-500 hover:text-gray-700"
                             onClick={(e) => {
                               e.stopPropagation();
-                              const willOpen = headerFilterOpen !== 'start_date';
-                              setHeaderFilterOpen(willOpen ? 'start_date' : null);
-                              if (willOpen) {
+                              const isOpening = headerFilterOpen !== 'start_date';
+                              if (isOpening) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setFilterButtonRect(rect);
                                 setPendingStartFrom(startFilterFrom || '');
                                 setPendingStartTo(startFilterTo || '');
                               }
+                              setHeaderFilterOpen(isOpening ? 'start_date' : null);
                             }}
                           >
                             <CalendarIcon className="w-3.5 h-3.5" />
                           </button>
-                          {headerFilterOpen === 'start_date' && (
-                            <div ref={headerFilterRef} className="absolute left-0 top-full mt-1 z-40 w-56 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-1 text-xs">
-                              <div className="px-1 pb-1">
-<DateRangeCalendar size="sm"
-                                  initialFrom={pendingStartFrom || null}
-                                  initialTo={pendingStartTo || null}
-                                  onChange={(from, to) => {
-                                    if (from && !to) {
-                                      setPendingStartFrom(from);
-                                      setPendingStartTo(from);
-                                    } else {
-                                      setPendingStartFrom(from || '');
-                                      setPendingStartTo(to || '');
-                                    }
-                                  }}
-                                />
-                              </div>
-<div className="flex justify-end gap-2 px-1 py-0 border-t border-gray-100">
-<button className="text-[13px] font-medium text-red-600 hover:underline" onClick={(e) => { e.stopPropagation(); const newFrom = ''; const newTo = ''; setStartFilterFrom(newFrom); setStartFilterTo(newTo); setHeaderFilterOpen(null); const fromCandidates = [filterFromDate, dueFilterFrom, newFrom].filter(Boolean) as string[]; const toCandidates = [filterToDate, dueFilterTo, newTo].filter(Boolean) as string[]; const toDateObj = (s: string) => new Date(s); const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; const minFrom = fromCandidates.length > 0 ? ymd(new Date(Math.min(...fromCandidates.map(s => toDateObj(s).getTime())))) : ''; const maxTo = toCandidates.length > 0 ? ymd(new Date(Math.max(...toCandidates.map(s => toDateObj(s).getTime())))) : ''; const params: { q?: string; from_date?: string; to_date?: string } = {}; if (projectSearch && projectSearch.trim()) params.q = projectSearch.trim(); if (minFrom) params.from_date = minFrom; if (maxTo) params.to_date = maxTo; dispatch(fetchProjects(Object.keys(params).length ? params : undefined)); }}>Clear</button>
-<button className="text-[13px] font-medium text-black hover:underline" onClick={(e) => {
-                                  e.stopPropagation();
-                                  const from = pendingStartFrom || '';
-                                  const to = pendingStartTo || pendingStartFrom || '';
-                                  setStartFilterFrom(from);
-                                  setStartFilterTo(to);
-                                  setHeaderFilterOpen(null);
-                                  const fromCandidates = [filterFromDate, dueFilterFrom, from].filter(Boolean) as string[];
-                                  const toCandidates = [filterToDate, dueFilterTo, to].filter(Boolean) as string[];
-                                  const toDateObj = (s: string) => new Date(s);
-                                  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-                                  const minFrom = fromCandidates.length > 0 ? ymd(new Date(Math.min(...fromCandidates.map(s => toDateObj(s).getTime())))) : '';
-                                  const maxTo = toCandidates.length > 0 ? ymd(new Date(Math.max(...toCandidates.map(s => toDateObj(s).getTime())))) : '';
-                                  const params: { q?: string; from_date?: string; to_date?: string } = {};
-                                  if (projectSearch && projectSearch.trim()) params.q = projectSearch.trim();
-                                  if (minFrom) params.from_date = minFrom;
-                                  if (maxTo) params.to_date = maxTo;
-                                  dispatch(fetchProjects(Object.keys(params).length ? params : undefined));
-                                }}>Filter</button>
-                              </div>
-                            </div>
-                          )}
                         </span>
                       </div>
                     </th>
@@ -1627,62 +1694,32 @@ className="h-3 w-3"
                             className="p-0.5 text-gray-500 hover:text-gray-700"
                             onClick={(e) => {
                               e.stopPropagation();
-                              const willOpen = headerFilterOpen !== 'due_date';
-                              setHeaderFilterOpen(willOpen ? 'due_date' : null);
-                              if (willOpen) {
+                              const isOpening = headerFilterOpen !== 'due_date';
+                              if (isOpening) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setFilterButtonRect(rect);
                                 setPendingDueFrom(dueFilterFrom || '');
                                 setPendingDueTo(dueFilterTo || '');
                               }
+                              setHeaderFilterOpen(isOpening ? 'due_date' : null);
                             }}
                           >
                             <CalendarIcon className="w-3.5 h-3.5" />
                           </button>
-                          {headerFilterOpen === 'due_date' && (
-                            <div ref={headerFilterRef} className="absolute left-0 top-full mt-1 z-40 w-56 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-1 text-xs">
-                              <div className="px-1 pb-1">
-<DateRangeCalendar size="sm"
-                                  initialFrom={pendingDueFrom || null}
-                                  initialTo={pendingDueTo || null}
-                                  onChange={(from, to) => {
-                                    if (from && !to) {
-                                      setPendingDueFrom(from);
-                                      setPendingDueTo(from);
-                                    } else {
-                                      setPendingDueFrom(from || '');
-                                      setPendingDueTo(to || '');
-                                    }
-                                  }}
-                                />
-                              </div>
-<div className="flex justify-end gap-2 px-1 py-0 border-t border-gray-100">
-<button className="text-[13px] font-medium text-red-600 hover:underline" onClick={(e) => { e.stopPropagation(); const newFrom = ''; const newTo = ''; setDueFilterFrom(newFrom); setDueFilterTo(newTo); setHeaderFilterOpen(null); const fromCandidates = [filterFromDate, startFilterFrom, newFrom].filter(Boolean) as string[]; const toCandidates = [filterToDate, startFilterTo, newTo].filter(Boolean) as string[]; const toDateObj = (s: string) => new Date(s); const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; const minFrom = fromCandidates.length > 0 ? ymd(new Date(Math.min(...fromCandidates.map(s => toDateObj(s).getTime())))) : ''; const maxTo = toCandidates.length > 0 ? ymd(new Date(Math.max(...toCandidates.map(s => toDateObj(s).getTime())))) : ''; const params: { q?: string; from_date?: string; to_date?: string } = {}; if (projectSearch && projectSearch.trim()) params.q = projectSearch.trim(); if (minFrom) params.from_date = minFrom; if (maxTo) params.to_date = maxTo; dispatch(fetchProjects(Object.keys(params).length ? params : undefined)); }}>Clear</button>
-<button className="text-[13px] font-medium text-black hover:underline" onClick={(e) => {
-                                  e.stopPropagation();
-                                  const from = pendingDueFrom || '';
-                                  const to = pendingDueTo || pendingDueFrom || '';
-                                  setDueFilterFrom(from);
-                                  setDueFilterTo(to);
-                                  setHeaderFilterOpen(null);
-                                  const fromCandidates = [filterFromDate, startFilterFrom, from].filter(Boolean) as string[];
-                                  const toCandidates = [filterToDate, startFilterTo, to].filter(Boolean) as string[];
-                                  const toDateObj = (s: string) => new Date(s);
-                                  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-                                  const minFrom = fromCandidates.length > 0 ? ymd(new Date(Math.min(...fromCandidates.map(s => toDateObj(s).getTime())))) : '';
-                                  const maxTo = toCandidates.length > 0 ? ymd(new Date(Math.max(...toCandidates.map(s => toDateObj(s).getTime())))) : '';
-                                  const params: { q?: string; from_date?: string; to_date?: string } = {};
-                                  if (projectSearch && projectSearch.trim()) params.q = projectSearch.trim();
-                                  if (minFrom) params.from_date = minFrom;
-                                  if (maxTo) params.to_date = maxTo;
-                                  dispatch(fetchProjects(Object.keys(params).length ? params : undefined));
-                                }}>Filter</button>
-                              </div>
-                            </div>
-                          )}
                         </span>
                       </div>
                     </th>
-                    <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                      To Do
+                    <th onDoubleClick={() => onHeaderDblClick('tasks')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none" title="Double‑click to sort by Tasks">
+                      <div className="inline-flex items-center gap-1">
+                        <span>Tasks</span>
+                        {sortField === 'tasks' && (
+                          sortDir === 'asc' ? (
+                            <ChevronUpIcon className="w-3.5 h-3.5 text-gray-600" />
+                          ) : (
+                            <ChevronDownIcon className="w-3.5 h-3.5 text-gray-600" />
+                          )
+                        )}
+                      </div>
                     </th>
                     <th onDoubleClick={() => onHeaderDblClick('time_log')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                       Time Log
@@ -1699,9 +1736,16 @@ className="h-3 w-3"
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                    {displayedProjects.map((project) => (
-                      <tr key={project.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/projects/${project.id}`)}>
-<td className="px-3 py-2 whitespace-nowrap">
+                  {displayedProjects.length === 0 && (
+                    <tr>
+                      <td colSpan={12} className="px-3 py-8 text-center text-sm text-gray-500">
+                        No projects found
+                      </td>
+                    </tr>
+                  )}
+                  {displayedProjects.map((project) => (
+                    <tr key={project.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/projects/${project.id}`)}>
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
                             {getStatusIcon(project.status)}
@@ -1723,20 +1767,22 @@ className="h-3 w-3"
                             {project.status.replace('_', ' ')}
                           </span>
                           {editingProjectId === project.id && editingField === 'status' && (
-                            <div ref={inlinePopoverRef} className="absolute z-40 mt-1 w-44 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-0.5">
-                              <ul className="text-xs">
-                                {['planning','active','on_hold','completed','cancelled'].map((opt) => (
-                                  <li
-                                    key={opt}
-                                    className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${opt===project.status ? 'bg-gray-50' : ''}`}
-                                    onClick={() => { saveInlineEdit(project.id, opt); }}
-                                  >
-                                    <span className="capitalize">{opt.replace('_',' ')}</span>
-                                    {opt===project.status && <CheckIcon className="w-4 h-4 text-user-blue" />}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
+                            <InlineEditPortal rect={inlineEditRect}>
+                              <div ref={inlinePopoverRef} className="w-44 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{ borderRadius: '5px' }}>
+                                <ul className="max-h-64 overflow-auto">
+                                  {['planning','active','on_hold','completed','cancelled'].map((opt) => (
+                                    <li
+                                      key={opt}
+                                      className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${opt===project.status ? 'bg-gray-50' : ''}`}
+                                      onClick={() => { saveInlineEdit(project.id, opt); }}
+                                    >
+                                      <span className="capitalize">{opt.replace('_',' ')}</span>
+                                      {opt===project.status && <CheckIcon className="w-4 h-4 text-user-blue" />}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </InlineEditPortal>
                           )}
                         </div>
                       </td>
@@ -1746,20 +1792,22 @@ className="h-3 w-3"
                             {project.priority}
                           </span>
                           {editingProjectId === project.id && editingField === 'priority' && (
-                            <div ref={inlinePopoverRef} className="absolute z-40 mt-1 w-40 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-0.5">
-                              <ul className="text-xs">
-                                {['low','medium','high','critical'].map((opt) => (
-                                  <li
-                                    key={opt}
-                                    className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${opt===project.priority ? 'bg-gray-50' : ''}`}
-                                    onClick={() => { saveInlineEdit(project.id, opt); }}
-                                  >
-                                    <span className="capitalize">{opt}</span>
-                                    {opt===project.priority && <CheckIcon className="w-4 h-4 text-user-blue" />}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
+                            <InlineEditPortal rect={inlineEditRect}>
+                              <div ref={inlinePopoverRef} className="w-40 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{ borderRadius: '5px' }}>
+                                <ul className="max-h-64 overflow-auto">
+                                  {['low','medium','high','critical'].map((opt) => (
+                                    <li
+                                      key={opt}
+                                      className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${opt===project.priority ? 'bg-gray-50' : ''}`}
+                                      onClick={() => { saveInlineEdit(project.id, opt); }}
+                                    >
+                                      <span className="capitalize">{opt}</span>
+                                      {opt===project.priority && <CheckIcon className="w-4 h-4 text-user-blue" />}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </InlineEditPortal>
                           )}
                         </div>
                       </td>
@@ -1809,87 +1857,90 @@ className="h-3 w-3"
                           <ChevronDownIcon className="h-4 w-4 text-gray-400" />
 
                           {teamEditorOpen === project.id && (
-                            <div ref={teamEditorRef} className="absolute left-0 top-full z-40 mt-1 w-56 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-1">
-                              <div className="px-2 py-0.5 border-b border-gray-100 sticky top-0 bg-white rounded-t-md">
-                                <div className="mt-1 relative">
-                                  <MagnifyingGlassIcon className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
-                                  <input
-                                    type="text"
-                                    value={teamInlineFilter}
-                                    onChange={(e) => setTeamInlineFilter(e.target.value)}
-                                    placeholder="Search members..."
-                                    className="w-full pl-7 pr-2 py-0.5 text-xs border border-gray-200 rounded-sm focus:outline-none focus:ring-0 focus:border-gray-300"
-                                  />
+                            <InlineEditPortal rect={teamEditorRect}>
+                              <div ref={teamEditorRef} className="w-56 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{ borderRadius: '5px' }}>
+                                <div className="px-2 py-0.5 border-b border-gray-100 sticky top-0 bg-white rounded-t-md">
+                                  <div className="mt-1 relative">
+                                    <MagnifyingGlassIcon className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                      type="text"
+                                      value={teamInlineFilter}
+                                      onChange={(e) => setTeamInlineFilter(e.target.value)}
+                                      placeholder="Search members..."
+                                      className="w-full pl-7 pr-2 py-0.5 text-xs border border-gray-200 rounded-sm focus:outline-none focus:ring-0 focus:border-gray-300"
+                                    />
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="max-h-64 overflow-auto">
-<ul className="py-1.5 text-xs space-y-1.5">
-                                  {availableUsers
-                                    .filter((u) => {
-                                      const name = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || '').toLowerCase();
-                                      const email = (u.email || '').toLowerCase();
-                                      const q = (teamInlineFilter || '').toLowerCase();
-                                      return !q || name.includes(q) || email.includes(q);
-                                    })
-                                    .map((user) => {
-                                      const name = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
-                                      const selected = teamSelection.includes(user.id);
-                                      return (
-                                        <li key={user.id} className="px-1.5 py-0.5 text-[11px]">
-                                          <button
-                                            type="button"
-className={`w-full flex items-center justify-between text-left px-1.5 py-0 rounded-sm border !min-h-0 h-auto leading-none ${selected ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-transparent hover:bg-gray-50 text-gray-700'}`} style={{ minHeight: 0, paddingTop: 10 }}
-                                            onClick={(e) => { e.stopPropagation(); toggleTeamSelect(user.id); }}
-                                          >
-                                            <div className="flex flex-col">
-                                              <span>{name}</span>
-                                              <span className="text-[10px] text-gray-500">{user.email}</span>
-                                            </div>
-                                            {selected && <CheckIcon className="w-3 h-3 text-blue-600" />}
-                                          </button>
-                                        </li>
-                                      );
-                                    })}
-                                  {availableUsers.length === 0 && (
-                                    <li className="px-3 py-2 text-sm text-gray-500">No team members found</li>
-                                  )}
-                                </ul>
-                              </div>
-                              <div className="flex justify-end items-center gap-3 p-1 border-t border-gray-100 rounded-b-md">
-                                <button
-                                  type="button"
-                                  className="text-[11px] text-blue-600 hover:underline px-0 py-0 bg-transparent"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const ids = availableUsers
+                                <div className="max-h-64 overflow-auto">
+                                  <ul className="py-1.5 text-xs space-y-1.5">
+                                    {availableUsers
                                       .filter((u) => {
                                         const name = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || '').toLowerCase();
                                         const email = (u.email || '').toLowerCase();
                                         const q = (teamInlineFilter || '').toLowerCase();
                                         return !q || name.includes(q) || email.includes(q);
                                       })
-                                      .map((u) => u.id);
-                                    setTeamSelection((prev) => Array.from(new Set([...(prev || []), ...ids])));
-                                  }}
-                                >
-                                  Select all
-                                </button>
-                                <button
-                                  type="button"
-                                  className="text-[11px] text-red-600 hover:underline px-0 py-0 bg-transparent"
-                                  onClick={(e) => { e.stopPropagation(); setTeamSelection([]); }}
-                                >
-                                  Clear
-                                </button>
-                                <button
-                                  type="button"
-                                  className="text-[11px] text-black hover:underline px-0 py-0 bg-transparent"
-                                  onClick={(e) => { e.stopPropagation(); saveTeamInlineEdit(project.id); }}
-                                >
-                                  Add
-                                </button>
+                                      .map((user) => {
+                                        const name = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+                                        const selected = teamSelection.includes(user.id);
+                                        return (
+                                          <li key={user.id} className="px-1.5 py-0.5 text-[11px]">
+                                            <button
+                                              type="button"
+                                              className={`w-full flex items-center justify-between text-left px-1.5 py-0 rounded-sm border !min-h-0 h-auto leading-none ${selected ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-transparent hover:bg-gray-50 text-gray-700'}`}
+                                              style={{ minHeight: 0, paddingTop: 10 }}
+                                              onClick={(e) => { e.stopPropagation(); toggleTeamSelect(user.id); }}
+                                            >
+                                              <div className="flex flex-col">
+                                                <span>{name}</span>
+                                                <span className="text-[10px] text-gray-500">{user.email}</span>
+                                              </div>
+                                              {selected && <CheckIcon className="w-3 h-3 text-blue-600" />}
+                                            </button>
+                                          </li>
+                                        );
+                                      })}
+                                    {availableUsers.length === 0 && (
+                                      <li className="px-3 py-2 text-sm text-gray-500">No team members found</li>
+                                    )}
+                                  </ul>
+                                </div>
+                                <div className="flex justify-end items-center gap-3 p-1 border-t border-gray-100 rounded-b-md">
+                                  <button
+                                    type="button"
+                                    className="filter-popup-btn filter-popup-btn-clear"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const ids = availableUsers
+                                        .filter((u) => {
+                                          const name = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || '').toLowerCase();
+                                          const email = (u.email || '').toLowerCase();
+                                          const q = (teamInlineFilter || '').toLowerCase();
+                                          return !q || name.includes(q) || email.includes(q);
+                                        })
+                                        .map((u) => u.id);
+                                      setTeamSelection((prev) => Array.from(new Set([...(prev || []), ...ids])));
+                                    }}
+                                  >
+                                    Select all
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="filter-popup-btn filter-popup-btn-clear"
+                                    onClick={(e) => { e.stopPropagation(); setTeamSelection([]); }}
+                                  >
+                                    Clear
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="filter-popup-btn filter-popup-btn-filter"
+                                    onClick={(e) => { e.stopPropagation(); saveTeamInlineEdit(project.id); }}
+                                  >
+                                    Add
+                                  </button>
+                                </div>
                               </div>
-                            </div>
+                            </InlineEditPortal>
                           )}
                         </div>
                       </td>
@@ -1906,15 +1957,17 @@ className={`w-full flex items-center justify-between text-left px-1.5 py-0 round
                             <span className={`${project.status === 'cancelled' ? 'text-red-600' : project.status === 'on_hold' ? 'text-yellow-600' : 'text-gray-500'}`}>Open</span>
                           )}
                           {editingProjectId === project.id && editingField === 'start_date' && (
-                            <div ref={inlinePopoverRef} className="absolute z-40 mt-1 w-56 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-2">
-                              <input
-                                type="date"
-                                value={editValue || ''}
-                                onChange={(e) => { saveInlineEdit(project.id, e.target.value); }}
-                                className="block w-full h-8 px-2 py-1 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
-                                autoFocus
-                              />
-                            </div>
+                            <InlineEditPortal rect={inlineEditRect}>
+                              <div ref={inlinePopoverRef} className="w-56 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{ borderRadius: '5px' }}>
+                                <input
+                                  type="date"
+                                  value={editValue || ''}
+                                  onChange={(e) => { saveInlineEdit(project.id, e.target.value); }}
+                                  className="block w-full h-8 px-2 py-1 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
+                                  autoFocus
+                                />
+                              </div>
+                            </InlineEditPortal>
                           )}
                         </div>
                       </td>
@@ -1931,15 +1984,17 @@ className={`w-full flex items-center justify-between text-left px-1.5 py-0 round
                             <span className="text-gray-400">No due date</span>
                           )}
                           {editingProjectId === project.id && editingField === 'due_date' && (
-                            <div ref={inlinePopoverRef} className="absolute z-40 mt-1 w-56 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 p-2">
-                              <input
-                                type="date"
-                                value={editValue || ''}
-                                onChange={(e) => { saveInlineEdit(project.id, e.target.value); }}
-                                className="block w-full h-8 px-2 py-1 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
-                                autoFocus
-                              />
-                            </div>
+                            <InlineEditPortal rect={inlineEditRect}>
+                              <div ref={inlinePopoverRef} className="w-56 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{ borderRadius: '5px' }}>
+                                <input
+                                  type="date"
+                                  value={editValue || ''}
+                                  onChange={(e) => { saveInlineEdit(project.id, e.target.value); }}
+                                  className="block w-full h-8 px-2 py-1 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
+                                  autoFocus
+                                />
+                              </div>
+                            </InlineEditPortal>
                           )}
                         </div>
                         </td>
@@ -2038,6 +2093,223 @@ className="inline-flex items-center justify-center p-2 rounded-md bg-gray-100 te
                 </tbody>
               </table>
             </div>
+            {/* Render all filter popups via portal */}
+            {headerFilterOpen === 'status' && (
+              <FilterPortal buttonRect={filterButtonRect}>
+                <div ref={headerFilterRef} className="w-40 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
+                  <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter status</div>
+                  <ul className="max-h-48 overflow-auto">
+                    {(['planning','active','on_hold','completed','cancelled','archived'] as ProjectStatus[]).map(st => {
+                      const checked = filterStatus.includes(st);
+                      return (
+                        <li key={st}>
+                          <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4"
+                              checked={checked}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setFilterStatus(prev => checked ? prev.filter(x => x !== st) : [...prev, st]);
+                              }}
+                            />
+                            <span className="capitalize">{st.replace('_',' ')}</span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                    <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); setFilterStatus([]); }}>Clear</button>
+                    <button className="filter-popup-btn filter-popup-btn-close" onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
+                  </div>
+                </div>
+              </FilterPortal>
+            )}
+            {headerFilterOpen === 'priority' && (
+              <FilterPortal buttonRect={filterButtonRect}>
+                <div ref={headerFilterRef} className="w-36 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
+                  <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter priority</div>
+                  <ul className="max-h-48 overflow-auto">
+                    {(['low','medium','high','critical'] as ProjectPriority[]).map(pr => {
+                      const checked = filterPriority.includes(pr);
+                      return (
+                        <li key={pr}>
+                          <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4"
+                              checked={checked}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setFilterPriority(prev => checked ? prev.filter(x => x !== pr) : [...prev, pr]);
+                              }}
+                            />
+                            <span className="capitalize">{pr}</span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                    <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); setFilterPriority([]); }}>Clear</button>
+                    <button className="filter-popup-btn filter-popup-btn-close" onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
+                  </div>
+                </div>
+              </FilterPortal>
+            )}
+            {headerFilterOpen === 'team' && (
+              <FilterPortal buttonRect={filterButtonRect}>
+                <div ref={headerFilterRef} className="w-52 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
+                  <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter team</div>
+                  <ul className="max-h-48 overflow-auto">
+                    {availableUsers.map(u => {
+                      const selected = filterTeamUserIds.includes(u.id);
+                      const label = u.full_name || `${u.first_name||''} ${u.last_name||''}`.trim() || u.email;
+                      return (
+                        <li key={u.id}>
+                          <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4"
+                              checked={selected}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setFilterTeamUserIds(prev => selected ? prev.filter(id => id !== u.id) : [...prev, u.id]);
+                              }}
+                            />
+                            <span>{label}</span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                    <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e)=>{ e.stopPropagation(); setFilterTeamUserIds([]); }}>Clear</button>
+                    <button className="filter-popup-btn filter-popup-btn-close" onClick={(e)=>{ e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
+                  </div>
+                </div>
+              </FilterPortal>
+            )}
+            {headerFilterOpen === 'client' && (
+              <FilterPortal buttonRect={filterButtonRect}>
+                <div ref={headerFilterRef} className="w-52 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
+                  <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter client</div>
+                  <ul className="max-h-48 overflow-auto">
+                    {customers.map(c => {
+                      const selected = filterClientIds.includes(c.id);
+                      const label = c.company_name || `${c.first_name||''} ${c.last_name||''}`.trim() || c.email || 'Unknown';
+                      return (
+                        <li key={c.id}>
+                          <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4"
+                              checked={selected}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setFilterClientIds(prev => selected ? prev.filter(id => id !== c.id) : [...prev, c.id]);
+                              }}
+                            />
+                            <span>{label}</span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                    <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e)=>{ e.stopPropagation(); setFilterClientIds([]); }}>Clear</button>
+                    <button className="filter-popup-btn filter-popup-btn-close" onClick={(e)=>{ e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
+                  </div>
+                </div>
+              </FilterPortal>
+            )}
+            {headerFilterOpen === 'start_date' && (
+              <FilterPortal buttonRect={filterButtonRect}>
+                <div ref={headerFilterRef} className="w-64 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{borderRadius: '5px'}}>
+                  <div className="px-1 pb-1">
+                    <DateRangeCalendar size="sm"
+                      initialFrom={pendingStartFrom || null}
+                      initialTo={pendingStartTo || null}
+                      onChange={(from, to) => {
+                        if (from && !to) {
+                          setPendingStartFrom(from);
+                          setPendingStartTo(from);
+                        } else {
+                          setPendingStartFrom(from || '');
+                          setPendingStartTo(to || '');
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                    <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); const newFrom = ''; const newTo = ''; setStartFilterFrom(newFrom); setStartFilterTo(newTo); setHeaderFilterOpen(null); const fromCandidates = [filterFromDate, dueFilterFrom, newFrom].filter(Boolean) as string[]; const toCandidates = [filterToDate, dueFilterTo, newTo].filter(Boolean) as string[]; const toDateObj = (s: string) => new Date(s); const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; const minFrom = fromCandidates.length > 0 ? ymd(new Date(Math.min(...fromCandidates.map(s => toDateObj(s).getTime())))) : ''; const maxTo = toCandidates.length > 0 ? ymd(new Date(Math.max(...toCandidates.map(s => toDateObj(s).getTime())))) : ''; const params: { q?: string; from_date?: string; to_date?: string } = {}; if (projectSearch && projectSearch.trim()) params.q = projectSearch.trim(); if (minFrom) params.from_date = minFrom; if (maxTo) params.to_date = maxTo; dispatch(fetchProjects(Object.keys(params).length ? params : undefined)); }}>Clear</button>
+                    <button className="filter-popup-btn filter-popup-btn-filter" onClick={(e) => {
+                      e.stopPropagation();
+                      const from = pendingStartFrom || '';
+                      const to = pendingStartTo || pendingStartFrom || '';
+                      setStartFilterFrom(from);
+                      setStartFilterTo(to);
+                      setHeaderFilterOpen(null);
+                      const fromCandidates = [filterFromDate, dueFilterFrom, from].filter(Boolean) as string[];
+                      const toCandidates = [filterToDate, dueFilterTo, to].filter(Boolean) as string[];
+                      const toDateObj = (s: string) => new Date(s);
+                      const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                      const minFrom = fromCandidates.length > 0 ? ymd(new Date(Math.min(...fromCandidates.map(s => toDateObj(s).getTime())))) : '';
+                      const maxTo = toCandidates.length > 0 ? ymd(new Date(Math.max(...toCandidates.map(s => toDateObj(s).getTime())))) : '';
+                      const params: { q?: string; from_date?: string; to_date?: string } = {};
+                      if (projectSearch && projectSearch.trim()) params.q = projectSearch.trim();
+                      if (minFrom) params.from_date = minFrom;
+                      if (maxTo) params.to_date = maxTo;
+                      dispatch(fetchProjects(Object.keys(params).length ? params : undefined));
+                    }}>Filter</button>
+                  </div>
+                </div>
+              </FilterPortal>
+            )}
+            {headerFilterOpen === 'due_date' && (
+              <FilterPortal buttonRect={filterButtonRect}>
+                <div ref={headerFilterRef} className="w-64 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{borderRadius: '5px'}}>
+                  <div className="px-1 pb-1">
+                    <DateRangeCalendar size="sm"
+                      initialFrom={pendingDueFrom || null}
+                      initialTo={pendingDueTo || null}
+                      onChange={(from, to) => {
+                        if (from && !to) {
+                          setPendingDueFrom(from);
+                          setPendingDueTo(from);
+                        } else {
+                          setPendingDueFrom(from || '');
+                          setPendingDueTo(to || '');
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                    <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); const newFrom = ''; const newTo = ''; setDueFilterFrom(newFrom); setDueFilterTo(newTo); setHeaderFilterOpen(null); const fromCandidates = [filterFromDate, startFilterFrom, newFrom].filter(Boolean) as string[]; const toCandidates = [filterToDate, startFilterTo, newTo].filter(Boolean) as string[]; const toDateObj = (s: string) => new Date(s); const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; const minFrom = fromCandidates.length > 0 ? ymd(new Date(Math.min(...fromCandidates.map(s => toDateObj(s).getTime())))) : ''; const maxTo = toCandidates.length > 0 ? ymd(new Date(Math.max(...toCandidates.map(s => toDateObj(s).getTime())))) : ''; const params: { q?: string; from_date?: string; to_date?: string } = {}; if (projectSearch && projectSearch.trim()) params.q = projectSearch.trim(); if (minFrom) params.from_date = minFrom; if (maxTo) params.to_date = maxTo; dispatch(fetchProjects(Object.keys(params).length ? params : undefined)); }}>Clear</button>
+                    <button className="filter-popup-btn filter-popup-btn-filter" onClick={(e) => {
+                      e.stopPropagation();
+                      const from = pendingDueFrom || '';
+                      const to = pendingDueTo || pendingDueFrom || '';
+                      setDueFilterFrom(from);
+                      setDueFilterTo(to);
+                      setHeaderFilterOpen(null);
+                      const fromCandidates = [filterFromDate, startFilterFrom, from].filter(Boolean) as string[];
+                      const toCandidates = [filterToDate, startFilterTo, to].filter(Boolean) as string[];
+                      const toDateObj = (s: string) => new Date(s);
+                      const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                      const minFrom = fromCandidates.length > 0 ? ymd(new Date(Math.min(...fromCandidates.map(s => toDateObj(s).getTime())))) : '';
+                      const maxTo = toCandidates.length > 0 ? ymd(new Date(Math.max(...toCandidates.map(s => toDateObj(s).getTime())))) : '';
+                      const params: { q?: string; from_date?: string; to_date?: string } = {};
+                      if (projectSearch && projectSearch.trim()) params.q = projectSearch.trim();
+                      if (minFrom) params.from_date = minFrom;
+                      if (maxTo) params.to_date = maxTo;
+                      dispatch(fetchProjects(Object.keys(params).length ? params : undefined));
+                    }}>Filter</button>
+                  </div>
+                </div>
+              </FilterPortal>
+            )}
         </div>
       )}
 

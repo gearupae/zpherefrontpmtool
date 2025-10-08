@@ -4,6 +4,7 @@ import { useAppSelector, useAppDispatch } from '../../hooks/redux';
 import { toggleSidebar } from '../../store/slices/uiSlice';
 import { UserRole } from '../../types';
 import { getTenantRoute } from '../../utils/tenantUtils';
+import { useHasPermission } from '../../utils/permissions';
 import {
   HomeIcon,
   FolderIcon,
@@ -55,6 +56,7 @@ const Sidebar: React.FC = () => {
   const location = useLocation();
   const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen);
   const user = useAppSelector((state) => state.auth.user);
+  const can = useHasPermission();
 
   const handleToggle = () => {
     dispatch(toggleSidebar());
@@ -94,31 +96,45 @@ const Sidebar: React.FC = () => {
         {/* Navigation */}
         <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
           {/* Tenant Navigation - Show for users with an organization (includes org-admins) */}
-          {Boolean(user?.organization || user?.organization_id) && navigation.map((item) => {
-            const targetHref = getTenantRoute(item.href, user?.role, user?.organization);
-            const isActive = location.pathname === targetHref || 
-              (targetHref !== '/dashboard' && location.pathname.startsWith(targetHref));
-            
-            return (
-              <NavLink
-                key={item.name}
-                to={targetHref}
-                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                  isActive
-                    ? 'text-piano'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                } ${sidebarOpen ? '' : 'justify-center'}`}
-                title={!sidebarOpen ? item.name : undefined}
-              >
-                <item.icon
-                  className={`flex-shrink-0 w-5 h-5 ${
-                    isActive ? 'text-piano' : 'text-gray-400 group-hover:text-gray-500'
-                  } ${sidebarOpen ? 'mr-3' : ''}`}
-                />
-                {sidebarOpen && item.name}
-              </NavLink>
-            );
-          })}
+          {Boolean(user?.organization || user?.organization_id) && navigation
+            .filter((item) => {
+              // Map nav item to module name for permission checks
+              const name = item.name;
+              let moduleName = name as any;
+              if (name === 'Team') moduleName = 'Teams';
+              if (name === 'Knowledge') moduleName = 'Knowledge Base';
+              if (name === 'To‑Do') moduleName = 'Tasks';
+              if (name === 'Calendar') moduleName = 'Tasks';
+              // Purchases module covers purchase area (vendors/orders)
+              if (name === 'Customers') moduleName = 'Customers';
+              // Only show if can view module
+              return can(moduleName, 'view');
+            })
+            .map((item) => {
+              const targetHref = item.href === '/settings' ? '/settings' : getTenantRoute(item.href, user?.role, user?.organization);
+              const isActive = location.pathname === targetHref || 
+                (targetHref !== '/dashboard' && location.pathname.startsWith(targetHref));
+              
+              return (
+                <NavLink
+                  key={item.name}
+                  to={targetHref}
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                    isActive
+                      ? 'text-piano'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  } ${sidebarOpen ? '' : 'justify-center'}`}
+                  title={!sidebarOpen ? item.name : undefined}
+                >
+                  <item.icon
+                    className={`flex-shrink-0 w-5 h-5 ${
+                      isActive ? 'text-piano' : 'text-gray-400 group-hover:text-gray-500'
+                    } ${sidebarOpen ? 'mr-3' : ''}`}
+                  />
+                  {sidebarOpen && item.name}
+                </NavLink>
+              );
+            })}
 
         {/* Platform Admin Section - Only for platform administrators (ADMIN with no organization) */}
         {(user?.role === UserRole.ADMIN && !(user?.organization || user?.organization_id)) && (

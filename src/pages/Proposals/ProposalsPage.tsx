@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAppDispatch } from '../../hooks/redux';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import ReactDOM from 'react-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { Proposal, ProposalCreate, ProposalStatus, ProposalType, Customer } from '../../types';
-import LoadingSpinner from '../../components/UI/LoadingSpinner';
-import ItemSelector from '../../components/Items/ItemSelector';
-import { getTenantRoute } from '../../utils/tenantUtils';
-
 import { addNotification } from '../../store/slices/notificationSlice';
+import InvoiceItemsTable from '../../components/Invoices/InvoiceItemsTable';
+import DateRangeCalendar from '../../components/UI/DateRangeCalendar';
+import { getTenantRoute } from '../../utils/tenantUtils';
 import { 
   PlusIcon, 
   DocumentTextIcon,
@@ -18,38 +18,127 @@ import {
   XCircleIcon,
   ClockIcon,
   ArrowsRightLeftIcon,
-  DocumentArrowDownIcon
+  DocumentArrowDownIcon,
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  CalendarIcon,
+  ArrowPathIcon,
+  CheckIcon as CheckIconSolid,
+  CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
+import './FilterButtons.css';
 
+type ProposalStatusType = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED' | 'PENDING' | 'EXPIRED' | 'VIEWED' | 'WITHDRAWN';
 
+// Portal component for rendering filter popups outside table overflow context
+const FilterPortal: React.FC<{ children: React.ReactNode; buttonRect: DOMRect | null }> = ({ children, buttonRect }) => {
+  if (!buttonRect) return null;
+  
+  return ReactDOM.createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        left: `${buttonRect.left}px`,
+        top: `${buttonRect.bottom + 4}px`,
+        zIndex: 99999,
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>,
+    document.body
+  );
+};
+
+// Portal for inline edit popovers
+const InlineEditPortal: React.FC<{ children: React.ReactNode; rect: DOMRect | null }> = ({ children, rect }) => {
+  if (!rect) return null;
+  return ReactDOM.createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        left: `${rect.left}px`,
+        top: `${rect.bottom + 4}px`,
+        zIndex: 99999,
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>,
+    document.body
+  );
+};
 
 const ProposalsPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user } = useAppSelector((state) => state.auth);
+  const createdByName = user ? (`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || (user as any).username || 'System User') : 'System User';
+  
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [users, setUsers] = useState<Array<{id: string; first_name?: string; last_name?: string; username?: string; email?: string}>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const selectedStatus = '';
-  const selectedType = '';
   
+  // Search and filter state
+  const [proposalSearch, setProposalSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState<ProposalStatusType[]>([]);
+  const [filterCustomerIds, setFilterCustomerIds] = useState<string[]>([]);
+  const [filterFromDate, setFilterFromDate] = useState('');
+  const [filterToDate, setFilterToDate] = useState('');
+  const [createdDateFilterFrom, setCreatedDateFilterFrom] = useState('');
+  const [createdDateFilterTo, setCreatedDateFilterTo] = useState('');
+  const [validUntilFilterFrom, setValidUntilFilterFrom] = useState('');
+  const [validUntilFilterTo, setValidUntilFilterTo] = useState('');
   
+  // Pending date selections
+  const [pendingToolbarFrom, setPendingToolbarFrom] = useState('');
+  const [pendingToolbarTo, setPendingToolbarTo] = useState('');
+  const [pendingCreatedDateFrom, setPendingCreatedDateFrom] = useState('');
+  const [pendingCreatedDateTo, setPendingCreatedDateTo] = useState('');
+  const [pendingValidUntilFrom, setPendingValidUntilFrom] = useState('');
+  const [pendingValidUntilTo, setPendingValidUntilTo] = useState('');
   
-  // Items & additional fields
+  // Filter popup state
+  const [headerFilterOpen, setHeaderFilterOpen] = useState<null | 'status' | 'customer' | 'created_date' | 'valid_until'>(null);
+  const [filterButtonRect, setFilterButtonRect] = useState<DOMRect | null>(null);
+  const [toolbarDateOpen, setToolbarDateOpen] = useState(false);
+  
+  // Inline edit state
+  const [editingProposalId, setEditingProposalId] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<'status' | 'title' | 'amount' | 'valid_until' | null>(null);
+  const [editValue, setEditValue] = useState<any>(null);
+  const [inlineEditRect, setInlineEditRect] = useState<DOMRect | null>(null);
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<'proposal' | 'status' | 'created_at' | 'valid_until' | 'total_amount' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  
+  // Refs
+  const headerFilterRef = useRef<HTMLDivElement | null>(null);
+  const toolbarDateRef = useRef<HTMLButtonElement | null>(null);
+  const inlinePopoverRef = useRef<HTMLDivElement | null>(null);
+  
+  // Delete confirmation
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  
+  // Items & additional fields for create form - matching InvoiceRow type
   type SelectedItem = {
-    item: any;
+    item?: any | null;
+    description: string;
     quantity: number;
     unit_price: number;
     tax_rate: number;
     discount_rate: number;
-    description: string;
   };
-  const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
+  const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([
+    { item: null, description: '', quantity: 1, unit_price: 0, tax_rate: 0, discount_rate: 0 }
+  ]);
   const [discountType, setDiscountType] = useState<'percent' | 'amount'>('percent');
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [validUntil, setValidUntil] = useState<string>('');
-  const [termsAndConditions, setTermsAndConditions] = useState<string>('');
   const [tagsInput, setTagsInput] = useState<string>('');
   const [assignedToId, setAssignedToId] = useState<string>('');
   const [sendEmail, setSendEmail] = useState<boolean>(false);
@@ -79,6 +168,13 @@ const ProposalsPage: React.FC = () => {
     total_value: 0,
     conversion_rate: 0
   });
+  
+  // Customer data state
+  const [customerData, setCustomerData] = useState<Record<string, {
+    invoiceDue: number;
+    projectsCount: number;
+    totalProposals: number;
+  }>>({});
 
   useEffect(() => {
     fetchProposals();
@@ -86,16 +182,45 @@ const ProposalsPage: React.FC = () => {
     fetchUsers();
     fetchStats();
   }, []);
+  
+  // Wire URL query param ?customer= to filter
+  useEffect(() => {
+    const c = searchParams.get('customer') || searchParams.get('customer_id');
+    if (c) {
+      setFilterCustomerIds([c]);
+    }
+  }, [searchParams]);
+  
+  // Fetch customer data whenever proposals change
+  useEffect(() => {
+    if (proposals.length > 0) {
+      fetchCustomerData();
+    }
+  }, [proposals]);
 
-const fetchProposals = async () => {
+  // Close popups when clicking outside
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (editingProposalId && inlinePopoverRef.current && !inlinePopoverRef.current.contains(target)) {
+        cancelInlineEdit();
+      }
+      if (headerFilterOpen && headerFilterRef.current && !headerFilterRef.current.contains(target)) {
+        setHeaderFilterOpen(null);
+      }
+      // Toolbar date is now rendered via portal, so we don't need this check anymore
+      // The FilterPortal component handles click-outside
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [editingProposalId, headerFilterOpen, toolbarDateOpen]);
+
+  const fetchProposals = async () => {
     setIsLoading(true);
     try {
       const { default: apiClient } = await import('../../api/client');
       const response = await apiClient.get('/proposals/');
-      console.log('Proposals API response:', response.data);
-      // Handle ProposalList response structure
       const proposalsData = response.data.items || response.data || [];
-      // Ensure we always have an array
       setProposals(Array.isArray(proposalsData) ? proposalsData : []);
     } catch (error) {
       console.error('Failed to fetch proposals:', error);
@@ -111,14 +236,11 @@ const fetchProposals = async () => {
     }
   };
 
-const fetchCustomers = async () => {
+  const fetchCustomers = async () => {
     try {
       const { default: apiClient } = await import('../../api/client');
       const response = await apiClient.get('/customers/');
-      console.log('Customers API response:', response.data);
-      // Handle the CustomerList response structure
       const customersData = response.data.customers || response.data.items || response.data || [];
-      // Ensure we always have an array
       setCustomers(Array.isArray(customersData) ? customersData : []);
     } catch (error) {
       console.error('Failed to fetch customers:', error);
@@ -156,11 +278,70 @@ const fetchCustomers = async () => {
       });
     }
   };
+  
+  const fetchCustomerData = async () => {
+    try {
+      const { default: apiClient } = await import('../../api/client');
+      const data: Record<string, { invoiceDue: number; projectsCount: number; totalProposals: number }> = {};
+      
+      // Get unique customer IDs from proposals
+      const uniqueCustomerIds = Array.from(new Set(proposals.map(p => p.customer_id).filter(Boolean)));
+      
+      await Promise.all(
+        uniqueCustomerIds.map(async (customerId) => {
+          try {
+            // Fetch pending invoices for this customer
+            let invoiceDue = 0;
+            try {
+              const invoicesRes = await apiClient.get(`/invoices/?customer_id=${customerId}`);
+              const invoices = invoicesRes.data?.items || invoicesRes.data || [];
+              // Sum up unpaid/partially paid invoices
+              invoiceDue = invoices
+                .filter((inv: any) => inv.payment_status !== 'PAID' && inv.payment_status !== 'paid')
+                .reduce((sum: number, inv: any) => sum + (inv.amount_due || inv.total_amount || 0), 0);
+            } catch (e) {
+              // Invoices endpoint may not exist or customer has no invoices
+              invoiceDue = 0;
+            }
+            
+            // Fetch projects count for this customer
+            let projectsCount = 0;
+            try {
+              const projectsRes = await apiClient.get(`/projects/?customer_id=${customerId}`);
+              const projects = projectsRes.data?.projects || projectsRes.data || [];
+              projectsCount = Array.isArray(projects) ? projects.length : 0;
+            } catch (e) {
+              projectsCount = 0;
+            }
+            
+            // Count proposals for this customer
+            const totalProposals = proposals.filter(p => p.customer_id === customerId).length;
+            
+            data[customerId] = {
+              invoiceDue,
+              projectsCount,
+              totalProposals
+            };
+          } catch (error) {
+            console.error(`Failed to fetch data for customer ${customerId}:`, error);
+            data[customerId] = {
+              invoiceDue: 0,
+              projectsCount: 0,
+              totalProposals: 0
+            };
+          }
+        })
+      );
+      
+      setCustomerData(data);
+    } catch (error) {
+      console.error('Failed to fetch customer data:', error);
+    }
+  };
 
-const handleCreateProposal = async (e: React.FormEvent) => {
+  const handleCreateProposal = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate required fields
     if (!newProposal.title.trim()) {
       dispatch(addNotification({
         type: 'error',
@@ -184,7 +365,6 @@ const handleCreateProposal = async (e: React.FormEvent) => {
     try {
       const { default: apiClient } = await import('../../api/client');
       
-      // Transform selected items into content.items
       const contentItems = selectedItems.map(si => ({
         item_id: si.item?.id,
         name: si.item?.display_name || si.item?.name,
@@ -197,7 +377,6 @@ const handleCreateProposal = async (e: React.FormEvent) => {
         discount_rate: si.discount_rate,
       }));
 
-      // Compute total based on items, tax, item-level discount, then overall discount
       const itemsSubtotal = selectedItems.reduce((sum, si) => sum + si.quantity * si.unit_price, 0);
       const itemsTax = selectedItems.reduce((sum, si) => sum + (si.quantity * si.unit_price) * (si.tax_rate / 100), 0);
       const itemsItemLevelDiscount = selectedItems.reduce((sum, si) => sum + (si.quantity * si.unit_price) * (si.discount_rate / 100), 0);
@@ -214,7 +393,6 @@ const handleCreateProposal = async (e: React.FormEvent) => {
 
       const proposalData: any = {
         ...newProposal,
-        // override/augment fields
         valid_until: validUntil ? new Date(validUntil).toISOString() : undefined,
         tags: tagsInput.split(',').map(t => t.trim()).filter(Boolean),
         total_amount: totalCents,
@@ -225,7 +403,6 @@ const handleCreateProposal = async (e: React.FormEvent) => {
         },
         custom_fields: {
           ...(newProposal.custom_fields || {}),
-          terms_and_conditions: termsAndConditions,
           assigned_to_id: assignedToId || undefined,
           email_preferences: {
             send_email: sendEmail,
@@ -255,14 +432,12 @@ const handleCreateProposal = async (e: React.FormEvent) => {
       setDiscountType('percent');
       setDiscountValue(0);
       setValidUntil('');
-      setTermsAndConditions('');
       setTagsInput('');
       setAssignedToId('');
       setSendEmail(false);
       setEmailTo('');
       setEmailSubject('');
       setEmailMessage('');
-
       
       await fetchProposals();
       await fetchStats();
@@ -275,13 +450,6 @@ const handleCreateProposal = async (e: React.FormEvent) => {
       }));
     } catch (error: any) {
       console.error('Failed to create proposal:', error);
-      console.error('Error details:', {
-        status: error?.response?.status,
-        data: error?.response?.data,
-        headers: error?.response?.headers,
-        config: error?.config
-      });
-      
       const errorMessage = error?.response?.data?.detail || 
                           error?.response?.data?.message ||
                           error?.message ||
@@ -296,23 +464,7 @@ const handleCreateProposal = async (e: React.FormEvent) => {
     }
   };
 
-  const getStatusIcon = (status: ProposalStatus) => {
-    switch (status) {
-      case ProposalStatus.ACCEPTED:
-        return <CheckCircleIcon className="h-5 w-5 text-success-600" />;
-      case ProposalStatus.REJECTED:
-        return <XCircleIcon className="h-5 w-5 text-error-600" />;
-      case ProposalStatus.SENT:
-        return <PaperAirplaneIcon className="h-5 w-5 text-user-blue" />;
-      case ProposalStatus.VIEWED:
-        return <EyeIcon className="h-5 w-5 text-warning-600" />;
-      default:
-        return <ClockIcon className="h-5 w-5 text-secondary-400" />;
-    }
-  };
-
   const handleDeleteProposal = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this proposal?')) return;
     try {
       const { default: apiClient } = await import('../../api/client');
       await apiClient.delete(`/proposals/${id}`);
@@ -335,6 +487,272 @@ const handleCreateProposal = async (e: React.FormEvent) => {
     }
   };
 
+  // Inline edit handlers
+  const startInlineEdit = (e: React.MouseEvent, proposal: Proposal, field: 'status' | 'title' | 'amount' | 'valid_until') => {
+    e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    if (target && typeof target.getBoundingClientRect === 'function') {
+      setInlineEditRect(target.getBoundingClientRect());
+    } else {
+      setInlineEditRect(null);
+    }
+    setEditingProposalId(proposal.id);
+    setEditingField(field);
+    
+    if (field === 'status') setEditValue(proposal.status);
+    if (field === 'title') setEditValue(proposal.title);
+    if (field === 'valid_until') {
+      const d = proposal.valid_until ? new Date(proposal.valid_until) : null;
+      const yyyyMmDd = d ? new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10) : '';
+      setEditValue(yyyyMmDd);
+    }
+    if (field === 'amount') {
+      const amountDollars = typeof proposal.total_amount === 'number' ? (proposal.total_amount / 100).toFixed(2) : '0.00';
+      setEditValue(amountDollars);
+    }
+  };
+
+  const saveInlineEdit = async (proposalId: string, valueOverride?: any) => {
+    try {
+      if (!editingField) return;
+      const value = valueOverride !== undefined ? valueOverride : editValue;
+
+      const { default: apiClient } = await import('../../api/client');
+      const endpoint = `/proposals/${proposalId}/`; // use trailing slash to avoid 307 losing headers
+
+      if (editingField === 'status') {
+        // Backend expects ProposalStatus enum (lowercase)
+        await apiClient.put(endpoint, { status: String(value).toLowerCase() });
+      } else if (editingField === 'title') {
+        await apiClient.put(endpoint, { title: value });
+      } else if (editingField === 'valid_until') {
+        const iso = value ? new Date(`${value}T00:00:00Z`).toISOString() : undefined;
+        await apiClient.put(endpoint, { valid_until: iso });
+      } else if (editingField === 'amount') {
+        const amountCents = Math.round(Number(value) * 100);
+        await apiClient.put(endpoint, { total_amount: amountCents });
+      }
+
+      // Optimistic local update for immediate UI feedback
+      setProposals((prev) => prev.map((p) => {
+        if (p.id !== proposalId) return p;
+        if (editingField === 'status') return { ...p, status: String(value).toLowerCase() as any };
+        if (editingField === 'title') return { ...p, title: String(value) } as any;
+        if (editingField === 'valid_until') return { ...p, valid_until: new Date(`${value}T00:00:00Z`).toISOString() } as any;
+        if (editingField === 'amount') return { ...p, total_amount: Math.round(Number(value) * 100) } as any;
+        return p;
+      }));
+
+      // Also refresh from server to ensure consistency
+      await fetchProposals();
+
+      setEditingProposalId(null);
+      setEditingField(null);
+      setEditValue(null);
+      setInlineEditRect(null);
+    } catch (err: any) {
+      console.error('Inline save failed:', err);
+      const msg = err?.response?.data?.detail || err?.message || 'Failed to update proposal';
+      dispatch(addNotification({
+        type: 'error',
+        title: 'Update failed',
+        message: msg,
+        duration: 5000,
+      }));
+    }
+  };
+
+  const cancelInlineEdit = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setEditingProposalId(null);
+    setEditingField(null);
+    setEditValue(null);
+    setInlineEditRect(null);
+  };
+
+  // Sorting handler
+  const onHeaderDblClick = (field: 'proposal' | 'status' | 'created_at' | 'valid_until' | 'total_amount') => {
+    if (sortField === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const getStatusIcon = (status: ProposalStatus) => {
+    switch (status) {
+      case ProposalStatus.ACCEPTED:
+        return <CheckCircleIcon className="h-5 w-5 text-success-600" />;
+      case ProposalStatus.REJECTED:
+        return <XCircleIcon className="h-5 w-5 text-error-600" />;
+      case ProposalStatus.SENT:
+        return <PaperAirplaneIcon className="h-5 w-5 text-user-blue" />;
+      case ProposalStatus.VIEWED:
+        return <EyeIcon className="h-5 w-5 text-warning-600" />;
+      default:
+        return <ClockIcon className="h-5 w-5 text-secondary-400" />;
+    }
+  };
+
+  const getStatusColorBold = (status: string) => {
+    switch (status) {
+      case 'ACCEPTED':
+        return 'bg-green-100 text-green-700';
+      case 'REJECTED':
+        return 'bg-red-100 text-red-700';
+      case 'SENT':
+        return 'bg-blue-100 text-blue-700';
+      case 'VIEWED':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'EXPIRED':
+        return 'bg-red-100 text-red-600';
+      case 'PENDING':
+        return 'bg-orange-100 text-orange-700';
+      case 'WITHDRAWN':
+        return 'bg-purple-100 text-purple-700';
+      default: // DRAFT
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  // Filter and sort proposals
+  const displayedProposals = useMemo(() => {
+    const startOfDayLocal = (dStr: string) => {
+      const d = new Date(dStr);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+    };
+    const endOfDayLocal = (dStr: string) => {
+      const d = new Date(dStr);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+    };
+
+    let arr = [...proposals];
+
+    // Search filter
+    if (proposalSearch.trim()) {
+      const query = proposalSearch.toLowerCase();
+      arr = arr.filter(prop => {
+        const propNumber = (prop.proposal_number || '').toLowerCase();
+        const customer = customers.find(c => c.id === prop.customer_id);
+        const customerName = (customer?.display_name || customer?.company_name || '').toLowerCase();
+        const title = (prop.title || '').toLowerCase();
+        const amount = typeof prop.total_amount === 'number' ? (prop.total_amount / 100).toFixed(2) : '0.00';
+        return propNumber.includes(query) || customerName.includes(query) || title.includes(query) || amount.includes(query);
+      });
+    }
+
+    // Status filter
+    if (filterStatus.length > 0) {
+      arr = arr.filter(prop => filterStatus.includes(prop.status as ProposalStatusType));
+    }
+
+    // Customer filter
+    if (filterCustomerIds.length > 0) {
+      arr = arr.filter(prop => filterCustomerIds.includes(prop.customer_id));
+    }
+
+    // Created date filter
+    if (createdDateFilterFrom) {
+      const from = startOfDayLocal(createdDateFilterFrom);
+      arr = arr.filter(prop => prop.created_at && new Date(prop.created_at) >= from);
+    }
+    if (createdDateFilterTo) {
+      const to = endOfDayLocal(createdDateFilterTo);
+      arr = arr.filter(prop => prop.created_at && new Date(prop.created_at) <= to);
+    }
+
+    // Valid until filter
+    if (validUntilFilterFrom) {
+      const from = startOfDayLocal(validUntilFilterFrom);
+      arr = arr.filter(prop => prop.valid_until && new Date(prop.valid_until) >= from);
+    }
+    if (validUntilFilterTo) {
+      const to = endOfDayLocal(validUntilFilterTo);
+      arr = arr.filter(prop => prop.valid_until && new Date(prop.valid_until) <= to);
+    }
+
+    // Sorting
+    if (sortField) {
+      const statusOrder: Record<string, number> = { DRAFT: 1, SENT: 2, VIEWED: 3, PENDING: 4, ACCEPTED: 5, REJECTED: 6, EXPIRED: 7, WITHDRAWN: 8 };
+      arr.sort((a, b) => {
+        let av: any = 0;
+        let bv: any = 0;
+        switch (sortField) {
+          case 'proposal': {
+            const getNum = (p: any): number | null => {
+              const raw = (p as any).proposal_number ?? (p as any).number ?? (p as any).proposal_no ?? '';
+              if (typeof raw === 'number') return raw;
+              if (typeof raw === 'string') {
+                const m = raw.match(/(\d+)/);
+                if (m) {
+                  const n = parseInt(m[1], 10);
+                  if (!isNaN(n)) return n;
+                }
+              }
+              return null;
+            };
+            const aNum = getNum(a);
+            const bNum = getNum(b);
+            if (aNum !== null && bNum !== null) {
+              av = aNum;
+              bv = bNum;
+            } else {
+              const aKey = String((a as any).proposal_number ?? (a as any).number ?? (a as any).proposal_no ?? a.id ?? '').toUpperCase();
+              const bKey = String((b as any).proposal_number ?? (b as any).number ?? (b as any).proposal_no ?? b.id ?? '').toUpperCase();
+              av = aKey as any;
+              bv = bKey as any;
+            }
+            break;
+          }
+          case 'status':
+            av = statusOrder[a.status] ?? 0;
+            bv = statusOrder[b.status] ?? 0;
+            break;
+          case 'created_at':
+            av = a.created_at ? new Date(a.created_at).getTime() : 0;
+            bv = b.created_at ? new Date(b.created_at).getTime() : 0;
+            break;
+          case 'valid_until':
+            av = a.valid_until ? new Date(a.valid_until).getTime() : 0;
+            bv = b.valid_until ? new Date(b.valid_until).getTime() : 0;
+            break;
+          case 'total_amount':
+            av = a.total_amount || 0;
+            bv = b.total_amount || 0;
+            break;
+        }
+        if (av < bv) return sortDir === 'asc' ? -1 : 1;
+        if (av > bv) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return arr;
+  }, [proposals, proposalSearch, filterStatus, filterCustomerIds, createdDateFilterFrom, createdDateFilterTo, validUntilFilterFrom, validUntilFilterTo, sortField, sortDir, customers]);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
+  // Display helper: show backend-provided proposal number as-is (uppercase),
+  // with a PRO-<n> fallback when absent
+  const formatProposalNumber = (p: Proposal, idx?: number): string => {
+    const raw: any = (p as any).proposal_number ?? (p as any).proposal_no ?? (p as any).number;
+    if (typeof raw === 'string') {
+      const r = raw.trim();
+      if (r.length === 0) return `PRO-${(idx ?? 0) + 1}`;
+      return r.toUpperCase();
+    }
+    if (typeof raw === 'number' && !isNaN(raw)) {
+      return `PRO-${raw}`;
+    }
+    return `PRO-${(idx ?? 0) + 1}`;
+  };
+
   const sendProposal = async (id: string) => {
     try {
       const { default: apiClient } = await import('../../api/client');
@@ -350,58 +768,6 @@ const handleCreateProposal = async (e: React.FormEvent) => {
     } catch (error: any) {
       console.error('Failed to send proposal:', error);
       const msg = error?.response?.data?.detail || 'Failed to send proposal';
-      dispatch(addNotification({
-        type: 'error',
-        title: 'Error',
-        message: msg,
-        duration: 5000,
-      }));
-    }
-  };
-
-  const acceptProposal = async (id: string) => {
-    try {
-      const { default: apiClient } = await import('../../api/client');
-      await apiClient.post(`/proposals/${id}/accept`);
-      await fetchProposals();
-      await fetchStats();
-      dispatch(addNotification({
-        type: 'success',
-        title: 'Accepted',
-        message: 'Proposal marked as accepted',
-        duration: 3000,
-      }));
-    } catch (error: any) {
-      console.error('Failed to accept proposal:', error);
-      const msg = error?.response?.data?.detail || 'Failed to accept proposal';
-      dispatch(addNotification({
-        type: 'error',
-        title: 'Error',
-        message: msg,
-        duration: 5000,
-      }));
-    }
-  };
-
-  const rejectProposal = async (id: string) => {
-    const reason = window.prompt('Optional rejection reason (press OK to continue):') || '';
-    try {
-      const { default: apiClient } = await import('../../api/client');
-      const url = reason.trim()
-        ? `/proposals/${id}/reject?rejection_reason=${encodeURIComponent(reason.trim())}`
-        : `/proposals/${id}/reject`;
-      await apiClient.post(url);
-      await fetchProposals();
-      await fetchStats();
-      dispatch(addNotification({
-        type: 'success',
-        title: 'Rejected',
-        message: 'Proposal marked as rejected',
-        duration: 3000,
-      }));
-    } catch (error: any) {
-      console.error('Failed to reject proposal:', error);
-      const msg = error?.response?.data?.detail || 'Failed to reject proposal';
       dispatch(addNotification({
         type: 'error',
         title: 'Error',
@@ -431,7 +797,6 @@ const handleCreateProposal = async (e: React.FormEvent) => {
   const convertToInvoice = async (proposalId: string) => {
     try {
       const { default: apiClient } = await import('../../api/client');
-      // Fetch full proposal details
       const detail = await apiClient.get(`/proposals/${proposalId}`);
       const p = detail.data || {};
       if (!p.customer_id && !p.customer?.id) {
@@ -441,7 +806,6 @@ const handleCreateProposal = async (e: React.FormEvent) => {
       const customerId = p.customer_id || p.customer.id;
       let projectId = p.project_id;
       if (!projectId) {
-        // Prompt user to pick a project
         try {
           const projectsRes = await apiClient.get('/projects/');
           const projs = projectsRes.data?.projects || projectsRes.data || [];
@@ -467,7 +831,6 @@ const handleCreateProposal = async (e: React.FormEvent) => {
         dispatch(addNotification({ type: 'error', title: 'No Items', message: 'Proposal has no items to invoice.', duration: 4000 }));
         return;
       }
-      // Map items to invoice items (cents + percentage*100)
       const invoiceItems = items.map((it) => ({
         description: it.description || it.name || 'Line item',
         quantity: Math.max(1, parseInt(String(it.quantity || 1), 10)),
@@ -500,7 +863,6 @@ const handleCreateProposal = async (e: React.FormEvent) => {
 
       const res = await apiClient.post('/invoices/', payload);
       dispatch(addNotification({ type: 'success', title: 'Converted', message: 'Proposal converted to invoice.', duration: 3000 }));
-      // Optionally navigate to invoice
       const invId = res.data?.id;
       if (invId) {
         navigate(`/invoices/${invId}`);
@@ -511,63 +873,32 @@ const handleCreateProposal = async (e: React.FormEvent) => {
     }
   };
 
-  const getStatusColor = (status: ProposalStatus) => {
-    switch (status) {
-      case ProposalStatus.ACCEPTED:
-        return 'bg-success-100 text-success-700'; // Green for completed/success
-      case ProposalStatus.REJECTED:
-        return 'bg-error-100 text-error-700';     // Red for urgent/error
-      case ProposalStatus.SENT:
-        return 'bg-primary-100 text-primary-700'; // Blue for info/active
-      case ProposalStatus.VIEWED:
-        return 'bg-warning-100 text-warning-700'; // Yellow for warning/in progress
-      case ProposalStatus.EXPIRED:
-        return 'bg-error-50 text-error-600';      // Light red for expired
-      case ProposalStatus.WITHDRAWN:
-        return 'bg-purple-100 text-purple-700';   // Purple for special/custom
-      default: // DRAFT
-        return 'bg-gray-100 text-gray-700';       // Gray for draft/neutral
-    }
-  };
-
-  const filteredProposals = proposals.filter(proposal => {
-    const matchesSearch = true;
-    const matchesStatus = !selectedStatus || proposal.status === selectedStatus;
-    const matchesType = !selectedType || proposal.proposal_type === selectedType;
-    
-    return matchesSearch && matchesStatus && matchesType;
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="large" />
-      </div>
-    );
+  if (isLoading && proposals.length === 0) {
+    return <div />;
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-secondary-900">Proposals</h1>
-          <p className="text-secondary-600 mt-1">
-            Create, send, and track proposal status
-          </p>
+      <div className="flex items-center">
+        <div className="flex-[0.35]">
+          <h1 className="page-title font-bold text-gray-900">Proposal Overview</h1>
+          <div className="text-gray-600 mt-1 text-sm">Create, share, and track proposal progress</div>
         </div>
-        <button
-          onClick={() => setShowCreateForm(true)}
-className="btn-page-action inline-flex items-center"
-        >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          New Proposal
-        </button>
+        <div className="flex-[0.65] flex justify-end">
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="btn-page-action flex items-center btn-styled btn-create-auto" style={{ backgroundColor: 'rgb(0, 0, 0)', color: 'white', borderColor: 'rgb(0, 0, 0)', fontSize: '0.875rem', padding: '0.2rem 0.75rem' }}
+          >
+            <PlusIcon className="h-5 w-5" />
+            <span>New Proposal</span>
+          </button>
+        </div>
       </div>
 
       {/* Create Proposal Form */}
       {showCreateForm && (
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white shadow rounded-lg p-6 mb-6 border border-gray-200">
           <div className="flex items-center mb-6">
             <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
               <DocumentTextIcon className="h-5 w-5 text-blue-600" />
@@ -582,53 +913,79 @@ className="btn-page-action inline-flex items-center"
           </div>
           
           <form onSubmit={handleCreateProposal} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Row 1: Title, Customer, Status */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Title <span className="text-red-600">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={newProposal.title}
-                  onChange={(e) => setNewProposal({...newProposal, title: e.target.value})}
+                  onChange={(e) => setNewProposal({ ...newProposal, title: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter proposal title"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Customer <span className="text-red-600">*</span>
+                </label>
                 <select
                   required
                   value={newProposal.customer_id}
-                  onChange={(e) => setNewProposal({...newProposal, customer_id: e.target.value})}
+                  onChange={(e) => setNewProposal({ ...newProposal, customer_id: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select a customer</option>
-                  {customers.map(customer => (
+                  {customers.map((customer) => (
                     <option key={customer.id} value={customer.id}>
-                      {customer.display_name}
+                      {customer.display_name || customer.company_name || customer.email}
                     </option>
                   ))}
                 </select>
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Proposal Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <input
+                  type="text"
+                  value="DRAFT"
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            {/* Row 2: Currency, Date Created, Valid Until */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
                 <select
-                  value={newProposal.proposal_type}
-                  onChange={(e) => setNewProposal({...newProposal, proposal_type: e.target.value as ProposalType})}
+                  value={newProposal.currency}
+                  onChange={(e) => setNewProposal({ ...newProposal, currency: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value={ProposalType.PROJECT}>Project</option>
-                  <option value={ProposalType.CONSULTING}>Consulting</option>
-                  <option value={ProposalType.MAINTENANCE}>Maintenance</option>
-                  <option value={ProposalType.SUPPORT}>Support</option>
-                  <option value={ProposalType.CUSTOM}>Custom</option>
+                  <option value="usd">USD</option>
+                  <option value="eur">EUR</option>
+                  <option value="gbp">GBP</option>
                 </select>
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Open Till Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date Created</label>
+                <input
+                  type="date"
+                  value={new Date().toISOString().split('T')[0]}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Valid Until</label>
                 <input
                   type="date"
                   value={validUntil}
@@ -638,381 +995,541 @@ className="btn-page-action inline-flex items-center"
               </div>
             </div>
 
+            {/* Row 3: Proposal Type, Created By, Tags */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Proposal Type</label>
+                <select
+                  value={newProposal.proposal_type}
+                  onChange={(e) => setNewProposal({ ...newProposal, proposal_type: e.target.value as ProposalType })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value={ProposalType.PROJECT}>Project</option>
+                  <option value={ProposalType.CONSULTING}>Consulting</option>
+                  <option value={ProposalType.MAINTENANCE}>Maintenance</option>
+                  <option value={ProposalType.SUPPORT}>Support</option>
+                  <option value={ProposalType.CUSTOM}>Custom</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Created By</label>
+                <input
+                  type="text"
+                  value={createdByName}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
+                <input
+                  type="text"
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., urgent, consulting"
+                />
+              </div>
+            </div>
+
+            {/* Description - Full Width */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
               <textarea
                 value={newProposal.description}
-                onChange={(e) => setNewProposal({...newProposal, description: e.target.value})}
-                rows={4}
+                onChange={(e) => setNewProposal({ ...newProposal, description: e.target.value })}
+                rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Describe the proposal details, scope, and deliverables"
+                placeholder="Describe the proposal details and services provided"
               />
             </div>
 
-            {/* Items & Pricing */}
-            <div className="space-y-4">
-              <h3 className="text-md font-medium text-gray-900">Items & Pricing</h3>
-              <ItemSelector selectedItems={selectedItems} onItemsChange={setSelectedItems} className="border border-gray-200 rounded-lg p-4" />
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Discount Type</label>
-                  <select
-                    value={discountType}
-                    onChange={(e) => setDiscountType(e.target.value as 'percent' | 'amount')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="percent">Percentage (%)</option>
-                    <option value="amount">Amount (cash)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Discount Value</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={discountValue}
-                    onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder={discountType === 'percent' ? 'e.g., 10 for 10%' : 'e.g., 50.00'}
-                  />
-                </div>
-                <div className="bg-gray-50 p-3 rounded-md">
-                  <div className="text-xs text-gray-600">Computed Total</div>
-                  <div className="text-lg font-semibold text-gray-900">
-                    {(() => {
-                      const itemsSubtotal = selectedItems.reduce((sum, si) => sum + si.quantity * si.unit_price, 0);
-                      const itemsTax = selectedItems.reduce((sum, si) => sum + (si.quantity * si.unit_price) * (si.tax_rate / 100), 0);
-                      const itemsDiscount = selectedItems.reduce((sum, si) => sum + (si.quantity * si.unit_price) * (si.discount_rate / 100), 0);
-                      let total = itemsSubtotal + itemsTax - itemsDiscount;
-                      if (discountType === 'percent' && discountValue > 0) total -= total * (discountValue / 100);
-                      if (discountType === 'amount' && discountValue > 0) total -= discountValue;
-                      return `$${(total > 0 ? total : 0).toFixed(2)}`;
-                    })()}
-                  </div>
-                </div>
+            {/* Items Section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Items *</label>
+              <InvoiceItemsTable
+                selectedItems={selectedItems}
+                onItemsChange={setSelectedItems}
+              />
+            </div>
+
+            {/* Discount Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Discount Type</label>
+                <select
+                  value={discountType}
+                  onChange={(e) => setDiscountType(e.target.value as 'percent' | 'amount')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="percent">Percentage</option>
+                  <option value="amount">Fixed Amount</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Discount Value</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={discountValue}
+                  onChange={(e) => setDiscountValue(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
+                <select
+                  value={assignedToId}
+                  onChange={(e) => setAssignedToId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Not assigned</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.username || u.email}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            {/* Terms, Tags, Assignment, Email */}
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Terms & Conditions</label>
-                  <textarea
-                    rows={3}
-                    value={termsAndConditions}
-                    onChange={(e) => setTermsAndConditions(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Terms and conditions..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
-                  <input
-                    type="text"
-                    value={tagsInput}
-                    onChange={(e) => setTagsInput(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="e.g., urgent, website, design"
-                  />
-                </div>
+            {/* Email Notification Section */}
+            <div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="sendEmail"
+                  checked={sendEmail}
+                  onChange={(e) => setSendEmail(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="sendEmail" className="text-sm font-medium text-gray-700">
+                  Send email notification
+                </label>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
-                  <select
-                    value={assignedToId}
-                    onChange={(e) => setAssignedToId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Unassigned</option>
-                    {users.map(u => (
-                      <option key={u.id} value={u.id}>{u.first_name || u.username} {u.last_name || ''}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Send Email on Create</label>
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} />
-                    <span className="text-sm text-gray-600">Notify customer via email</span>
-                  </div>
-                  <div className="mt-3 grid grid-cols-1 gap-3">
+
+              {sendEmail && (
+                <div className="mt-4 space-y-3 pl-6 border-l-2 border-blue-300">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email To</label>
                     <input
                       type="email"
                       value={emailTo}
                       onChange={(e) => setEmailTo(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Email to (defaults to customer email)"
+                      placeholder="recipient@example.com"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
                     <input
                       type="text"
                       value={emailSubject}
                       onChange={(e) => setEmailSubject(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Email subject"
+                      placeholder="Proposal for your review"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
                     <textarea
-                      rows={3}
                       value={emailMessage}
                       onChange={(e) => setEmailMessage(e.target.value)}
+                      rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Email message"
+                      placeholder="Enter your message..."
                     />
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
+            {/* Form Buttons */}
             <div className="flex justify-end space-x-3 pt-6 border-t">
               <button
                 type="button"
-                onClick={() => setShowCreateForm(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setSelectedItems([{ item: null, description: '', quantity: 1, unit_price: 0, tax_rate: 0, discount_rate: 0 }]);
+                }}
+                className="btn btn-secondary"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={isLoading}
-                className="btn-page-action disabled:opacity-50"
+                disabled={selectedItems.filter(si => (si.description?.trim() || si.item)).length === 0}
+                className="btn btn-primary disabled:opacity-50"
               >
-                {isLoading ? 'Creating...' : 'Create Proposal'}
+                Create Proposal
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow">
+      {/* Key Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="metric-card metric-blue bg-white px-4 py-3 rounded-lg shadow border-t-4 border-blue-600">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
+            <div className="p-2 bg-blue-50 rounded-lg">
               <DocumentTextIcon className="h-6 w-6 text-blue-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Proposals</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total_proposals}</p>
+              <p className="metric-value text-2xl font-bold">{stats.total_proposals}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="metric-card metric-green bg-white px-4 py-3 rounded-lg shadow border-t-4 border-green-600">
           <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <ClockIcon className="h-6 w-6 text-yellow-600" />
+            <div className="p-2 bg-green-50 rounded-lg">
+              <PaperAirplaneIcon className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Draft Proposals</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.draft_proposals}</p>
+              <p className="text-sm font-medium text-gray-600">Sent Proposals</p>
+              <p className="metric-value text-2xl font-bold">{stats.sent_proposals}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="metric-card metric-yellow bg-white px-4 py-3 rounded-lg shadow border-t-4 border-yellow-600">
           <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircleIcon className="h-6 w-6 text-green-600" />
+            <div className="p-2 bg-yellow-50 rounded-lg">
+              <CheckCircleIcon className="h-6 w-6 text-yellow-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Accepted Proposals</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.accepted_proposals}</p>
+              <p className="text-sm font-medium text-gray-600">Accepted</p>
+              <p className="metric-value text-2xl font-bold">{stats.accepted_proposals}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="metric-card metric-red bg-white px-4 py-3 rounded-lg shadow border-t-4 border-red-600">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <PaperAirplaneIcon className="h-6 w-6 text-purple-600" />
+            <div className="p-2 bg-red-50 rounded-lg">
+              <XCircleIcon className="h-6 w-6 text-red-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Rejected Proposals</p>
+              <p className="metric-value text-2xl font-bold">{stats.rejected_proposals}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="metric-card metric-purple bg-white px-4 py-3 rounded-lg shadow border-t-4 border-purple-600">
+          <div className="flex items-center">
+            <div className="p-2 bg-purple-50 rounded-lg">
+              <CurrencyDollarIcon className="h-6 w-6 text-purple-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Value</p>
-              <p className="text-2xl font-bold text-gray-900">${((stats.total_value || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="metric-value text-2xl font-bold">{formatCurrency(stats.total_value / 100)}</p>
             </div>
           </div>
         </div>
       </div>
 
 
-      {/* Proposals List */}
+      {/* Proposals List View */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">
-            Proposals ({filteredProposals.length})
-          </h3>
-        </div>
-        {filteredProposals.length === 0 ? (
-          <div className="text-center py-12">
-            <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No proposals</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Get started by creating a new proposal.
-            </p>
-            <div className="mt-6">
-              <button
-                onClick={() => setShowCreateForm(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-500 hover:bg-blue-500"
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                New Proposal
-              </button>
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">
+                All Proposals ({proposals.length})
+              </h3>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search proposals..."
+                    value={proposalSearch}
+                    onChange={(e) => setProposalSearch(e.target.value)}
+                    className="w-40 pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-0 focus:border-gray-300"
+                  />
+                </div>
+                <button
+                  type="button"
+                  title="Refresh"
+                  className="p-1 text-gray-500 hover:text-gray-700"
+                  onClick={() => {
+                    setHeaderFilterOpen(null);
+                    setToolbarDateOpen(false);
+                    setProposalSearch('');
+                    setSortField(null);
+                    setSortDir('asc');
+                    setFilterStatus([]);
+                    setFilterCustomerIds([]);
+                    setFilterFromDate('');
+                    setFilterToDate('');
+                    setCreatedDateFilterFrom('');
+                    setCreatedDateFilterTo('');
+                    setValidUntilFilterFrom('');
+                    setValidUntilFilterTo('');
+                    setPendingToolbarFrom('');
+                    setPendingToolbarTo('');
+                    setPendingCreatedDateFrom('');
+                    setPendingCreatedDateTo('');
+                    setPendingValidUntilFrom('');
+                    setPendingValidUntilTo('');
+                    fetchProposals();
+                  }}
+                >
+                  <ArrowPathIcon className="w-4 h-4" />
+                </button>
+                <div className="relative">
+                  <button
+                    type="button"
+                    title="Filter by date range"
+                    className="p-1 text-gray-500 hover:text-gray-700"
+                    ref={toolbarDateRef}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPendingToolbarFrom(filterFromDate || '');
+                      setPendingToolbarTo(filterToDate || '');
+                      setToolbarDateOpen((o) => !o);
+                    }}
+                  >
+                    <CalendarIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto projects-table" style={{backgroundColor: 'rgb(249, 250, 251)'}}>
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-secondary-50">
+              <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th onDoubleClick={() => onHeaderDblClick('proposal')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                     Proposal
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                    Customer
+                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                    <div className="inline-flex items-center gap-1">
+                      <span>Customer</span>
+                      <span className="relative">
+                        <button
+                          type="button"
+                          className="p-0.5 text-gray-500 hover:text-gray-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const isOpening = headerFilterOpen !== 'customer';
+                            if (isOpening) {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setFilterButtonRect(rect);
+                            }
+                            setHeaderFilterOpen(isOpening ? 'customer' : null);
+                          }}
+                        >
+                          <FunnelIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                    Type
+                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                    Title
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th onDoubleClick={() => onHeaderDblClick('total_amount')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                     Amount
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                    Status
+                  <th onDoubleClick={() => onHeaderDblClick('status')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                    <div className="inline-flex items-center gap-1">
+                      <span>Status</span>
+                      <span className="relative">
+                        <button
+                          type="button"
+                          className="p-0.5 text-gray-500 hover:text-gray-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const isOpening = headerFilterOpen !== 'status';
+                            if (isOpening) {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setFilterButtonRect(rect);
+                            }
+                            setHeaderFilterOpen(isOpening ? 'status' : null);
+                          }}
+                        >
+                          <FunnelIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                    Open Till
+                  <th onDoubleClick={() => onHeaderDblClick('created_at')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                    <div className="inline-flex items-center gap-1">
+                      <span>Created Date</span>
+                      <span className="relative">
+                        <button
+                          type="button"
+                          className="p-0.5 text-gray-500 hover:text-gray-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const isOpening = headerFilterOpen !== 'created_date';
+                            if (isOpening) {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setFilterButtonRect(rect);
+                              setPendingCreatedDateFrom(createdDateFilterFrom || '');
+                              setPendingCreatedDateTo(createdDateFilterTo || '');
+                            }
+                            setHeaderFilterOpen(isOpening ? 'created_date' : null);
+                          }}
+                        >
+                          <CalendarIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-black uppercase tracking-wider">
-                    Assigned To
+                  <th onDoubleClick={() => onHeaderDblClick('valid_until')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                    <div className="inline-flex items-center gap-1">
+                      <span>Valid Until</span>
+                      <span className="relative">
+                        <button
+                          type="button"
+                          className="p-0.5 text-gray-500 hover:text-gray-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const isOpening = headerFilterOpen !== 'valid_until';
+                            if (isOpening) {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setFilterButtonRect(rect);
+                              setPendingValidUntilFrom(validUntilFilterFrom || '');
+                              setPendingValidUntilTo(validUntilFilterTo || '');
+                            }
+                            setHeaderFilterOpen(isOpening ? 'valid_until' : null);
+                          }}
+                        >
+                          <CalendarIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                    Invoice Due
+                  </th>
+                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                    Projects
+                  </th>
+                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                    Total Proposals
+                  </th>
+                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
-              </thead>
+            </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredProposals.map((proposal) => (
-                  <tr key={proposal.id} className="hover:bg-secondary-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
-                          {getStatusIcon(proposal.status)}
-                        </div>
-                        <div className="ml-4">
-                          <div 
-                            className="text-base font-semibold text-black cursor-pointer hover:text-user-blue"
-onClick={() => navigate(getTenantRoute(`/proposals/${proposal.id}`))}
-                          >
-                            {proposal.title}
-                          </div>
-                          <div className="text-base text-black">
-                            #{proposal.proposal_number}
-                          </div>
-                        </div>
-                      </div>
+                {displayedProposals.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="px-3 py-8 text-center text-sm text-gray-500">
+                      No proposals found
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-base text-black">
-                        Customer #{proposal.customer_id}
-                      </div>
-                      <div className="text-base text-black">
-                        Proposal
-                      </div>
+                  </tr>
+              ) : (
+              displayedProposals.map((proposal, idx) => {
+                const customer = customers.find(c => c.id === proposal.customer_id);
+                const customerName = customer?.display_name || customer?.company_name || 'Unknown';
+                const amountDollars = typeof proposal.total_amount === 'number' ? (proposal.total_amount / 100) : 0;
+                const createdD = proposal.created_at ? new Date(proposal.created_at) : null;
+                const createdStr = createdD ? createdD.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+                const validD = proposal.valid_until ? new Date(proposal.valid_until) : null;
+                const validStr = validD ? validD.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+                
+                return (
+                  <tr
+                    key={proposal.id}
+                    className="hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/proposals/${proposal.id}`)}
+                  >
+                    <td className="px-3 py-2 whitespace-nowrap text-base font-semibold text-black">
+                      {formatProposalNumber(proposal, idx)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-base text-black">
-                      {String(proposal.proposal_type).charAt(0).toUpperCase() + String(proposal.proposal_type).slice(1).toLowerCase()}
+                    <td className="px-3 py-2 whitespace-nowrap text-base text-black">
+                      {customerName}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-base font-semibold text-black">
-                        ${((proposal.total_amount || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
-                      <div className="text-base text-black">
-                        {proposal.currency?.toUpperCase() || 'USD'}
-                      </div>
+                    <td
+                      className="px-3 py-2 text-sm text-gray-900 cursor-pointer hover:bg-user-blue/10 transition-colors"
+                      onClick={(e) => startInlineEdit(e, proposal, 'title')}
+                      title="Click to edit title"
+                    >
+                      {proposal.title || '(No Title)'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(proposal.status)}`}>
+                    <td
+                      className="px-3 py-2 whitespace-nowrap text-sm font-semibold text-gray-900 cursor-pointer hover:bg-user-blue/10 transition-colors"
+                      onClick={(e) => startInlineEdit(e, proposal, 'amount')}
+                      title="Click to edit amount"
+                    >
+                      {formatCurrency(amountDollars)}
+                    </td>
+                    <td
+                      className="px-3 py-2 whitespace-nowrap cursor-pointer hover:bg-user-blue/10 transition-colors"
+                      onClick={(e) => startInlineEdit(e, proposal, 'status')}
+                      title="Click to edit status"
+                    >
+                      <span className={`inline-flex px-1.5 pt-0 pb-0.5 text-xs font-light rounded-sm ${getStatusColorBold(proposal.status)}`}>
                         {proposal.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-base text-black">
-                      {proposal.valid_until ? new Date(proposal.valid_until).toLocaleDateString() : 'N/A'}
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-700">
+                      {createdStr}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-base text-black">
-                      {(() => {
-                        const assignedId = (proposal as any).custom_fields?.assigned_to_id;
-                        if (!assignedId) return '—';
-                        const u = (users || []).find((x: any) => x.id === assignedId);
-                        return u ? (((u as any).full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username || u.email || u.id)) : assignedId;
-                      })()}
+                    <td
+                      className="px-3 py-2 whitespace-nowrap text-sm text-gray-700 cursor-pointer hover:bg-user-blue/10 transition-colors"
+                      onClick={(e) => startInlineEdit(e, proposal, 'valid_until')}
+                      title="Click to edit valid until date"
+                    >
+                      {validStr}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center space-x-2">
-                        {/* Conditional actions based on status */}
-                        {proposal.status && proposal.status === 'DRAFT' && (
-                          <button 
-                            onClick={() => sendProposal(proposal.id)}
-                            className="bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full p-2 transition-colors"
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {customerData[proposal.customer_id]?.invoiceDue !== undefined
+                        ? formatCurrency(customerData[proposal.customer_id].invoiceDue / 100)
+                        : '-'}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {customerData[proposal.customer_id]?.projectsCount ?? '-'}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {customerData[proposal.customer_id]?.totalProposals ?? '-'}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        {proposal.status === 'DRAFT' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); sendProposal(proposal.id); }}
+                            className="inline-flex items-center justify-center p-2 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
                             title="Send Proposal"
                           >
                             <PaperAirplaneIcon className="h-4 w-4" />
                           </button>
                         )}
-                        {proposal.status && ['SENT','VIEWED'].includes(proposal.status) && (
-                          <>
-                            <button 
-                              onClick={() => acceptProposal(proposal.id)}
-                              className="bg-green-100 hover:bg-green-200 text-green-600 rounded-full p-2 transition-colors"
-                              title="Mark Accepted"
-                            >
-                              <CheckCircleIcon className="h-4 w-4" />
-                            </button>
-                            <button 
-                              onClick={() => rejectProposal(proposal.id)}
-                              className="bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-2 transition-colors"
-                              title="Mark Rejected"
-                            >
-                              <XCircleIcon className="h-4 w-4" />
-                            </button>
-                          </>
-                        )}
-
-                        {/* Convert to Invoice */}
                         <button
-                          onClick={() => convertToInvoice(proposal.id)}
-                          className="bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-full p-2 transition-colors"
-                          title="Convert to Invoice"
-                        >
-                          <ArrowsRightLeftIcon className="h-4 w-4" />
-                        </button>
-                        {/* Download PDF */}
-                        <button
-                          onClick={() => downloadProposalPDF(proposal.id, proposal.proposal_number)}
-                          className="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full p-2 transition-colors"
+                          onClick={(e) => { e.stopPropagation(); downloadProposalPDF(proposal.id, formatProposalNumber(proposal)); }}
+                          className="inline-flex items-center justify-center p-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
                           title="Download PDF"
                         >
                           <DocumentArrowDownIcon className="h-4 w-4" />
                         </button>
-                        {/* View / Edit / Delete */}
-                        <button 
-onClick={() => navigate(getTenantRoute(`/proposals/${proposal.id}`))}
-                          className="bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full p-2 transition-colors"
-                          title="View Proposal"
+                        {proposal.status === 'ACCEPTED' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); convertToInvoice(proposal.id); }}
+                            className="inline-flex items-center justify-center p-2 rounded-md bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                            title="Convert to Invoice"
+                          >
+                            <ArrowsRightLeftIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/proposals/${proposal.id}`); }}
+                          className="inline-flex items-center justify-center p-2 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                          title="View Details"
                         >
                           <EyeIcon className="h-4 w-4" />
                         </button>
-                        <button 
-onClick={() => navigate(getTenantRoute(`/proposals/${proposal.id}?tab=edit`))}
-                          className="bg-green-100 hover:bg-green-200 text-green-600 rounded-full p-2 transition-colors"
-                          title="Edit Proposal"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteProposal(proposal.id)}
-                          className="bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-2 transition-colors" 
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(proposal.id); }}
+                          className="inline-flex items-center justify-center p-2 rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
                           title="Delete Proposal"
                         >
                           <TrashIcon className="h-4 w-4" />
@@ -1020,12 +1537,281 @@ onClick={() => navigate(getTenantRoute(`/proposals/${proposal.id}?tab=edit`))}
                       </div>
                     </td>
                   </tr>
-                ))}
+                );
+              })
+            )}
               </tbody>
             </table>
           </div>
-        )}
-        </div>
+
+          {/* Render all filter popups via portal */}
+          {headerFilterOpen === 'status' && (
+            <FilterPortal buttonRect={filterButtonRect}>
+              <div ref={headerFilterRef} className="w-40 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
+                <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter status</div>
+                <ul className="max-h-48 overflow-auto">
+                  {(['DRAFT', 'SENT', 'VIEWED', 'PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'WITHDRAWN'] as ProposalStatusType[]).map(st => {
+                    const checked = filterStatus.includes(st);
+                    return (
+                      <li key={st}>
+                        <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={checked}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              setFilterStatus(prev => checked ? prev.filter(x => x !== st) : [...prev, st]);
+                            }}
+                          />
+                          <span>{st}</span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                  <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); setFilterStatus([]); }}>Clear</button>
+                  <button className="filter-popup-btn filter-popup-btn-close" onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
+                </div>
+              </div>
+            </FilterPortal>
+          )}
+
+          {headerFilterOpen === 'customer' && (
+            <FilterPortal buttonRect={filterButtonRect}>
+              <div ref={headerFilterRef} className="w-52 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
+                <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter customer</div>
+                <ul className="max-h-48 overflow-auto">
+                  {customers.map(c => {
+                    const selected = filterCustomerIds.includes(c.id);
+                    const label = c.display_name || c.company_name || c.email;
+                    return (
+                      <li key={c.id}>
+                        <label className="flex items-center gap-2 px-1.5 py-0.5 rounded-sm hover:bg-gray-50 cursor-pointer text-xs font-normal">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={selected}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              setFilterCustomerIds(prev => selected ? prev.filter(id => id !== c.id) : [...prev, c.id]);
+                            }}
+                          />
+                          <span>{label}</span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                  <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e)=>{ e.stopPropagation(); setFilterCustomerIds([]); }}>Clear</button>
+                  <button className="filter-popup-btn filter-popup-btn-close" onClick={(e)=>{ e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
+                </div>
+              </div>
+            </FilterPortal>
+          )}
+
+          {headerFilterOpen === 'created_date' && (
+            <FilterPortal buttonRect={filterButtonRect}>
+              <div ref={headerFilterRef} className="w-64 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{borderRadius: '5px'}}>
+                <div className="px-1 pb-1">
+                  <DateRangeCalendar size="sm"
+                    initialFrom={pendingCreatedDateFrom || null}
+                    initialTo={pendingCreatedDateTo || null}
+                    onChange={(from, to) => {
+                      if (from && !to) {
+                        setPendingCreatedDateFrom(from);
+                        setPendingCreatedDateTo(from);
+                      } else {
+                        setPendingCreatedDateFrom(from || '');
+                        setPendingCreatedDateTo(to || '');
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                  <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); setCreatedDateFilterFrom(''); setCreatedDateFilterTo(''); setHeaderFilterOpen(null); }}>Clear</button>
+                  <button className="filter-popup-btn filter-popup-btn-filter" onClick={(e) => {
+                    e.stopPropagation();
+                    const from = pendingCreatedDateFrom || '';
+                    const to = pendingCreatedDateTo || pendingCreatedDateFrom || '';
+                    setCreatedDateFilterFrom(from);
+                    setCreatedDateFilterTo(to);
+                    setHeaderFilterOpen(null);
+                  }}>Filter</button>
+                </div>
+              </div>
+            </FilterPortal>
+          )}
+
+          {headerFilterOpen === 'valid_until' && (
+            <FilterPortal buttonRect={filterButtonRect}>
+              <div ref={headerFilterRef} className="w-64 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{borderRadius: '5px'}}>
+                <div className="px-1 pb-1">
+                  <DateRangeCalendar size="sm"
+                    initialFrom={pendingValidUntilFrom || null}
+                    initialTo={pendingValidUntilTo || null}
+                    onChange={(from, to) => {
+                      if (from && !to) {
+                        setPendingValidUntilFrom(from);
+                        setPendingValidUntilTo(from);
+                      } else {
+                        setPendingValidUntilFrom(from || '');
+                        setPendingValidUntilTo(to || '');
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                  <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); setValidUntilFilterFrom(''); setValidUntilFilterTo(''); setHeaderFilterOpen(null); }}>Clear</button>
+                  <button className="filter-popup-btn filter-popup-btn-filter" onClick={(e) => {
+                    e.stopPropagation();
+                    const from = pendingValidUntilFrom || '';
+                    const to = pendingValidUntilTo || pendingValidUntilFrom || '';
+                    setValidUntilFilterFrom(from);
+                    setValidUntilFilterTo(to);
+                    setHeaderFilterOpen(null);
+                  }}>Filter</button>
+                </div>
+              </div>
+            </FilterPortal>
+          )}
+          
+          {/* Toolbar Date Filter Portal */}
+          {toolbarDateOpen && toolbarDateRef.current && (() => {
+            const rect = toolbarDateRef.current!.getBoundingClientRect();
+            const popupWidth = 256; // w-64 = 16rem = 256px
+            // Calculate position to align right edge of popup with right edge of button
+            const leftPos = rect.right - popupWidth;
+            
+            return ReactDOM.createPortal(
+              <div
+                style={{
+                  position: 'fixed',
+                  left: `${leftPos}px`,
+                  top: `${rect.bottom + 4}px`,
+                  zIndex: 99999,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="w-64 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{borderRadius: '5px'}}>
+                  <div className="px-1 pb-1">
+                    <DateRangeCalendar size="sm"
+                      initialFrom={pendingToolbarFrom || null}
+                      initialTo={pendingToolbarTo || null}
+                      onChange={(from, to) => {
+                        if (from && !to) {
+                          setPendingToolbarFrom(from);
+                          setPendingToolbarTo(from);
+                        } else {
+                          setPendingToolbarFrom(from || '');
+                          setPendingToolbarTo(to || '');
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                    <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); setFilterFromDate(''); setFilterToDate(''); setToolbarDateOpen(false); }}>Clear</button>
+                    <button className="filter-popup-btn filter-popup-btn-filter" onClick={(e) => {
+                      e.stopPropagation();
+                      const from = pendingToolbarFrom || '';
+                      const to = pendingToolbarTo || pendingToolbarFrom || '';
+                      setFilterFromDate(from);
+                      setFilterToDate(to);
+                      setToolbarDateOpen(false);
+                    }}>Filter</button>
+                  </div>
+                </div>
+              </div>,
+              document.body
+            );
+          })()}
+      </div>
+
+      {/* Inline Edit Portals */}
+      {editingProposalId && editingField === 'status' && (
+        <InlineEditPortal rect={inlineEditRect}>
+          <div ref={inlinePopoverRef} className="w-44 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{ borderRadius: '5px' }}>
+            <ul className="max-h-64 overflow-auto">
+              {['draft','sent','viewed','pending','accepted','rejected','expired','withdrawn'].map((opt) => (
+                <li
+                  key={opt}
+                  className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${String(editValue).toLowerCase() === opt ? 'bg-gray-50' : ''}`}
+                  onClick={() => { saveInlineEdit(editingProposalId, opt); }}
+                >
+                  <span className="capitalize">{opt.replace('_', ' ')}</span>
+                  {String(editValue).toLowerCase() === opt && <CheckIconSolid className="w-4 h-4 text-user-blue" />}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </InlineEditPortal>
+      )}
+
+      {editingProposalId && editingField === 'title' && (
+        <InlineEditPortal rect={inlineEditRect}>
+          <div ref={inlinePopoverRef} className="w-64 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{ borderRadius: '5px' }}>
+            <input
+              autoFocus
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  saveInlineEdit(editingProposalId);
+                } else if (e.key === 'Escape') {
+                  cancelInlineEdit();
+                }
+              }}
+              onBlur={() => saveInlineEdit(editingProposalId)}
+              className="block w-full h-8 px-2 py-1 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
+            />
+          </div>
+        </InlineEditPortal>
+      )}
+
+      {editingProposalId && editingField === 'amount' && (
+        <InlineEditPortal rect={inlineEditRect}>
+          <div ref={inlinePopoverRef} className="w-48 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{ borderRadius: '5px' }}>
+            <input
+              autoFocus
+              type="number"
+              step="0.01"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  saveInlineEdit(editingProposalId);
+                } else if (e.key === 'Escape') {
+                  cancelInlineEdit();
+                }
+              }}
+              onBlur={() => saveInlineEdit(editingProposalId)}
+              className="block w-full h-8 px-2 py-1 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
+            />
+          </div>
+        </InlineEditPortal>
+      )}
+
+      {editingProposalId && editingField === 'valid_until' && (
+        <InlineEditPortal rect={inlineEditRect}>
+          <div ref={inlinePopoverRef} className="w-56 border border-gray-200 bg-white shadow-sm p-1.5 text-xs" style={{ borderRadius: '5px' }}>
+            <input
+              autoFocus
+              type="date"
+              value={editValue}
+              onChange={(e) => { saveInlineEdit(editingProposalId, e.target.value); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  cancelInlineEdit();
+                }
+              }}
+              className="block w-full h-8 px-2 py-1 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
+            />
+          </div>
+        </InlineEditPortal>
+      )}
 
 
     </div>

@@ -3,7 +3,9 @@ import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { fetchTasks } from '../../store/slices/taskSlice';
 import { fetchProjects } from '../../store/slices/projectSlice';
 import { fetchDashboardStats } from '../../store/slices/dashboardSlice';
-import { FunnelIcon, AdjustmentsHorizontalIcon, EyeIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { FunnelIcon, AdjustmentsHorizontalIcon, EyeIcon, ChartBarIcon, Cog6ToothIcon, PlusIcon, ArrowDownTrayIcon, BookmarkIcon, ArrowPathIcon, Squares2X2Icon, ListBulletIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Squares2X2Icon as KanbanIcon } from '@heroicons/react/24/solid';
+import ViewModeButton from '../UI/ViewModeButton';
 
 // Enhanced widget components with real data
 const ProjectStatusWidget: React.FC<any> = ({ compact, data }) => {
@@ -368,12 +370,10 @@ const PersonalDashboard: React.FC = () => {
           <div className="absolute top-2 right-2 z-10">
             <button
               onClick={() => removeWidget(widgetId)}
-              className="p-1 bg-red-100 rounded hover:bg-red-200 text-red-600"
+              className="p-1.5 bg-red-50 rounded-md hover:bg-red-100 text-red-600 border border-red-200 shadow-sm"
               title="Remove widget"
             >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
+              <XMarkIcon className="w-4 h-4" />
             </button>
           </div>
         )}
@@ -441,46 +441,43 @@ const PersonalDashboard: React.FC = () => {
           </div>
 
           {/* Layout Toggle */}
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            {(['grid', 'list', 'kanban'] as const).map((layout) => (
-              <button
-                key={layout}
-                onClick={() => toggleLayout(layout)}
-                className={`
-                  px-3 py-1 rounded-md text-sm font-medium transition-colors
-                  ${preferences.default_layout === layout
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                  }
-                `}
-              >
-                {layout.charAt(0).toUpperCase() + layout.slice(1)}
-              </button>
-            ))}
+          <div className="flex gap-2">
+            <ViewModeButton
+              icon={Squares2X2Icon}
+              label="Grid"
+              active={preferences.default_layout === 'grid'}
+              onClick={() => toggleLayout('grid')}
+            />
+            <ViewModeButton
+              icon={ListBulletIcon}
+              label="List"
+              active={preferences.default_layout === 'list'}
+              onClick={() => toggleLayout('list')}
+            />
+            <ViewModeButton
+              icon={KanbanIcon}
+              label="Kanban"
+              active={preferences.default_layout === 'kanban'}
+              onClick={() => toggleLayout('kanban')}
+            />
           </div>
 
           {/* Settings */}
-          <button
+          <ViewModeButton
+            icon={AdjustmentsHorizontalIcon}
+            label="Settings"
+            active={showFilters}
             onClick={() => setShowFilters(!showFilters)}
-            className="p-2 text-gray-400 hover:text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
             title="Dashboard Settings"
-          >
-            <AdjustmentsHorizontalIcon className="w-5 h-5" />
-          </button>
+          />
 
           {/* Customization Toggle */}
-          <button
+          <ViewModeButton
+            icon={Cog6ToothIcon}
+            label={isCustomizing ? 'Done Customizing' : 'Customize Dashboard'}
+            active={isCustomizing}
             onClick={() => setIsCustomizing(!isCustomizing)}
-            className={`
-              px-4 py-2 rounded-md text-sm font-medium transition-colors
-              ${isCustomizing
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }
-            `}
-          >
-            {isCustomizing ? 'Done Customizing' : 'Customize Dashboard'}
-          </button>
+          />
         </div>
       </div>
 
@@ -540,15 +537,22 @@ const PersonalDashboard: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Quick Actions</label>
               <div className="flex flex-wrap gap-2">
-                <button className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200">
-                  Export Data
-                </button>
-                <button className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200">
-                  Save Layout
-                </button>
-                <button className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200">
-                  Reset
-                </button>
+                <ViewModeButton
+                  icon={ArrowDownTrayIcon}
+                  label="Export Data"
+                  onClick={() => {}}
+                />
+                <ViewModeButton
+                  icon={BookmarkIcon}
+                  label="Save Layout"
+                  onClick={() => {}}
+                />
+                <ViewModeButton
+                  icon={ArrowPathIcon}
+                  label="Reset"
+                  variant="destructive"
+                  onClick={() => {}}
+                />
               </div>
             </div>
           </div>
@@ -563,13 +567,12 @@ const PersonalDashboard: React.FC = () => {
             {Object.values(AVAILABLE_WIDGETS)
               .filter(widget => !preferences.enabled_widgets.includes(widget.id))
               .map(widget => (
-                <button
+                <ViewModeButton
                   key={widget.id}
+                  icon={PlusIcon}
+                  label={widget.name}
                   onClick={() => addWidget(widget.id)}
-                  className="px-3 py-2 bg-white border border-blue-300 rounded-md text-sm font-medium text-blue-700 hover:bg-blue-50 transition-colors"
-                >
-                  + {widget.name}
-                </button>
+                />
               ))
             }
           </div>
@@ -605,12 +608,12 @@ const PersonalDashboard: React.FC = () => {
             Get started by adding some widgets to your dashboard.
           </p>
           <div className="mt-6">
-            <button
+            <ViewModeButton
+              icon={Cog6ToothIcon}
+              label="Customize Dashboard"
+              active={true}
               onClick={() => setIsCustomizing(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-            >
-              Customize Dashboard
-            </button>
+            />
           </div>
         </div>
       )}

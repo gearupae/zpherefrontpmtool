@@ -39,10 +39,10 @@ const CalendarPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4">
-      <div className="mb-4">
-        <h1 className="text-xl font-semibold">Calendar</h1>
-        <p className="text-sm text-gray-500">All projects, tasks, and goals with dates</p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="page-title font-bold text-gray-900">Calendar</h1>
+        <p className="text-sm text-gray-600 mt-1">All projects, tasks, and goals with dates</p>
       </div>
       <CalendarView type="mixed" events={events as any} onItemClick={handleClick} />
     </div>

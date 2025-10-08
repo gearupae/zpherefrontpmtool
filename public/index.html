@@ -32,54 +32,31 @@
     <div id="root"></div>
     
     <!-- Auto-styling for buttons based on text content -->
+    <!-- NOTE: MutationObserver removed to prevent layout shifts during scrolling/renders. -->
     <script>
-      // Function to apply button styling based on text content
-      function applyButtonStyling() {
-        const buttons = document.querySelectorAll('button');
-        
-        buttons.forEach(button => {
-          const text = button.textContent.toLowerCase().trim();
-          const hasCreateText = text.includes('create') || text.includes('new') || text.includes('add');
-          const hasDeleteText = text.includes('delete') || text.includes('remove');
-          
-          if (hasCreateText && !button.classList.contains('btn-styled')) {
-            button.style.backgroundColor = '#000000';
-            button.style.color = 'white';
-            button.style.borderColor = '#000000';
-            button.style.fontSize = '0.875rem';
-            button.style.padding = '0.2rem 0.75rem';
-            button.classList.add('btn-styled', 'btn-create-auto');
-          } else if (hasDeleteText && !button.classList.contains('btn-styled')) {
-            button.style.backgroundColor = '#ef4444';
-            button.style.color = 'white';
-            button.style.borderColor = '#ef4444';
-            button.style.fontSize = '0.875rem';
-            button.style.padding = '0.2rem 0.75rem';
-            button.classList.add('btn-styled', 'btn-delete-auto');
+      (function() {
+        function applyButtonStylingOnce() {
+          try {
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(button => {
+              const text = (button.textContent || '').toLowerCase().trim();
+              const hasCreateText = text.includes('create') || text.includes('new') || text.includes('add');
+              const hasDeleteText = text.includes('delete') || text.includes('remove');
+
+              if (hasCreateText && !button.classList.contains('btn-styled')) {
+                // Prefer class-based styling; avoid frequent inline style mutations to prevent reflow
+                button.classList.add('btn-styled', 'btn-create-custom');
+              } else if (hasDeleteText && !button.classList.contains('btn-styled')) {
+                button.classList.add('btn-styled', 'btn-delete-custom');
+              }
+            });
+          } catch (e) {
+            // no-op
           }
-        });
-      }
-      
-      // Apply styling when DOM loads
-      document.addEventListener('DOMContentLoaded', applyButtonStyling);
-      
-      // Re-apply when new content is loaded (for React dynamic content)
-      const observer = new MutationObserver(function(mutations) {
-        let shouldUpdate = false;
-        mutations.forEach(function(mutation) {
-          if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-            shouldUpdate = true;
-          }
-        });
-        if (shouldUpdate) {
-          setTimeout(applyButtonStyling, 100);
         }
-      });
-      
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true
-      });
+        // Apply once on initial load only
+        document.addEventListener('DOMContentLoaded', applyButtonStylingOnce, { once: true });
+      })();
     </script>
     
     <!--

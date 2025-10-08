@@ -139,6 +139,35 @@ const SmartNotificationCenter: React.FC<SmartNotificationCenterProps> = ({
     }
   }, [isOpen, activeTab, filterType]);
 
+  // Listen for live WS notifications broadcasted by Header and update panel immediately
+  useEffect(() => {
+    console.log('🏛️ SmartNotificationCenter: Setting up event listener');
+    const handler = (e: Event) => {
+      const custom = e as CustomEvent<Notification>;
+      const n = custom.detail;
+      console.log('📥 SmartNotificationCenter: Received notification event:', n);
+      if (!n) {
+        console.warn('⚠️ Notification detail is empty');
+        return;
+      }
+      setNotifications((prev) => {
+        console.log('📋 Adding notification to list. Current count:', prev.length);
+        return [n, ...prev];
+      });
+      setSummaryStats((prev) => ({
+        ...prev,
+        total_notifications: (prev.total_notifications || 0) + 1,
+        unread_count: (prev.unread_count || 0) + (n.is_read ? 0 : 1),
+      }));
+    };
+    window.addEventListener('smart-notification:new', handler as EventListener);
+    console.log('✅ Event listener registered for smart-notification:new');
+    return () => {
+      console.log('🧹 Cleaning up event listener');
+      window.removeEventListener('smart-notification:new', handler as EventListener);
+    };
+  }, []);
+
   const fetchNotifications = async () => {
     try {
       setLoading(true);
@@ -160,33 +189,68 @@ const SmartNotificationCenter: React.FC<SmartNotificationCenterProps> = ({
       // Try smart notifications API first
       try {
         const response = await apiClient.get(`/smart-notifications/?${params}`);
-        setNotifications(response.data.notifications || []);
+        console.log('Smart notifications response:', response.data);
+        const smartList = response.data.notifications || [];
+        setNotifications(smartList);
         setSummaryStats({
           total_notifications: response.data.total_notifications || 0,
           unread_count: response.data.unread_count || 0,
           urgent_count: response.data.urgent_count || 0
         });
+
+        // Fallback to basic notifications API when smart endpoint returns no items (e.g., admin context org mismatch)
+        if (!Array.isArray(smartList) || smartList.length === 0) {
+          try {
+            const basic = await apiClient.get(`/notifications/?page=1&size=50&unread_only=${activeTab==='unread'}`);
+            const basicList = (basic.data.notifications || basic.data || []).map((n: any) => ({
+              id: n.id,
+              title: n.title || n.type,
+              message: n.message || n.short_description || '',
+              short_description: n.short_description || '',
+              notification_type: n.notification_type || n.type || 'system_alert',
+              priority: n.priority || 'normal',
+              relevance_score: n.relevance_score ?? 0.5,
+              context_data: n.context_data || n.data || {},
+              action_required: n.action_required ?? false,
+              auto_generated: n.auto_generated ?? true,
+              is_read: n.is_read || false,
+              is_dismissed: n.is_dismissed || false,
+              action_taken: n.action_taken || false,
+              created_at: n.created_at || new Date().toISOString(),
+              tags: n.tags || []
+            }));
+            setNotifications(basicList);
+            setSummaryStats({
+              total_notifications: basicList.length,
+              unread_count: basicList.filter((n: any) => !n.is_read).length,
+              urgent_count: 0
+            });
+          } catch (fallbackErr) {
+            console.warn('Fallback notifications API failed:', fallbackErr);
+          }
+        }
       } catch (err: any) {
-        // Only fallback to basic endpoint if the smart API is not found (404).
-        const status = err?.response?.status;
-        if (status === 404) {
+        console.error('Smart notifications error:', err);
+        // Fallback to basic endpoint for any error status (handles admin context 500s too)
+        try {
+          console.log('Falling back to basic notifications API');
           const basic = await apiClient.get(`/notifications/?page=1&size=50&unread_only=${activeTab==='unread'}`);
           const basicList = (basic.data.notifications || basic.data || []).map((n: any) => ({
             id: n.id,
             title: n.title || n.type,
             message: n.message || n.short_description || '',
             short_description: n.short_description || '',
-            notification_type: n.type || 'system_alert',
-            priority: 'normal',
-            relevance_score: 0.5,
-            context_data: n.data || {},
-            action_required: false,
-            auto_generated: true,
+            notification_type: n.notification_type || n.type || 'system_alert',
+            priority: n.priority || 'normal',
+            relevance_score: n.relevance_score ?? 0.5,
+            context_data: n.context_data || n.data || {},
+            action_required: n.action_required ?? false,
+            auto_generated: n.auto_generated ?? true,
             is_read: n.is_read || false,
-            is_dismissed: false,
-            action_taken: false,
+            is_dismissed: n.is_dismissed || false,
+            action_taken: n.action_taken || false,
             created_at: n.created_at || new Date().toISOString(),
-            tags: []
+            tags: n.tags || []
           }));
           setNotifications(basicList);
           setSummaryStats({
@@ -194,13 +258,19 @@ const SmartNotificationCenter: React.FC<SmartNotificationCenterProps> = ({
             unread_count: basicList.filter((n: any) => !n.is_read).length,
             urgent_count: 0
           });
-        } else {
+        } catch (fallbackError) {
+          console.error('Basic notifications fallback also failed:', fallbackError);
           throw err;
         }
       }
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
+    } catch (error: any) {
+      console.error('Error fetching notifications:', error?.response?.data || error);
       setNotifications([]);
+      setSummaryStats({
+        total_notifications: 0,
+        unread_count: 0,
+        urgent_count: 0
+      });
     } finally {
       setLoading(false);
     }

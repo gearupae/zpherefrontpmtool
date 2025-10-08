@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import apiClient from '../../api/client';
 import { detectTenantContext } from '../../utils/tenantUtils';
 import { Project } from '../../types';
+import { notifyProjectCreated, notifyProjectUpdated, notifyProjectDeleted } from '../../utils/notificationHelper';
 
 interface ProjectState {
   projects: Project[];
@@ -72,10 +73,16 @@ export const fetchProject = createAsyncThunk(
 
 export const createProject = createAsyncThunk(
   'projects/createProject',
-  async (projectData: Partial<Project>, { rejectWithValue }) => {
+  async (projectData: Partial<Project>, { rejectWithValue, getState }) => {
     try {
       // Always use tenant projects endpoint
       const response = await apiClient.post('/projects/', projectData);
+
+      // Fire a persistent in-app notification so the bell updates via WS
+      if (response?.data?.id) {
+        await notifyProjectCreated(response.data.id, response.data.name || 'New Project');
+      }
+
       return response.data;
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;
@@ -100,6 +107,13 @@ export const updateProject = createAsyncThunk(
     try {
       // Always use tenant projects endpoint
       const response = await apiClient.put(`/projects/${id}`, data);
+      
+      // Notify about the update
+      if (response?.data?.id) {
+        const updatedFields = Object.keys(data);
+        await notifyProjectUpdated(response.data.id, response.data.name || 'Project', updatedFields);
+      }
+      
       return response.data;
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;
@@ -120,10 +134,19 @@ export const updateProject = createAsyncThunk(
 
 export const deleteProject = createAsyncThunk(
   'projects/deleteProject',
-  async (projectId: string, { rejectWithValue }) => {
+  async (projectId: string, { rejectWithValue, getState }) => {
     try {
+      // Get project name before deletion
+      const state: any = getState();
+      const project = state?.projects?.projects?.find((p: Project) => p.id === projectId);
+      const projectName = project?.name || 'Project';
+      
       // Always use tenant projects endpoint
       await apiClient.delete(`/projects/${projectId}`);
+      
+      // Notify about deletion
+      await notifyProjectDeleted(projectId, projectName);
+      
       return projectId;
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;

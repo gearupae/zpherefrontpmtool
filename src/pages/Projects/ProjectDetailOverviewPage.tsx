@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppDispatch } from '../../hooks/redux';
 import { Project, Task, ProjectInvoice as Invoice, Customer, User, ProjectStatus, ProjectPriority, UserRole } from '../../types';
-import LoadingSpinner from '../../components/UI/LoadingSpinner';
 import { addNotification } from '../../store/slices/notificationSlice';
 import ProjectComments from '../../components/Comments/ProjectComments';
 import ProjectChat from '../../components/Chat/ProjectChat';
@@ -34,6 +33,8 @@ import {
   MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import apiClient from '../../api/client';
+import EntityCustomFieldsEditor from '../../components/CustomFields/EntityCustomFieldsEditor';
+import { setCustomFieldValues } from '../../api/customFields';
 
 interface ProjectStats {
   totalTasks: number;
@@ -80,11 +81,17 @@ const ProjectDetailOverviewPage: React.FC = () => {
     taskPriorityDistribution: {}
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'invoices' | 'team' | 'collaboration' | 'edit'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'invoices' | 'team' | 'collaboration' | 'edit' | 'roadmap'>('overview');
   // Remove unused isEditing state
   const [editForm, setEditForm] = useState<Partial<Project>>({});
+  // Roadmap state
+  const [roadmap, setRoadmap] = useState<{ id: string; title: string; done: boolean }[]>([]);
+  const [newRoadmapTitle, setNewRoadmapTitle] = useState('');
+  const [editTags, setEditTags] = useState<string>('');
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  // Custom fields state for project entity
+  const [customFieldValues, setCustomFieldValuesState] = useState<Record<string, any>>({});
   const [showTeamMemberForm, setShowTeamMemberForm] = useState(false);
   const [newTask, setNewTask] = useState({
     title: '',
@@ -114,6 +121,28 @@ const ProjectDetailOverviewPage: React.FC = () => {
     }]
   });
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
+  const userNameById = useMemo(() => {
+    const m: Record<string, string> = {};
+    (availableUsers || []).forEach((u: any) => {
+      const name = u?.full_name || `${u?.first_name || ''} ${u?.last_name || ''}`.trim() || u?.email || u?.username || 'User';
+      if (u?.id) m[u.id] = name;
+    });
+    return m;
+  }, [availableUsers]);
+
+  const userAvatarById = useMemo(() => {
+    const m: Record<string, string | null> = {};
+    (availableUsers || []).forEach((u: any) => {
+      if (u?.id) m[u.id] = (u?.avatar_url || null);
+    });
+    return m;
+  }, [availableUsers]);
+
+  const getInitials = (name: string) => {
+    const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return (parts[0] || name || 'U').slice(0, 2).toUpperCase();
+  };
 
   useEffect(() => {
     console.log('ProjectDetailOverviewPage useEffect - id:', id);
@@ -170,7 +199,31 @@ const ProjectDetailOverviewPage: React.FC = () => {
       console.log('API response:', projectResponse);
       const projectData = projectResponse.data;
       setProject(projectData);
-      setEditForm(projectData);
+      // Initialize roadmap from custom_fields if present
+      try {
+        const rm = Array.isArray((projectData?.custom_fields as any)?.roadmap)
+          ? ((projectData!.custom_fields as any).roadmap as any[])
+          : [];
+        const normalized = rm.map((it: any) => ({
+          id: String(it.id || it._id || `${Date.now()}-${Math.random().toString(36).slice(2,8)}`),
+          title: String(it.title || ''),
+          done: Boolean(it.done),
+        }));
+        setRoadmap(normalized);
+      } catch (e) {
+        setRoadmap([]);
+      }
+      // Normalize date fields to YYYY-MM-DD for date inputs and extract tags for edit UI
+      const normalizedEdit: Partial<Project> = {
+        ...projectData,
+        start_date: projectData.start_date ? String(projectData.start_date).split('T')[0] : '',
+        due_date: projectData.due_date ? String(projectData.due_date).split('T')[0] : '',
+      };
+      setEditForm(normalizedEdit);
+      const existingTags = Array.isArray((projectData.custom_fields as any)?.tags)
+        ? ((projectData.custom_fields as any).tags as string[]).join(', ')
+        : '';
+      setEditTags(existingTags);
       // Prefill team from project.members
       setTeamFromProject(projectData);
 
@@ -274,6 +327,46 @@ const ProjectDetailOverviewPage: React.FC = () => {
     } catch (error) {
       console.error('Failed to fetch invoices:', error);
     }
+  };
+
+  // Roadmap helpers
+  const saveRoadmap = async (items: { id: string; title: string; done: boolean }[]) => {
+    if (!project) return;
+    try {
+      const payload: any = {
+        custom_fields: {
+          ...(project.custom_fields || {}),
+          roadmap: items,
+        },
+      };
+      const { default: client } = await import('../../api/client');
+      const res = await client.put(`/projects/${project.id}`, payload);
+      const updated = res.data;
+      setProject(updated);
+      setRoadmap(items);
+      dispatch(addNotification({ type: 'success', title: 'Roadmap Saved', message: 'Your roadmap has been updated.', duration: 2000 }));
+    } catch (e) {
+      console.error('Failed to save roadmap', e);
+      dispatch(addNotification({ type: 'error', title: 'Save Failed', message: 'Could not save roadmap. Try again.', duration: 4000 }));
+    }
+  };
+
+  const addRoadmapItem = async () => {
+    const title = newRoadmapTitle.trim();
+    if (!title) return;
+    const item = { id: `${Date.now()}-${Math.random().toString(36).slice(2,8)}`, title, done: false };
+    await saveRoadmap([item, ...roadmap]);
+    setNewRoadmapTitle('');
+  };
+
+  const toggleRoadmapItem = async (id: string) => {
+    const next = roadmap.map(it => it.id === id ? { ...it, done: !it.done } : it);
+    await saveRoadmap(next);
+  };
+
+  const deleteRoadmapItem = async (id: string) => {
+    const next = roadmap.filter(it => it.id !== id);
+    await saveRoadmap(next);
   };
 
   const handleDeleteInvoiceFromProject = async (invoiceId: string) => {
@@ -401,6 +494,13 @@ const ProjectDetailOverviewPage: React.FC = () => {
     setStats(newStats);
   };
 
+  // Keep stats in sync whenever tasks or invoices change
+  useEffect(() => {
+    calculateStats();
+    // We intentionally only depend on tasks and invoices so stats always reflect latest data
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, invoices]);
+
   const handleUpdateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!project) return;
@@ -408,9 +508,41 @@ const ProjectDetailOverviewPage: React.FC = () => {
     try {
       const { default: apiClient } = await import('../../api/client');
       const membersPayload = buildMembersPayload();
-      const payload = { ...editForm, members: membersPayload } as any;
+
+      // Prepare payload: ensure dates are ISO strings and tags go into custom_fields.tags
+      const payload: any = { ...editForm, members: membersPayload };
+
+      // Normalize tags from editTags string
+      const tagArray = (editTags || '')
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean);
+      payload.custom_fields = {
+        ...(editForm.custom_fields || {}),
+        tags: tagArray,
+      };
+
+      // Convert date-only values to ISO strings if present
+      if (payload.start_date) {
+        const sd = String(payload.start_date);
+        payload.start_date = sd.includes('T') ? sd : new Date(sd).toISOString();
+      }
+      if (payload.due_date) {
+        const dd = String(payload.due_date);
+        payload.due_date = dd.includes('T') ? dd : new Date(dd).toISOString();
+      }
+
       const res = await apiClient.put(`/projects/${project.id}`, payload);
       const updated = res.data;
+
+      // Save custom field values after updating project core data
+      try {
+        if (project?.id) {
+          await setCustomFieldValues('project', project.id, customFieldValues);
+        }
+      } catch (e) {
+        console.warn('Failed to save custom field values', e);
+      }
 
       setProject(updated);
       setTeamFromProject(updated);
@@ -835,15 +967,11 @@ const ProjectDetailOverviewPage: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="large" />
-      </div>
-    );
-  }
-
+  // Do not block the UI with a centered loading spinner. While loading, render nothing.
   if (!project) {
+    if (isLoading) {
+      return <div />;
+    }
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Project Not Found</h2>
@@ -876,6 +1004,11 @@ const ProjectDetailOverviewPage: React.FC = () => {
             <p className="text-gray-600">
               {project.status} • {project.priority} priority • Created {formatDate(project.created_at)}
             </p>
+            {Array.isArray((project.custom_fields as any)?.tags) && (project.custom_fields as any).tags.length > 0 && (
+              <p className="text-sm text-gray-600 mt-1">
+                Tags: {(project.custom_fields as any).tags.join(', ')}
+              </p>
+            )}
             {/* Project Health Indicator */}
             {project && (
               <div className="flex items-center space-x-2 mt-2">
@@ -915,32 +1048,32 @@ const ProjectDetailOverviewPage: React.FC = () => {
                 }));
               }
             }}
-            className="btn btn-black"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
-            <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
+            <DocumentArrowDownIcon className="h-4 w-4" />
             Export PDF
           </button>
 
           {/* Added actions next to Export PDF */}
           <button
             onClick={() => setActiveTab('tasks')}
-            className="btn btn-black"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
-            <ListBulletIcon className="h-4 w-4 mr-2" />
+            <ListBulletIcon className="h-4 w-4" />
             View Task
           </button>
           <button
             onClick={() => setActiveTab('team')}
-            className="btn btn-black"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
-            <UserGroupIcon className="h-4 w-4 mr-2" />
+            <UserGroupIcon className="h-4 w-4" />
             Manage Team
           </button>
           <button
             onClick={() => setActiveTab('invoices')}
-            className="btn btn-black"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
-            <BanknotesIcon className="h-4 w-4 mr-2" />
+            <BanknotesIcon className="h-4 w-4" />
             View Invoice
           </button>
           
@@ -966,25 +1099,25 @@ const ProjectDetailOverviewPage: React.FC = () => {
                 }));
               }
             }}
-            className="btn btn-black"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
-            <ShareIcon className="h-4 w-4 mr-2" />
+            <ShareIcon className="h-4 w-4" />
             Share Project
           </button>
           
-            <button
+          <button
             onClick={() => setActiveTab('edit')}
-            className="btn btn-black"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
-            <PencilIcon className="h-4 w-4 mr-2" />
+            <PencilIcon className="h-4 w-4" />
             Edit
           </button>
           
           <button
             onClick={handleDeleteProject}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
-            <TrashIcon className="h-4 w-4 mr-2" />
+            <TrashIcon className="h-4 w-4" />
             Delete
           </button>
         </div>
@@ -999,6 +1132,7 @@ const ProjectDetailOverviewPage: React.FC = () => {
             { id: 'invoices', name: 'Invoices', icon: BanknotesIcon, count: invoices.length },
             { id: 'team', name: 'Team', icon: UserGroupIcon, count: teamMembers.length },
             { id: 'collaboration', name: 'Collaboration', icon: ChatBubbleLeftRightIcon },
+            { id: 'roadmap', name: 'Roadmap', icon: FlagIcon, count: roadmap.length },
             { id: 'edit', name: 'Edit', icon: PencilIcon }
           ].map((tab) => (
             <button
@@ -1032,7 +1166,7 @@ const ProjectDetailOverviewPage: React.FC = () => {
           {activeTab === 'overview' && project && (
         <div className="space-y-6">
           {/* Project Information */}
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white shadow rounded-lg detail-card">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Project Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
@@ -1102,7 +1236,7 @@ const ProjectDetailOverviewPage: React.FC = () => {
 
           {/* Customer Information */}
           {customer && (
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white shadow rounded-lg detail-card">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Customer Information</h3>
               <div className="flex items-center space-x-4">
                 <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
@@ -1125,7 +1259,7 @@ const ProjectDetailOverviewPage: React.FC = () => {
 
           {/* Budget Overview */}
           {project && (project.budget || project.hourly_rate || project.estimated_hours) && (
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white shadow rounded-lg detail-card">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Budget & Time Overview</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {project.budget && (
@@ -1228,7 +1362,7 @@ const ProjectDetailOverviewPage: React.FC = () => {
           </div>
 
           {/* Progress Overview */}
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white shadow rounded-lg detail-card">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Progress Overview</h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -1259,7 +1393,7 @@ const ProjectDetailOverviewPage: React.FC = () => {
           </div>
 
           {/* Recent Activity */}
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white shadow rounded-lg detail-card">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
             <div className="space-y-4">
               {tasks.length > 0 ? (
@@ -1298,7 +1432,7 @@ const ProjectDetailOverviewPage: React.FC = () => {
           )}
 
           {/* Project Timeline */}
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white shadow rounded-lg detail-card">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Project Timeline</h3>
             <div className="space-y-4">
               <div className="flex items-center space-x-4">
@@ -1361,7 +1495,7 @@ const ProjectDetailOverviewPage: React.FC = () => {
 
           {/* Project Completion Prediction */}
           {project && project.due_date && project.start_date && (
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white shadow rounded-lg detail-card">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Completion Prediction</h3>
               <div className="space-y-4">
                 {(() => {
@@ -1419,6 +1553,59 @@ const ProjectDetailOverviewPage: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Roadmap Tab */}
+      {activeTab === 'roadmap' && project && (
+        <div className="space-y-6">
+          <div className="bg-white shadow rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Project Roadmap</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newRoadmapTitle}
+                onChange={(e) => setNewRoadmapTitle(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRoadmapItem(); } }}
+                className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Add a new feature or milestone..."
+              />
+              <button
+                onClick={addRoadmapItem}
+                className="px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+              >
+                Add
+              </button>
+            </div>
+            <div className="mt-4 space-y-2">
+              {roadmap.length === 0 ? (
+                <div className="text-sm text-gray-500">No items yet. Add your first roadmap item above.</div>
+              ) : (
+                roadmap.map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-2 border border-gray-200 rounded-md bg-white">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={item.done}
+                        onChange={() => toggleRoadmapItem(item.id)}
+                        className="h-4 w-4"
+                      />
+                      <span className={`text-sm ${item.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>{item.title}</span>
+                    </label>
+                    <button
+                      onClick={() => deleteRoadmapItem(item.id)}
+                      className="text-red-600 hover:text-red-800 text-xs"
+                      title="Remove"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1573,8 +1760,11 @@ const ProjectDetailOverviewPage: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Priority
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Assignee
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Due Date
@@ -1607,6 +1797,39 @@ const ProjectDetailOverviewPage: React.FC = () => {
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
                         {task.priority}
                       </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {(() => {
+                            const ids = Array.isArray((task as any).assignee_ids) && (task as any).assignee_ids.length > 0
+                              ? (task as any).assignee_ids as string[]
+                              : (task as any).assignee_id
+                                ? [String((task as any).assignee_id)]
+                                : [];
+                            if (ids.length === 0) {
+                              return <span className="text-sm text-gray-500">Unassigned</span>;
+                            }
+                            return (
+                              <div className="flex flex-col gap-1">
+                                {ids.map((uid) => {
+                                  const name = userNameById[uid] || uid;
+                                  const avatar = userAvatarById[uid] || null;
+                                  const initials = getInitials(name);
+                                  return (
+                                    <div key={uid} className="flex items-center gap-2">
+                                      {avatar ? (
+                                        <img src={avatar} alt={name} className="h-6 w-6 rounded-full object-cover" />
+                                      ) : (
+                                        <div className="h-6 w-6 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-[10px] font-medium" title={name}>
+                                          {initials}
+                                        </div>
+                                      )}
+                                      <span className="text-sm text-gray-900">{name}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {task.due_date ? formatDate(task.due_date) : 'Not set'}
@@ -2152,7 +2375,7 @@ const ProjectDetailOverviewPage: React.FC = () => {
 
       {/* Edit Tab */}
       {activeTab === 'edit' && project && (
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-white shadow rounded-lg detail-card">
           <h3 className="text-lg font-medium text-gray-900 mb-6">Edit Project</h3>
           <form onSubmit={handleUpdateProject} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2218,6 +2441,19 @@ const ProjectDetailOverviewPage: React.FC = () => {
                   <option value="high">High</option>
                   <option value="urgent">Urgent</option>
                 </select>
+              </div>
+
+              {/* Tags (comma-separated) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                <input
+                  type="text"
+                  value={editTags}
+                  onChange={(e) => setEditTags(e.target.value)}
+                  placeholder="e.g. internal, urgent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">Comma-separated. Saved to custom_fields.tags</p>
               </div>
               
               <div>
@@ -2344,6 +2580,16 @@ const ProjectDetailOverviewPage: React.FC = () => {
               />
             </div>
             
+            {/* Custom Fields */}
+            <div className="pt-2">
+              <EntityCustomFieldsEditor
+                entityType="project"
+                entityId={project.id}
+                values={customFieldValues}
+                onChange={(vals) => setCustomFieldValuesState(vals)}
+              />
+            </div>
+
             <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
               <button
                 type="button"

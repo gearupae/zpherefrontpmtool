@@ -56,7 +56,7 @@ const KnowledgeIntegrationWidget: React.FC<KnowledgeIntegrationWidgetProps> = ({
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'articles' | 'context' | 'decisions'>('all');
-  const [showDetails, setShowDetails] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState<{ id: string; type: 'article' | 'context_card' | 'decision' } | null>(null);
   const [autoLinkEnabled, setAutoLinkEnabled] = useState(true);
   const [linking, setLinking] = useState(false);
 
@@ -331,7 +331,7 @@ const KnowledgeIntegrationWidget: React.FC<KnowledgeIntegrationWidgetProps> = ({
               <KnowledgeItemCard
                 key={`${item.type}-${item.id}`}
                 item={item}
-                onViewDetails={(id) => setShowDetails(id)}
+                onViewDetails={(id, type) => setShowDetails({ id, type: type as any })}
                 onLink={() => {/* Handle individual linking */}}
               />
             ))}
@@ -342,7 +342,8 @@ const KnowledgeIntegrationWidget: React.FC<KnowledgeIntegrationWidgetProps> = ({
       {/* Knowledge Item Details Modal */}
       {showDetails && (
         <KnowledgeDetailsModal
-          itemId={showDetails}
+          itemId={showDetails.id}
+          itemType={showDetails.type}
           onClose={() => setShowDetails(null)}
         />
       )}
@@ -352,7 +353,7 @@ const KnowledgeIntegrationWidget: React.FC<KnowledgeIntegrationWidgetProps> = ({
 
 interface KnowledgeItemCardProps {
   item: KnowledgeItem & { type: string };
-  onViewDetails: (id: string) => void;
+  onViewDetails: (id: string, type: string) => void;
   onLink: () => void;
 }
 
@@ -458,7 +459,7 @@ const KnowledgeItemCard: React.FC<KnowledgeItemCardProps> = ({
             
             <div className="flex items-center gap-1 ml-3">
               <button
-                onClick={() => onViewDetails(item.id)}
+                onClick={() => onViewDetails(item.id, item.type)}
                 className="p-1 text-gray-400 hover:text-gray-600 rounded"
                 title="View details"
               >
@@ -489,11 +490,13 @@ const KnowledgeItemCard: React.FC<KnowledgeItemCardProps> = ({
 
 interface KnowledgeDetailsModalProps {
   itemId: string;
+  itemType: 'article' | 'context_card' | 'decision';
   onClose: () => void;
 }
 
 const KnowledgeDetailsModal: React.FC<KnowledgeDetailsModalProps> = ({
   itemId,
+  itemType,
   onClose
 }) => {
   const [item, setItem] = useState<any>(null);
@@ -501,16 +504,23 @@ const KnowledgeDetailsModal: React.FC<KnowledgeDetailsModalProps> = ({
 
   useEffect(() => {
     fetchItemDetails();
-  }, [itemId]);
+  }, [itemId, itemType]);
 
   const fetchItemDetails = async () => {
     try {
       setLoading(true);
-      // This would need to be implemented based on the item type
-      // const response = await apiClient.get(`/knowledge/${itemType}/${itemId}`);
-      // setItem(response.data);
+      let response;
+      if (itemType === 'article') {
+        response = await apiClient.get(`/knowledge/articles/${itemId}`);
+      } else if (itemType === 'context_card') {
+        response = await apiClient.get(`/context-cards/${itemId}`);
+      } else {
+        response = await apiClient.get(`/decision-logs/${itemId}`);
+      }
+      setItem(response.data);
     } catch (error) {
       console.error('Error fetching item details:', error);
+      setItem(null);
     } finally {
       setLoading(false);
     }
@@ -534,9 +544,84 @@ const KnowledgeDetailsModal: React.FC<KnowledgeDetailsModalProps> = ({
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           </div>
         ) : (
-          <div>
-            {/* Details content would go here */}
-            <p className="text-gray-600">Item details would be displayed here...</p>
+          <div className="space-y-3">
+            {!item ? (
+              <div className="text-center text-gray-500 py-8">Item not found.</div>
+            ) : itemType === 'article' ? (
+              <div className="space-y-2">
+                <h4 className="text-xl font-semibold text-gray-900">{item.title}</h4>
+                {item.summary && <p className="text-gray-600">{item.summary}</p>}
+                <div className="text-xs text-gray-500 flex items-center gap-2">
+                  <span>{item.author_name || 'Unknown author'}</span>
+                  <span>•</span>
+                  <span>{item.estimated_read_time} min read</span>
+                </div>
+                <div className="prose prose-sm max-w-none mt-2">
+                  <pre className="whitespace-pre-wrap text-gray-800">{item.content}</pre>
+                </div>
+              </div>
+            ) : itemType === 'context_card' ? (
+              <div className="space-y-2">
+                <h4 className="text-xl font-semibold text-gray-900">{item.title}</h4>
+                <div className="text-xs text-gray-500 flex items-center gap-2">
+                  <span>{item.context_type}</span>
+                  {item.impact_level && (
+                    <>
+                      <span>•</span>
+                      <span>{item.impact_level} impact</span>
+                    </>
+                  )}
+                  {item.created_by_name && (
+                    <>
+                      <span>•</span>
+                      <span>By {item.created_by_name}</span>
+                    </>
+                  )}
+                </div>
+                <div className="prose prose-sm max-w-none mt-2">
+                  <pre className="whitespace-pre-wrap text-gray-800">{item.content}</pre>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <h4 className="text-xl font-semibold text-gray-900">{item.title}</h4>
+                <div className="text-xs text-gray-500 flex items-center gap-2">
+                  {item.status && <span>Status: {item.status}</span>}
+                  {item.category && (
+                    <>
+                      <span>•</span>
+                      <span>Category: {item.category}</span>
+                    </>
+                  )}
+                  {item.decision_maker_name && (
+                    <>
+                      <span>•</span>
+                      <span>By {item.decision_maker_name}</span>
+                    </>
+                  )}
+                </div>
+                <div className="prose prose-sm max-w-none mt-2 space-y-3">
+                  {item.description && (
+                    <div>
+                      <h5 className="font-medium text-gray-900">Description</h5>
+                      <p className="whitespace-pre-wrap text-gray-800 text-sm">{item.description}</p>
+                    </div>
+                  )}
+                  {item.rationale && (
+                    <div>
+                      <h5 className="font-medium text-gray-900">Rationale</h5>
+                      <p className="whitespace-pre-wrap text-gray-800 text-sm">{item.rationale}</p>
+                    </div>
+                  )}
+                  {item.problem_statement && (
+                    <div>
+                      <h5 className="font-medium text-gray-900">Problem Statement</h5>
+                      <p className="whitespace-pre-wrap text-gray-800 text-sm">{item.problem_statement}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

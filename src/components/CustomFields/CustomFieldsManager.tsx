@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { addNotification } from '../../store/slices/notificationSlice';
 import { useAppDispatch } from '../../hooks/redux';
 import { getCustomFields, createCustomField, updateCustomField, deactivateCustomField, CustomFieldDTO } from '../../api/customFields';
+import { detectTenantContext } from '../../utils/tenantUtils';
 import {
   PlusIcon,
   PencilIcon,
@@ -213,6 +214,7 @@ const CustomFieldsManager: React.FC<CustomFieldsManagerProps> = ({
   const [editingField, setEditingField] = useState<CustomField | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showInactive, setShowInactive] = useState(false);
+  const [isAdminContext, setIsAdminContext] = useState(false);
 
   const [newField, setNewField] = useState({
     name: '',
@@ -228,12 +230,29 @@ const CustomFieldsManager: React.FC<CustomFieldsManagerProps> = ({
     display_order: 0
   });
 
-// Load fields from API
+// Detect admin vs tenant context first
+useEffect(() => {
+  try {
+    const { store } = require('../../store');
+    const state = store.getState();
+    const ctx = detectTenantContext(state?.auth?.user?.role, state?.auth?.user?.organization);
+    setIsAdminContext(ctx.tenantType === 'admin');
+  } catch (e) {
+    setIsAdminContext(false);
+  }
+}, []);
+
+// Load fields from API (tenant context only)
 useEffect(() => {
   let mounted = true;
   (async () => {
     setIsLoading(true);
     try {
+      if (isAdminContext) {
+        // Skip fetch in admin context; backend endpoints are tenant-scoped
+        setFields([]);
+        return;
+      }
       const list = await getCustomFields({ entityType, include_inactive: true });
       if (!mounted) return;
       // Map DTOs to local interface if needed
@@ -268,7 +287,7 @@ useEffect(() => {
     }
   })();
   return () => { mounted = false; };
-}, [entityType, dispatch]);
+}, [entityType, dispatch, isAdminContext]);
 
   const filteredFields = fields.filter(field => {
     if (!showInactive && !field.is_active) return false;
@@ -279,6 +298,10 @@ useEffect(() => {
 
 const handleCreateField = async () => {
   try {
+    if (isAdminContext) {
+      dispatch(addNotification({ type: 'warning', title: 'Not Available in Admin', message: 'Custom fields can only be managed within a tenant space. Switch to a tenant to create fields.', duration: 5000 }));
+      return;
+    }
     const singularMap: Record<string, string> = {
       projects: 'project',
       tasks: 'task',
@@ -364,6 +387,10 @@ const handleCreateField = async () => {
 
 const handleUpdateField = async (field: CustomField) => {
   try {
+    if (isAdminContext) {
+      dispatch(addNotification({ type: 'warning', title: 'Not Available in Admin', message: 'Custom fields can only be managed within a tenant space. Switch to a tenant to update fields.', duration: 5000 }));
+      return;
+    }
     const typeMap: Record<string, string> = { boolean: 'checkbox' };
     const mappedType = (typeMap[field.field_type] || field.field_type) as any;
     const options = Array.isArray(field.field_options?.options)
@@ -410,6 +437,10 @@ const handleUpdateField = async (field: CustomField) => {
 
 const handleDeleteField = async (fieldId: string) => {
   try {
+    if (isAdminContext) {
+      dispatch(addNotification({ type: 'warning', title: 'Not Available in Admin', message: 'Custom fields can only be managed within a tenant space. Switch to a tenant to delete fields.', duration: 5000 }));
+      return;
+    }
     const updated = await deactivateCustomField(fieldId);
     setFields(prev => prev.map(f => f.id === fieldId ? { ...f, is_active: false } : f));
     if (onFieldsChange) {
@@ -473,6 +504,11 @@ const handleDeleteField = async (fieldId: string) => {
   if (mode === 'embedded') {
     return (
       <div className="space-y-4">
+        {isAdminContext && (
+          <div className="p-3 border border-yellow-300 bg-yellow-50 text-yellow-900 text-sm rounded">
+            Custom fields are tenant-specific. Switch to a tenant space to manage fields.
+          </div>
+        )}
         {isLoading && <div className="text-sm text-gray-500">Loading fields...</div>}
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-medium text-gray-900">Custom Fields</h3>
@@ -515,6 +551,11 @@ const handleDeleteField = async (fieldId: string) => {
 
   return (
       <div className="space-y-4">
+        {isAdminContext && (
+          <div className="p-3 border border-yellow-300 bg-yellow-50 text-yellow-900 text-sm rounded">
+            Custom fields are tenant-specific and not available in the admin space. Switch to a tenant to view or edit custom fields.
+          </div>
+        )}
         {isLoading && (
           <div className="p-2 text-xs text-gray-600">Loading custom fields...</div>
         )}

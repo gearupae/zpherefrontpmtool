@@ -2,12 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Ensure .page-title is always available in production builds */
+.page-title { font-size: 30px !important; line-height: 1.4 !important; }
+
 /* Global base: force all text to pure black (except explicit button overrides below) */
 @layer base {
-html, body { color: #000000 !important; font-family: 'Inter', 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important; }
+html, body { 
+  color: #000000 !important; 
+  font-family: 'Inter', 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+}
   h1, h2, h3, h4, h5, h6,
   p, span, div, li, label, th, td, a, small, strong, em, code {
     color: #000000 !important;
+  }
+  
+  /* Fix blurry icons and fonts on large screens */
+  svg, img, i {
+    -webkit-backface-visibility: hidden !important;
+    -moz-backface-visibility: hidden !important;
+    backface-visibility: hidden !important;
+    -webkit-transform: translateZ(0) scale(1.0, 1.0) !important;
+    -moz-transform: translateZ(0) scale(1.0, 1.0) !important;
+    transform: translateZ(0) scale(1.0, 1.0) !important;
+  }
+  
+  /* Crisp text rendering */
+  * {
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
   }
 }
 
@@ -32,6 +58,11 @@ html:not(.dark) body { background-color: #F9FAFB !important; color: #111827 !imp
 
 /* USER SPECIFIED EXACT COLOR OVERRIDES (neutralized to grayscale/black) */
 @layer utilities {
+  /* Enforce 30px for common large heading utilities used in page titles */
+  .text-3xl { font-size: 30px !important; line-height: 1.4 !important; }
+  .text-4xl { font-size: 30px !important; line-height: 1.4 !important; }
+  .page-title { font-size: 30px !important; line-height: 1.4 !important; }
+
   /* Neutralize colored backgrounds to white/gray */
   .bg-user-green { background-color: #FFFFFF !important; }
   .bg-user-red { background-color: #FFFFFF !important; }
@@ -177,12 +208,22 @@ html:not(.dark) body { background-color: #F9FAFB !important; color: #111827 !imp
   
 
   /* Specific increases for common UI elements */
-  h1 { font-size: 2.5rem !important; line-height: 1.4 !important; }
-  h2 { font-size: 2rem !important; line-height: 1.5 !important; }
+  /* Standardize all page headings to exactly 30px (admin panel requirement) */
+  h1 { font-size: 30px !important; line-height: 1.4 !important; }
+  h2 { font-size: 30px !important; line-height: 1.4 !important; }
   h3 { font-size: 1.625rem !important; line-height: 1.6 !important; }
   h4 { font-size: 1.375rem !important; line-height: 1.6 !important; }
   h5 { font-size: 1.25rem !important; line-height: 1.6 !important; }
   h6 { font-size: 1.125rem !important; line-height: 1.6 !important; }
+
+  /* Hide ALL page subheadings (admin requirement) */
+  h1 + p { display: none !important; }
+  h1 + h2 { display: none !important; }
+  h1 + .subtitle { display: none !important; }
+  .page-subtitle { display: none !important; }
+  .subtitle { display: none !important; }
+  [class*="subtitle"] { display: none !important; }
+  [class*="subheading"] { display: none !important; }
   
   p { font-size: 1.125rem !important; line-height: 1.6 !important; }
   span { font-size: inherit !important; }
@@ -197,6 +238,148 @@ html:not(.dark) body { background-color: #F9FAFB !important; color: #111827 !imp
   table, th, td {
     font-size: 1rem !important;
     letter-spacing: 0.01em !important; /* subtle premium feel */
+  }
+  
+  /* Header specific fixes for crisp rendering on large screens */
+  header, header * {
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+  }
+  
+  header svg, header i, header img {
+    -webkit-backface-visibility: hidden !important;
+    -moz-backface-visibility: hidden !important;
+    backface-visibility: hidden !important;
+    -webkit-transform: translateZ(0) !important;
+    transform: translateZ(0) !important;
+    image-rendering: -webkit-optimize-contrast !important;
+    image-rendering: crisp-edges !important;
+  }
+  
+  /* Fix icon sharpness */
+  svg {
+    shape-rendering: geometricPrecision !important;
+  }
+  
+  /* ============================================
+     GLOBAL METRIC CARD STYLES
+     Apply to cards with .metric-card class only
+     ULTRA-HIGH SPECIFICITY to override Tailwind
+     ============================================ */
+  
+  /* Base metric card with vibrant blue accent - MAXIMUM SPECIFICITY */
+  div.bg-white.metric-card,
+  div.metric-card,
+  .bg-white.metric-card,
+  .metric-card {
+    border-top-width: 4px !important;
+    border-top-style: solid !important;
+    border-top-color: #3B82F6 !important; /* vibrant blue-500 */
+    border-top: 4px solid #3B82F6 !important; /* Also add shorthand for redundancy */
+    border-top-left-radius: 0.5rem !important; /* Preserve rounded corners */
+    border-top-right-radius: 0.5rem !important;
+  }
+  
+  div.metric-card .metric-value,
+  .metric-card .metric-value {
+    color: #3B82F6 !important; /* matching vibrant blue */
+  }
+  
+  /* Blue variant - Total/Count metrics */
+  div.bg-white.metric-card.metric-blue,
+  div.metric-card.metric-blue,
+  .bg-white.metric-card.metric-blue,
+  .metric-card.metric-blue {
+    border-top-width: 4px !important;
+    border-top-style: solid !important;
+    border-top-color: #3B82F6 !important; /* vibrant blue-500 */
+    border-top: 4px solid #3B82F6 !important;
+  }
+  
+  div.metric-card.metric-blue .metric-value,
+  .metric-card.metric-blue .metric-value {
+    color: #3B82F6 !important;
+  }
+  
+  /* Green variant - Active/Success metrics */
+  div.bg-white.metric-card.metric-green,
+  div.metric-card.metric-green,
+  .bg-white.metric-card.metric-green,
+  .metric-card.metric-green {
+    border-top-width: 4px !important;
+    border-top-style: solid !important;
+    border-top-color: #10B981 !important; /* vibrant green-500 */
+    border-top: 4px solid #10B981 !important;
+  }
+  
+  div.metric-card.metric-green .metric-value,
+  .metric-card.metric-green .metric-value {
+    color: #10B981 !important;
+  }
+  
+  /* Yellow/Amber variant - Budget/Financial metrics */
+  div.bg-white.metric-card.metric-yellow,
+  div.metric-card.metric-yellow,
+  .bg-white.metric-card.metric-yellow,
+  .metric-card.metric-yellow {
+    border-top-width: 4px !important;
+    border-top-style: solid !important;
+    border-top-color: #F59E0B !important; /* vibrant amber-500 */
+    border-top: 4px solid #F59E0B !important;
+  }
+  
+  div.metric-card.metric-yellow .metric-value,
+  .metric-card.metric-yellow .metric-value {
+    color: #F59E0B !important;
+  }
+  
+  /* Purple variant - Time/Hours metrics */
+  div.bg-white.metric-card.metric-purple,
+  div.metric-card.metric-purple,
+  .bg-white.metric-card.metric-purple,
+  .metric-card.metric-purple {
+    border-top-width: 4px !important;
+    border-top-style: solid !important;
+    border-top-color: #8B5CF6 !important; /* vibrant purple-500 */
+    border-top: 4px solid #8B5CF6 !important;
+  }
+  
+  div.metric-card.metric-purple .metric-value,
+  .metric-card.metric-purple .metric-value {
+    color: #8B5CF6 !important;
+  }
+  
+  /* Red variant - Critical/Alert metrics */
+  div.bg-white.metric-card.metric-red,
+  div.metric-card.metric-red,
+  .bg-white.metric-card.metric-red,
+  .metric-card.metric-red {
+    border-top-width: 4px !important;
+    border-top-style: solid !important;
+    border-top-color: #EF4444 !important; /* vibrant red-500 */
+    border-top: 4px solid #EF4444 !important;
+  }
+  
+  div.metric-card.metric-red .metric-value,
+  .metric-card.metric-red .metric-value {
+    color: #EF4444 !important;
+  }
+  
+  /* Cyan variant - Information metrics */
+  div.bg-white.metric-card.metric-cyan,
+  div.metric-card.metric-cyan,
+  .bg-white.metric-card.metric-cyan,
+  .metric-card.metric-cyan {
+    border-top-width: 4px !important;
+    border-top-style: solid !important;
+    border-top-color: #06B6D4 !important; /* vibrant cyan-500 */
+    border-top: 4px solid #06B6D4 !important;
+  }
+  
+  div.metric-card.metric-cyan .metric-value,
+  .metric-card.metric-cyan .metric-value {
+    color: #06B6D4 !important;
   }
   table th, table td { padding: 0.5rem !important; }
 
@@ -237,6 +420,33 @@ html:not(.dark) body { background-color: #F9FAFB !important; color: #111827 !imp
     cursor: pointer !important;
     transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease !important;
   }
+
+  /* Toolbar/view-neutral button style (matches Project view buttons: Card/List/Kanban/Calendar) */
+.btn-toolbar,
+  button.btn-toolbar,
+  .page-container .btn-toolbar {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important; /* space-x-2 */
+    padding: 0.5rem 1rem !important; /* px-4 py-2 */
+    border-radius: 0.5rem !important; /* rounded-lg */
+    border: 1px solid #E5E7EB !important; /* border-gray-200 */
+    background-color: #FFFFFF !important; /* bg-white */
+    color: #374151 !important; /* text-gray-700 */
+    font-size: 0.875rem !important; /* text-sm */
+    font-weight: 500 !important; /* font-medium */
+    transition: all 0.2s ease-in-out !important; /* transition-all duration-200 */
+    box-shadow: none !important; /* remove any prior button shadows */
+  }
+  .btn-toolbar:hover,
+  button.btn-toolbar:hover,
+  .page-container .btn-toolbar:hover {
+    background-color: #F9FAFB !important; /* hover:bg-gray-50 */
+    border-color: #D1D5DB !important; /* hover:border-gray-300 */
+    color: #374151 !important;
+  }
+  .icon-16 { width: 1rem !important; height: 1rem !important; }
+  .btn-label { font-size: 0.875rem !important; font-weight: 500 !important; }
 
   /* Button variants (all black/white) */
   .btn-primary, .btn-secondary, .btn-danger, .btn-outline, .btn-default {
@@ -384,13 +594,22 @@ html:not(.dark) body { background-color: #F9FAFB !important; color: #111827 !imp
   .section-card {
     background-color: #FFFFFF !important;
     border: 1px solid #E5E7EB !important; /* gray-200 */
-    border-top: 1px solid #E5E7EB !important; /* remove accent */
     border-radius: 0.75rem !important; /* rounded-xl */
     padding: 0.75rem !important; /* reduced p-3 */
     margin-bottom: 0.75rem !important; /* tighter vertical rhythm */
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 1px rgba(0, 0, 0, 0.04) !important;
   }
-  .section-card--green, .section-card--yellow, .section-card--purple, .section-card--blue { border-top-color: #E5E7EB !important; }
+  
+  /* Only apply gray border-top to section-card if it's NOT a metric-card */
+  .section-card:not(.metric-card) {
+    border-top: 1px solid #E5E7EB !important; /* remove accent */
+  }
+  .section-card--green:not(.metric-card), 
+  .section-card--yellow:not(.metric-card), 
+  .section-card--purple:not(.metric-card), 
+  .section-card--blue:not(.metric-card) { 
+    border-top-color: #E5E7EB !important; 
+  }
 
   .section-header {
     background: #FFFFFF !important;
@@ -498,7 +717,7 @@ html:not(.dark) body { background-color: #F9FAFB !important; color: #111827 !imp
     border: 1px solid #E5E7EB !important;
     border-top: 3px solid #E0E7FF !important; /* soft top accent like goals metrics */
     box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 1px 1px rgba(17, 24, 39, 0.02) !important;
-    border-radius: 0.75rem !important;
+    border-radius: 7px !important;
   }
 
   /* Automatic accent mapping via :has() based on inner chip color */
@@ -1027,9 +1246,7 @@ button[title*="Delete"], button[aria-label*="Delete"], button[class*="delete"], 
     font-size: 0.875rem !important;
     padding: 0.2rem 0.75rem !important;
   }
-
-}
-
+} /* End @layer utilities */
 
 /* Dark theme base overrides (applied when <html> has .dark) */
 html.dark body {
@@ -1163,11 +1380,14 @@ code {
   background: #9CA3AF;
 }
 
+/* Toast animations */
+@keyframes slideDown {
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-slide-down { animation: slideDown 180ms ease-out; }
 
+.toast-container {
   position: fixed;
   top: 1rem;
   right: 1rem;
@@ -1176,6 +1396,7 @@ code {
   flex-direction: column;
   gap: 0.5rem;
 }
+
 .toast {
   width: 360px; /* consistent width */
   border-radius: 0.5rem; /* ~rounded-md */
@@ -1314,4 +1535,16 @@ html.dark .section-glass {
 html.dark .section-neu {
   background: #111827 !important;
   box-shadow: 10px 10px 24px #0b1220, -10px -10px 24px #1f2937 !important;
+}
+
+@layer components {
+  .detail-card {
+    padding: 1rem;
+  }
+  @media (min-width: 640px) {
+    .detail-card { padding: 1.25rem; }
+  }
+  @media (min-width: 1024px) {
+    .detail-card { padding: 1.5rem; }
+  }
 }

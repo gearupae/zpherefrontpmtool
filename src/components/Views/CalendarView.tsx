@@ -206,42 +206,44 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           <h2 className="text-lg font-semibold text-gray-900">
             {formatDate(currentDate)}
           </h2>
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-2">
             <button
               onClick={() => navigateMonth('prev')}
-              className="p-2 hover:bg-gray-100 rounded-md"
+              className="flex items-center justify-center px-3 py-1 rounded-md text-sm border bg-white text-gray-900 hover:bg-gray-50 transition-colors shadow-sm"
+              title="Previous month"
             >
               <ChevronLeftIcon className="w-5 h-5" />
             </button>
             <button
               onClick={() => navigateMonth('next')}
-              className="p-2 hover:bg-gray-100 rounded-md"
+              className="flex items-center justify-center px-3 py-1 rounded-md text-sm border bg-white text-gray-900 hover:bg-gray-50 transition-colors shadow-sm"
+              title="Next month"
             >
               <ChevronRightIcon className="w-5 h-5" />
             </button>
           </div>
         </div>
         
-        <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2">
             <button
               onClick={() => setView('month')}
-              className={`px-3 py-1 text-sm rounded-md ${
-                view === 'month' ? 'bg-white shadow-sm' : 'text-gray-600'
+              className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border ${
+                view === 'month' ? 'bg-black text-white border-black' : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'
               }`}
             >
               Month
             </button>
             <button
               onClick={() => setView('week')}
-              className={`px-3 py-1 text-sm rounded-md ${
-                view === 'week' ? 'bg-white shadow-sm' : 'text-gray-600'
+              className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border ${
+                view === 'week' ? 'bg-black text-white border-black' : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'
               }`}
             >
               Week
             </button>
           </div>
-          <CalendarIcon className="w-5 h-5 text-gray-400" />
+          <CalendarIcon className="w-5 h-5 text-gray-400 ml-2" />
         </div>
       </div>
 

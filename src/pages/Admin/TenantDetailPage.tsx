@@ -268,20 +268,20 @@ const TenantDetailPage: React.FC = () => {
             <div className="bg-white shadow rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">User Distribution</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">{tenant.role_distribution.ADMIN}</div>
+                <div className="metric-card metric-red text-center">
+                  <div className="metric-value text-2xl font-bold">{tenant.role_distribution.ADMIN}</div>
                   <div className="text-sm text-gray-500">Admins</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{tenant.role_distribution.MANAGER}</div>
+                <div className="metric-card metric-blue text-center">
+                  <div className="metric-value text-2xl font-bold">{tenant.role_distribution.MANAGER}</div>
                   <div className="text-sm text-gray-500">Managers</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{tenant.role_distribution.MEMBER}</div>
+                <div className="metric-card metric-green text-center">
+                  <div className="metric-value text-2xl font-bold">{tenant.role_distribution.MEMBER}</div>
                   <div className="text-sm text-gray-500">Members</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">{tenant.role_distribution.CLIENT}</div>
+                <div className="metric-card metric-purple text-center">
+                  <div className="metric-value text-2xl font-bold">{tenant.role_distribution.CLIENT}</div>
                   <div className="text-sm text-gray-500">Clients</div>
                 </div>
               </div>

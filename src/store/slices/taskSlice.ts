@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import apiClient from '../../api/client';
 import { Task } from '../../types';
+import { notifyTaskCreated, notifyTaskUpdated, notifyTaskDeleted } from '../../utils/notificationHelper';
 
 interface TaskState {
   tasks: Task[];
@@ -69,6 +70,12 @@ export const createTask = createAsyncThunk(
   async (taskData: Partial<Task>, { rejectWithValue }) => {
     try {
       const response = await apiClient.post('/tasks/', taskData);
+      
+      // Notify about task creation
+      if (response?.data?.id) {
+        await notifyTaskCreated(response.data.id, response.data.title || 'New Task', response.data.project_id);
+      }
+      
       return response.data;
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;
@@ -92,6 +99,13 @@ export const updateTask = createAsyncThunk(
   async ({ id, data }: { id: string; data: Partial<Task> }, { rejectWithValue }) => {
     try {
       const response = await apiClient.put(`/tasks/${id}`, data);
+      
+      // Notify about task update
+      if (response?.data?.id) {
+        const updatedFields = Object.keys(data);
+        await notifyTaskUpdated(response.data.id, response.data.title || 'Task', response.data.project_id, updatedFields);
+      }
+      
       return response.data;
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;
@@ -112,9 +126,19 @@ export const updateTask = createAsyncThunk(
 
 export const deleteTask = createAsyncThunk(
   'tasks/deleteTask',
-  async (taskId: string, { rejectWithValue }) => {
+  async (taskId: string, { rejectWithValue, getState }) => {
     try {
+      // Get task info before deletion
+      const state: any = getState();
+      const task = state?.tasks?.tasks?.find((t: Task) => t.id === taskId);
+      const taskTitle = task?.title || 'Task';
+      const projectId = task?.project_id;
+      
       await apiClient.delete(`/tasks/${taskId}`);
+      
+      // Notify about deletion
+      await notifyTaskDeleted(taskId, taskTitle, projectId);
+      
       return taskId;
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;

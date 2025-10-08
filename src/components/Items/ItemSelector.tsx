@@ -386,7 +386,7 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
             <a
               href="/settings"
               target="_blank"
-              className="ml-2 text-blue-600 hover:text-blue-800 underline"
+              className="ml-2 text-gray-700 hover:text-gray-900 underline"
             >
               Manage Items
             </a>
@@ -413,7 +413,7 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
                       <button
                         key={item.id}
                         onClick={() => addItem(item)}
-                        className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-3 hover:bg-blue-50 hover:border-blue-200 transition-colors text-left"
+                        className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-3 hover:bg-gray-50 hover:border-gray-300 transition-colors text-left"
                       >
                         <div className="flex items-center space-x-3">
                           <div className="p-2 bg-gray-100 rounded-md">
@@ -424,7 +424,7 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
                             <div className="text-xs text-gray-500">${(item.unit_price / 100).toFixed(2)} / {item.unit}</div>
                           </div>
                         </div>
-                        <PlusIcon className="h-5 w-5 text-gray-400 hover:text-blue-500" />
+                        <PlusIcon className="h-5 w-5 text-gray-400 hover:text-gray-700" />
                       </button>
                     ))}
                   </div>
@@ -443,7 +443,7 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
                 <a
                   href="/settings"
                   target="_blank"
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800"
                 >
                   <PlusIcon className="h-4 w-4 mr-2" />
                   Create Items in Settings
@@ -461,7 +461,7 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
           <button 
             type="button"
             onClick={addEntryRow}
-            className="ml-auto text-sm text-blue-600 hover:text-blue-800 flex items-center"
+            className="ml-auto text-sm text-gray-700 hover:text-gray-900 flex items-center"
           >
             <PlusIcon className="h-4 w-4 mr-1" />
             <span>Add Row</span>
@@ -537,13 +537,13 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
                 />
               </div>
               {row.open && suggestions.length > 0 && (
-                <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow max-h-60 overflow-auto">
+                <ul className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
                   {suggestions.map((it, sIdx) => (
                     <li
                       key={it.id}
                       onMouseDown={(e) => { e.preventDefault(); selectRowSuggestion(row.id, it); }}
                       onMouseEnter={() => setRowHighlight(row.id, sIdx)}
-                      className={`px-3 py-2 cursor-pointer ${row.highlighted === sIdx ? 'bg-secondary-50' : 'hover:bg-secondary-50'}`}
+                      className={`px-3 py-2 cursor-pointer transition-colors ${row.highlighted === sIdx ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
@@ -551,11 +551,11 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
                             {getItemTypeIcon(it.item_type)}
                           </div>
                           <div>
-                            <div className="text-sm text-gray-900">{it.display_name || it.name}</div>
+                            <div className="text-sm font-medium text-gray-900">{it.display_name || it.name}</div>
                             {it.category && <span className="text-xs text-gray-500">{it.category}</span>}
                           </div>
                         </div>
-                        <div className="text-xs text-gray-500">${(it.unit_price / 100).toFixed(2)} / {it.unit}</div>
+                        <div className="text-xs font-medium text-gray-700">${(it.unit_price / 100).toFixed(2)} / {it.unit}</div>
                       </div>
                       {it.description && (
                         <div className="mt-0.5 text-xs text-gray-500 line-clamp-1">{it.description}</div>
@@ -570,13 +570,13 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
         
         {/* Custom item creation */}
         {showCustomForm && (
-          <div className="mt-3 bg-blue-50 border border-blue-200 rounded-md p-3">
+          <div className="mt-3 bg-gray-50 border border-gray-300 rounded-md p-3">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-blue-800">Add Custom Item</h4>
+              <h4 className="text-sm font-medium text-gray-900">Add Custom Item</h4>
               <button
                 type="button"
                 onClick={() => setShowCustomForm(false)}
-                className="text-blue-500 hover:text-blue-700"
+                className="text-gray-500 hover:text-gray-700"
               >
                 <XMarkIcon className="h-4 w-4" />
               </button>
@@ -604,7 +604,7 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
                 type="button"
                 onClick={handleCustomAdd}
                 disabled={!customName.trim()}
-                className="w-full py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
+                className="w-full py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
               >
                 Add Custom Item
               </button>
@@ -618,7 +618,7 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
           <button
             type="button"
             onClick={() => setShowCustomForm(true)}
-            className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
+            className="text-sm text-gray-700 hover:text-gray-900 flex items-center"
           >
             <PlusIcon className="h-4 w-4 mr-1" />
             <span>Add Custom Item</span>
@@ -634,16 +634,30 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
           </a>
         </div>
         
-        {selectedItems.length > 0 && (
-          <div className="text-right">
-            <div className="text-sm text-gray-600">
-              {selectedItems.length} item{selectedItems.length !== 1 ? 's' : ''}
+        {selectedItems.length > 0 && (() => {
+          const totals = selectedItems.reduce((acc, si) => {
+            const subtotal = si.quantity * si.unit_price;
+            const discount = subtotal * (Number(si.discount_rate) / 100);
+            const net = subtotal - discount; // excl. VAT
+            const vat = net * (Number(si.tax_rate) / 100);
+            acc.net += net;
+            acc.vat += vat;
+            return acc;
+          }, { net: 0, vat: 0 } as { net: number, vat: number });
+          const gross = totals.net + totals.vat;
+          return (
+            <div className="text-right">
+              <div className="text-sm text-gray-600">
+                {selectedItems.length} item{selectedItems.length !== 1 ? 's' : ''}
+              </div>
+              <div className="text-xs text-gray-600">Total (excl. VAT): ${totals.net.toFixed(2)}</div>
+              {totals.vat > 0 && (
+                <div className="text-xs text-gray-600">VAT: ${totals.vat.toFixed(2)}</div>
+              )}
+              <div className="text-lg font-bold text-gray-900">Subtotal (incl. VAT): ${gross.toFixed(2)}</div>
             </div>
-            <div className="text-lg font-bold text-gray-900">
-              Total: ${calculateGrandTotal().toFixed(2)}
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

@@ -11,12 +11,20 @@ export interface User {
   timezone: string;
   avatar_url?: string;
   role: UserRole;
+  // RBAC: optional role_id for custom roles
+  role_id?: string | null;
   status: UserStatus;
   is_active: boolean;
   is_verified: boolean;
   created_at: string;
   updated_at: string;
   last_login?: string;
+  address?: string;
+  // Compliance & document expiry
+  id_expiry_date?: string;
+  visa_expiry_date?: string;
+  passport_expiry_date?: string;
+  contract_expiry_date?: string;
   organization_id: string;
   organization_name: string;
   organization?: {
@@ -203,6 +211,42 @@ export interface ApiResponse<T = any> {
   status: number;
 }
 
+// RBAC types
+export type ModuleName =
+  | 'Projects'
+  | 'Teams'
+  | 'Tasks'
+  | 'Goals'
+  | 'Customers'
+  | 'Purchases'
+  | 'Vendors'
+  | 'Proposals'
+  | 'Settings'
+  | 'Invoices'
+  | 'AI'
+  | 'Knowledge Base'
+  | 'Analytics';
+
+export type PermissionAction = 'view' | 'create' | 'edit' | 'delete';
+
+export interface Role {
+  id: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Permission {
+  id?: string;
+  role_id: string;
+  module: ModuleName | string; // allow unknowns from backend safely
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
@@ -347,6 +391,8 @@ export interface TeamMember {
   last_name: string;
   full_name: string;
   role: UserRole;
+  // RBAC: optional role_id for custom roles
+  role_id?: string | null;
   status: UserStatus;
   is_active: boolean;
   avatar_url?: string;
@@ -354,8 +400,19 @@ export interface TeamMember {
   phone?: string;
   bio?: string;
   address?: string;
+  // Compliance & document expiry
+  id_expiry_date?: string;
+  visa_expiry_date?: string;
+  passport_expiry_date?: string;
+  contract_expiry_date?: string;
   last_login?: string;
   created_at: string;
+  // Statistics fields
+  projects_count?: number;
+  completed_tasks_count?: number;
+  pending_tasks_count?: number;
+  efficiency_score?: number;
+  start_date?: string;
 }
 
 export interface ProjectMemberResponse {
@@ -424,6 +481,11 @@ export interface Customer {
   updated_at: string;
   full_name: string;
   display_name: string;
+  // Statistics fields
+  projects_count?: number;
+  invoiced_count?: number;
+  due_amount?: number;
+  pending_invoices_count?: number;
 }
 
 export interface CustomerCreate {

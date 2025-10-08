@@ -125,6 +125,19 @@ apiClient.interceptors.response.use(
       // Check if user is actually logged in
       const token = localStorage.getItem('access_token');
       const user = localStorage.getItem('user');
+
+      // If backend explicitly says not authenticated or tenant context missing, send to login
+      try {
+        const detail = (error.response?.data as any)?.detail || '';
+        if (typeof detail === 'string') {
+          const d = detail.toLowerCase();
+          if (d.includes('not authenticated') || d.includes('tenant context')) {
+            console.warn('↪ Redirecting to /login due to 403 detail:', detail);
+            window.location.href = '/login';
+            return Promise.reject(error);
+          }
+        }
+      } catch {}
       
       if (!token || !user) {
         console.error('🔄 Redirecting to login - missing auth data');

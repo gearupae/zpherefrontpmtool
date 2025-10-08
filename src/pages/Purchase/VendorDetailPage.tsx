@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/redux';
 import { 
   ArrowLeftIcon, 
@@ -21,7 +21,7 @@ import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { useAppDispatch } from '../../hooks/redux';
 import { addNotification } from '../../store/slices/notificationSlice';
 import { apiClient } from '../../api/client';
-import LoadingSpinner from '../../components/UI/LoadingSpinner';
+import ViewModeButton from '../../components/UI/ViewModeButton';
 
 interface Vendor {
   id: string;
@@ -69,6 +69,8 @@ const VendorDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'overview' | 'edit'>(searchParams.get('tab') === 'edit' ? 'edit' : 'overview');
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [stats, setStats] = useState<VendorStats>({
@@ -79,7 +81,6 @@ const VendorDetailPage: React.FC = () => {
     completed_orders: 0
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: '',
     email: '',
@@ -180,12 +181,12 @@ const VendorDetailPage: React.FC = () => {
         category: vendor.category || '',
         rating: vendor.rating || 5
       });
-      setIsEditing(true);
+      setActiveTab('edit');
     }
   };
 
   const handleEditCancel = () => {
-    setIsEditing(false);
+    setActiveTab('overview');
     setEditFormData({
       name: '',
       email: '',
@@ -210,7 +211,7 @@ const VendorDetailPage: React.FC = () => {
     try {
       const response = await apiClient.put(`/vendors/${vendor.id}`, editFormData);
       setVendor(response.data);
-      setIsEditing(false);
+      setActiveTab('overview');
       dispatch(addNotification({
         type: 'success',
         title: 'Vendor Updated',
@@ -273,7 +274,7 @@ const VendorDetailPage: React.FC = () => {
   };
 
   if (isLoading) {
-    return <LoadingSpinner />;
+    return <div />;
   }
 
   if (!vendor) {
@@ -295,153 +296,352 @@ const VendorDetailPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate(getPurchasePath())}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-              >
-                <ArrowLeftIcon className="h-4 w-4 mr-2" />
-                Back
-              </button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">{vendor.name}</h1>
-                <div className="flex items-center space-x-4 mt-2">
-                  <div className="flex items-center space-x-1">
-                    {renderStars(vendor.rating)}
-                    <span className="text-sm text-gray-500 ml-1">({vendor.rating}/5)</span>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => navigate(getPurchasePath())}
+            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <ArrowLeftIcon className="h-5 w-5" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">{vendor.name}</h1>
+            <p className="text-gray-600">
+              {vendor.is_active ? 'Active' : 'Inactive'} • {vendor.category || 'Uncategorized'} • Rating: {vendor.rating}/5
+            </p>
+            <div className="flex items-center space-x-2 mt-2">
+              <div className="flex items-center space-x-1">
+                {renderStars(vendor.rating)}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex space-x-3">
+          <button
+            onClick={handleEditClick}
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
+          >
+            <PencilIcon className="h-4 w-4" />
+            Edit
+          </button>
+          
+          <button
+            onClick={handleDeleteVendor}
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
+          >
+            <TrashIcon className="h-4 w-4" />
+            Delete
+          </button>
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="flex space-x-8">
+          {[
+            { id: 'overview', name: 'Overview', icon: ChartBarIcon },
+            { id: 'edit', name: 'Edit', icon: PencilIcon }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`py-2 px-3 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
+                activeTab === tab.id
+                  ? 'text-indigo-600'
+                  : 'text-black hover:text-gray-700'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <tab.icon className="h-4 w-4" />
+                <span>{tab.name}</span>
+              </div>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+        {activeTab === 'overview' && (
+          <>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <ChartBarIcon className="h-6 w-6 text-blue-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">Total Orders</dt>
+                        <dd className="text-lg font-medium text-gray-900">{stats.total_orders}</dd>
+                      </dl>
+                    </div>
                   </div>
+                </div>
+              </div>
+
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <BanknotesIcon className="h-6 w-6 text-green-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">Total Spent</dt>
+                        <dd className="text-lg font-medium text-gray-900">${stats.total_spent.toFixed(2)}</dd>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <DocumentTextIcon className="h-6 w-6 text-orange-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">Active Orders</dt>
+                        <dd className="text-lg font-medium text-gray-900">{stats.pending_orders}</dd>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <CreditCardIcon className="h-6 w-6 text-purple-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">Outstanding</dt>
+                        <dd className="text-lg font-medium text-gray-900">${stats.average_order_value.toFixed(2)}</dd>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+        {/* Split Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Vendor Information */}
+            <div className="bg-white shadow rounded-lg detail-card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Vendor Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Email</p>
+                      <p className="text-sm text-gray-600">{vendor.email}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <PhoneIcon className="h-5 w-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Phone</p>
+                      <p className="text-sm text-gray-600">{vendor.phone}</p>
+                    </div>
+                  </div>
+
+                  {vendor.website && (
+                    <div className="flex items-center space-x-3">
+                      <GlobeAltIcon className="h-5 w-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Website</p>
+                        <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-sm text-primary-600 hover:text-primary-500">
+                          {vendor.website}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {vendor.contact_person && (
+                    <div className="flex items-center space-x-3">
+                      <UserIcon className="h-5 w-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Contact Person</p>
+                        <p className="text-sm text-gray-600">{vendor.contact_person}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  {vendor.address && (
+                    <div className="flex items-start space-x-3">
+                      <MapPinIcon className="h-5 w-5 text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Address</p>
+                        <p className="text-sm text-gray-600">
+                          {vendor.address}
+                          {vendor.city && <><br />{vendor.city}</>}
+                          {vendor.state && `, ${vendor.state}`}
+                          {vendor.postal_code && ` ${vendor.postal_code}`}
+                          {vendor.country && <><br />{vendor.country}</>}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center space-x-3">
+                    <CreditCardIcon className="h-5 w-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Payment Terms</p>
+                      <p className="text-sm text-gray-600">{vendor.payment_terms.replace('_', ' ').toUpperCase()}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <BanknotesIcon className="h-5 w-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Credit Limit</p>
+                      <p className="text-sm text-gray-600">${vendor.credit_limit.toFixed(2)}</p>
+                    </div>
+                  </div>
+
+                  {vendor.tax_id && (
+                    <div className="flex items-center space-x-3">
+                      <DocumentTextIcon className="h-5 w-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Tax ID</p>
+                        <p className="text-sm text-gray-600">{vendor.tax_id}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {vendor.bank_details && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <p className="text-sm font-medium text-gray-900 mb-2">Bank Details</p>
+                  <p className="text-sm text-gray-600 whitespace-pre-line">{vendor.bank_details}</p>
+                </div>
+              )}
+
+              {vendor.tags && vendor.tags.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <p className="text-sm font-medium text-gray-900 mb-2">Tags</p>
+                  <div className="flex flex-wrap gap-2">
+                    {vendor.tags.map((tag, index) => (
+                      <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Purchase Orders History */}
+            <div className="bg-white shadow rounded-lg detail-card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Purchase Orders History</h3>
+              {purchaseOrders.length === 0 ? (
+                <div className="text-center py-8">
+                  <DocumentTextIcon className="mx-auto h-8 w-8 text-gray-400" />
+                  <p className="text-sm text-gray-500 mt-2">No purchase orders found for this vendor.</p>
+                </div>
+              ) : (
+                <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                  <table className="min-w-full divide-y divide-gray-300">
+                    <thead className="bg-secondary-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">PO Number</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Order Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Total Amount</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {purchaseOrders.map((order) => (
+                        <tr 
+                          key={order.id} 
+                          className="hover:bg-secondary-50 cursor-pointer"
+                          onClick={() => navigate(`/purchase/orders/${order.id}`)}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{order.po_number}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {new Date(order.order_date).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ${order.total_amount.toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                              {order.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Vendor Summary Card */}
+            <div className="bg-white shadow rounded-lg detail-card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Vendor Summary</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Status</span>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     vendor.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   }`}>
                     {vendor.is_active ? 'Active' : 'Inactive'}
                   </span>
-                  {vendor.category && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      {vendor.category}
-                    </span>
-                  )}
                 </div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleEditClick}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <PencilIcon className="h-4 w-4 mr-2" />
-                Edit
-              </button>
-              <button
-                onClick={handleDeleteVendor}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
-              >
-                <TrashIcon className="h-4 w-4 mr-2" />
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <ChartBarIcon className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Orders</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.total_orders}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <BanknotesIcon className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Spent</dt>
-                    <dd className="text-lg font-medium text-gray-900">${stats.total_spent.toFixed(2)}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <DocumentTextIcon className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Avg Order Value</dt>
-                    <dd className="text-lg font-medium text-gray-900">${stats.average_order_value.toFixed(2)}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="h-6 w-6 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <div className="h-2 w-2 bg-yellow-400 rounded-full"></div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Rating</span>
+                  <div className="flex items-center space-x-1">
+                    {renderStars(vendor.rating)}
                   </div>
                 </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Pending</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.pending_orders}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="h-6 w-6 bg-green-100 rounded-full flex items-center justify-center">
-                    <div className="h-2 w-2 bg-green-400 rounded-full"></div>
+                {vendor.category && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Category</span>
+                    <span className="text-sm font-medium text-gray-900">{vendor.category}</span>
                   </div>
+                )}
+                <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                  <span className="text-sm text-gray-600">Created</span>
+                  <span className="text-sm text-gray-900">{new Date(vendor.created_at).toLocaleDateString()}</span>
                 </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Completed</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.completed_orders}</dd>
-                  </dl>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Last Updated</span>
+                  <span className="text-sm text-gray-900">{new Date(vendor.updated_at).toLocaleDateString()}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
+        </>
+        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Vendor Details */}
-          <div className="lg:col-span-2">
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900">Vendor Information</h3>
-                  {isEditing && (
+        {activeTab === 'edit' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-4 py-5 sm:p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">Edit Vendor</h3>
                     <div className="flex space-x-2">
                       <button
                         onClick={handleEditSave}
@@ -456,11 +656,9 @@ const VendorDetailPage: React.FC = () => {
                         Cancel
                       </button>
                     </div>
-                  )}
-                </div>
-                
-                {isEditing ? (
-                  // Edit Form
+                  </div>
+
+                  {/* Edit Form (reusing existing fields) */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                       <div>
@@ -472,7 +670,6 @@ const VendorDetailPage: React.FC = () => {
                           className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                         />
                       </div>
-                      
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Email</label>
                         <input
@@ -482,7 +679,6 @@ const VendorDetailPage: React.FC = () => {
                           className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                         />
                       </div>
-                      
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Phone</label>
                         <input
@@ -492,7 +688,6 @@ const VendorDetailPage: React.FC = () => {
                           className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                         />
                       </div>
-                      
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Website</label>
                         <input
@@ -502,7 +697,6 @@ const VendorDetailPage: React.FC = () => {
                           className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                         />
                       </div>
-                      
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Contact Person</label>
                         <input
@@ -513,7 +707,7 @@ const VendorDetailPage: React.FC = () => {
                         />
                       </div>
                     </div>
-                    
+
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Address</label>
@@ -524,7 +718,6 @@ const VendorDetailPage: React.FC = () => {
                           className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                         />
                       </div>
-                      
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700">City</label>
@@ -545,7 +738,6 @@ const VendorDetailPage: React.FC = () => {
                           />
                         </div>
                       </div>
-                      
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700">Country</label>
@@ -566,7 +758,6 @@ const VendorDetailPage: React.FC = () => {
                           />
                         </div>
                       </div>
-                      
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Payment Terms</label>
                         <input
@@ -576,7 +767,6 @@ const VendorDetailPage: React.FC = () => {
                           className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                         />
                       </div>
-                      
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Credit Limit</label>
                         <input
@@ -588,165 +778,21 @@ const VendorDetailPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                ) : (
-                  // View Mode
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <div className="flex items-center space-x-3">
-                          <EnvelopeIcon className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">Email</p>
-                            <p className="text-sm text-gray-900">{vendor.email}</p>
-                          </div>
-                        </div>
+                </div>
+              </div>
+            </div>
 
-                        <div className="flex items-center space-x-3">
-                          <PhoneIcon className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">Phone</p>
-                            <p className="text-sm text-gray-900">{vendor.phone}</p>
-                          </div>
-                        </div>
-
-                        {vendor.website && (
-                          <div className="flex items-center space-x-3">
-                            <GlobeAltIcon className="h-5 w-5 text-gray-400" />
-                            <div>
-                              <p className="text-sm font-medium text-gray-500">Website</p>
-                              <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-sm text-primary-600 hover:text-primary-500">
-                                {vendor.website}
-                              </a>
-                            </div>
-                          </div>
-                        )}
-
-                        {vendor.contact_person && (
-                          <div className="flex items-center space-x-3">
-                            <UserIcon className="h-5 w-5 text-gray-400" />
-                            <div>
-                              <p className="text-sm font-medium text-gray-500">Contact Person</p>
-                              <p className="text-sm text-gray-900">{vendor.contact_person}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-4">
-                        {vendor.address && (
-                          <div className="flex items-start space-x-3">
-                            <MapPinIcon className="h-5 w-5 text-gray-400 mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium text-gray-500">Address</p>
-                              <p className="text-sm text-gray-900">
-                                {vendor.address}
-                                {vendor.city && <><br />{vendor.city}</>}
-                                {vendor.state && `, ${vendor.state}`}
-                                {vendor.postal_code && ` ${vendor.postal_code}`}
-                                {vendor.country && <><br />{vendor.country}</>}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex items-center space-x-3">
-                          <CreditCardIcon className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">Payment Terms</p>
-                            <p className="text-sm text-gray-900">{vendor.payment_terms.replace('_', ' ').toUpperCase()}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center space-x-3">
-                          <BanknotesIcon className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">Credit Limit</p>
-                            <p className="text-sm text-gray-900">${vendor.credit_limit.toFixed(2)}</p>
-                          </div>
-                        </div>
-
-                        {vendor.tax_id && (
-                          <div className="flex items-center space-x-3">
-                            <DocumentTextIcon className="h-5 w-5 text-gray-400" />
-                            <div>
-                              <p className="text-sm font-medium text-gray-500">Tax ID</p>
-                              <p className="text-sm text-gray-900">{vendor.tax_id}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {vendor.bank_details && (
-                      <div className="mt-6 pt-6 border-t border-gray-200">
-                        <h4 className="text-sm font-medium text-gray-500 mb-2">Bank Details</h4>
-                        <p className="text-sm text-gray-900 whitespace-pre-line">{vendor.bank_details}</p>
-                      </div>
-                    )}
-
-                    {vendor.tags && vendor.tags.length > 0 && (
-                      <div className="mt-6 pt-6 border-t border-gray-200">
-                        <h4 className="text-sm font-medium text-gray-500 mb-2">Tags</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {vendor.tags.map((tag, index) => (
-                            <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
+            {/* Right column can host tips or attachments summary if needed */}
+            <div className="space-y-6">
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-4 py-5 sm:p-6">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 mb-2">Tips</h3>
+                  <p className="text-sm text-gray-600">Review payment terms and contact person before saving changes.</p>
+                </div>
               </div>
             </div>
           </div>
-
-          {/* Recent Purchase Orders */}
-          <div>
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Recent Purchase Orders</h3>
-                
-                {purchaseOrders.length === 0 ? (
-                  <p className="text-sm text-gray-500">No purchase orders found for this vendor.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {purchaseOrders.slice(0, 5).map((order) => (
-                      <div 
-                        key={order.id} 
-                        className="flex items-center justify-between p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
-                        onClick={() => navigate(`/purchase/orders/${order.id}`)}
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 hover:text-primary-600">{order.po_number}</p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(order.order_date).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-gray-900">${order.total_amount.toFixed(2)}</p>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(order.status)}`}>
-                            {order.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {purchaseOrders.length > 5 && (
-                      <div className="text-center pt-2">
-                        <button className="text-sm text-primary-600 hover:text-primary-500">
-                          View all {purchaseOrders.length} orders
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        )}
     </div>
   );
 };

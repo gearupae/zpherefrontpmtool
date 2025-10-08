@@ -11,19 +11,32 @@ const NotificationContainer: React.FC = () => {
   const getIcon = (type: string) => {
     switch (type) {
       case 'success':
-        return <CheckCircleIcon className="w-6 h-6 text-piano" />;
+        return <CheckCircleIcon className="w-6 h-6 text-green-600" />;
       case 'error':
-        return <XCircleIcon className="w-6 h-6 text-piano" />;
+        return <XCircleIcon className="w-6 h-6 text-red-600" />;
       case 'warning':
-        return <ExclamationCircleIcon className="w-6 h-6 text-piano" />;
+        return <ExclamationCircleIcon className="w-6 h-6 text-yellow-600" />;
       case 'info':
       default:
-        return <InformationCircleIcon className="w-6 h-6 text-piano" />;
+        return <InformationCircleIcon className="w-6 h-6 text-blue-600" />;
     }
   };
 
-  // Neutral card styling; icon conveys status color for consistent theme
-  const getCardClasses = () => 'bg-white border border-gray-200';
+  // Card styling with colored left border for visual distinction
+  const getCardClasses = (type: string) => {
+    const baseClasses = 'bg-white border-l-4';
+    switch (type) {
+      case 'success':
+        return `${baseClasses} border-l-green-500 border-t border-r border-b border-gray-200`;
+      case 'error':
+        return `${baseClasses} border-l-red-500 border-t border-r border-b border-gray-200`;
+      case 'warning':
+        return `${baseClasses} border-l-yellow-500 border-t border-r border-b border-gray-200`;
+      case 'info':
+      default:
+        return `${baseClasses} border-l-blue-500 border-t border-r border-b border-gray-200`;
+    }
+  };
 
   const handleRemove = (id: string) => {
     // Clear any pending timer for this id
@@ -69,7 +82,7 @@ const NotificationContainer: React.FC = () => {
       {notifications.map((notification) => (
         <div
           key={notification.id}
-          className={`toast animate-slide-down ${getCardClasses()} overflow-hidden`}
+          className={`toast animate-slide-down ${getCardClasses(notification.type)} overflow-hidden`}
           role="alert"
           aria-label={notification.title}
         >

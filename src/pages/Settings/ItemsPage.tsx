@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAppDispatch } from '../../hooks/redux';
 import { Item, ItemCreate, ItemUpdate, ItemType, TaxType } from '../../types';
-import LoadingSpinner from '../../components/UI/LoadingSpinner';
 import { addNotification } from '../../store/slices/notificationSlice';
 import { 
   PlusIcon, 
@@ -335,7 +334,7 @@ const ItemsPage: React.FC = () => {
   };
 
   if (isLoading) {
-    return <LoadingSpinner size="large" />;
+    return <div />;
   }
 
   return (
@@ -675,50 +674,50 @@ const ItemsPage: React.FC = () => {
 
       {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="metric-card metric-blue bg-white p-4 rounded-lg shadow">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
               <TagIcon className="h-6 w-6 text-blue-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Items</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total_items}</p>
+              <p className="metric-value text-2xl font-bold">{stats.total_items}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="metric-card metric-green bg-white p-4 rounded-lg shadow">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
               <WrenchScrewdriverIcon className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Services</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.services}</p>
+              <p className="metric-value text-2xl font-bold">{stats.services}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="metric-card metric-yellow bg-white p-4 rounded-lg shadow">
           <div className="flex items-center">
             <div className="p-2 bg-yellow-100 rounded-lg">
               <CubeIcon className="h-6 w-6 text-yellow-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Products</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.products}</p>
+              <p className="metric-value text-2xl font-bold">{stats.products}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="metric-card metric-purple bg-white p-4 rounded-lg shadow">
           <div className="flex items-center">
             <div className="p-2 bg-purple-100 rounded-lg">
               <CurrencyDollarIcon className="h-6 w-6 text-purple-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Inventory Value</p>
-              <p className="text-2xl font-bold text-gray-900">${formatCurrency(stats.total_value)}</p>
+              <p className="metric-value text-2xl font-bold">${formatCurrency(stats.total_value)}</p>
             </div>
           </div>
         </div>

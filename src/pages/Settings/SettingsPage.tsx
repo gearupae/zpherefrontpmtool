@@ -13,14 +13,24 @@ import {
   CameraIcon,
   TagIcon,
   Squares2X2Icon,
-  BuildingOffice2Icon
+  BuildingOffice2Icon,
+  PencilIcon,
+  CheckIcon,
+  XMarkIcon,
+  KeyIcon,
+  ComputerDesktopIcon,
+  ArrowUpTrayIcon,
+  BookmarkIcon,
+  LinkIcon
 } from '@heroicons/react/24/outline';
 import ItemsPage from './ItemsPage';
+import IntegrationsPanel from '../../components/Settings/IntegrationsPanel';
 import CustomFieldsPage from './CustomFieldsPage';
 import EmailSettingsPage from './EmailSettingsPage';
+import RolesPermissionsPage from './RolesPermissionsPage';
 import { applyTheme } from '../../utils/theme';
-import LoadingSpinner from '../../components/UI/LoadingSpinner';
 import apiClient from '../../api/client';
+import ViewModeButton from '../../components/UI/ViewModeButton';
 
 interface UserProfileForm {
   first_name: string;
@@ -49,7 +59,7 @@ const SettingsPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const { user, isLoading } = useAppSelector((state) => state.auth);
   
-const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'security' | 'preferences' | 'organization' | 'email' | 'items' | 'custom-fields'>('profile');
+const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'security' | 'preferences' | 'organization' | 'email' | 'items' | 'custom-fields' | 'roles' | 'integrations'>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -95,6 +105,15 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
+
+  // Terms and Conditions state
+  const [termsForm, setTermsForm] = useState({
+    invoice_terms: '',
+    project_terms: '',
+    proposal_terms: '',
+    purchase_order_terms: ''
+  });
+  const [termsLoading, setTermsLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -153,6 +172,14 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
           logo_url: branding.logo_url || '',
         });
         setLogoPreview(branding.logo_url || '');
+        
+        // Load terms and conditions
+        setTermsForm({
+          invoice_terms: settings.invoice_terms || '',
+          project_terms: settings.project_terms || '',
+          proposal_terms: settings.proposal_terms || '',
+          purchase_order_terms: settings.purchase_order_terms || ''
+        });
       } catch (e) {
         dispatch(addNotification({ type: 'error', title: 'Load Failed', message: 'Could not load organization settings', duration: 5000 }));
       } finally {
@@ -161,6 +188,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
     };
     loadOrg();
   }, [activeTab, dispatch]);
+
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -272,14 +300,12 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
     { id: 'email', name: 'Email', icon: EnvelopeIcon },
     { id: 'items', name: 'Items & Services', icon: TagIcon },
     { id: 'custom-fields', name: 'Custom Fields', icon: Squares2X2Icon },
+    { id: 'roles', name: 'Roles & Permissions', icon: KeyIcon },
+    { id: 'integrations', name: 'Integrations', icon: LinkIcon },
   ];
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="large" />
-      </div>
-    );
+    return <div />;
   }
 
   const handleUploadLogo = async (file: File) => {
@@ -316,13 +342,18 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
           state: orgForm.state,
           postal_code: orgForm.postal_code,
           country: orgForm.country,
+          // Include terms and conditions
+          invoice_terms: termsForm.invoice_terms,
+          project_terms: termsForm.project_terms,
+          proposal_terms: termsForm.proposal_terms,
+          purchase_order_terms: termsForm.purchase_order_terms,
         },
         branding: {
           logo_url: orgForm.logo_url,
         },
       };
       await apiClient.put('/organizations/me', payload);
-      dispatch(addNotification({ type: 'success', title: 'Organization Updated', message: 'Company details saved.', duration: 3000 }));
+      dispatch(addNotification({ type: 'success', title: 'Organization Updated', message: 'Company details and terms saved successfully.', duration: 3000 }));
     } catch (e: any) {
       dispatch(addNotification({ type: 'error', title: 'Save Failed', message: e?.response?.data?.detail || 'Could not save organization settings', duration: 5000 }));
     }
@@ -331,24 +362,24 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-secondary-900">Settings</h1>
+        <h1 className="page-title font-bold text-secondary-900">Settings</h1>
         <p className="text-secondary-600 mt-2">Manage your account settings and preferences</p>
       </div>
 
       {/* Tab Navigation */}
       <div className="border-b border-secondary-200 mb-8">
-        <nav className="flex space-x-8">
+        <nav className="flex flex-wrap gap-x-4 gap-y-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`py-2 px-3 font-medium text-sm flex items-center space-x-2 rounded-md transition-colors focus:outline-none focus:ring-0 ${
+                className={`py-1.5 px-2 font-medium text-sm flex items-center space-x-2 rounded-md transition-colors focus:outline-none focus:ring-0 ${
                   activeTab === tab.id ? 'text-indigo-600' : 'text-black hover:text-gray-700'
                 }`}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-4 w-4" />
                 <span>{tab.name}</span>
               </button>
             );
@@ -363,12 +394,11 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-medium text-secondary-900">Profile Information</h2>
               {!isEditing && (
-                <button
+                <ViewModeButton
+                  icon={PencilIcon}
+                  label="Edit Profile"
                   onClick={() => setIsEditing(true)}
-                  className="bg-user-blue text-white px-4 py-2 rounded-md hover:bg-user-blue transition-colors"
-                >
-                  Edit Profile
-                </button>
+                />
               )}
             </div>
           </div>
@@ -450,20 +480,21 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                 </div>
                 
                 <div className="flex space-x-3">
-                  <button
-                    type="submit"
+                  <ViewModeButton
+                    icon={CheckIcon}
+                    label={isSaving ? 'Saving...' : 'Save Changes'}
+                    onClick={(e: any) => {
+                      e.preventDefault();
+                      handleProfileSubmit(e);
+                    }}
                     disabled={isSaving}
-                    className="bg-user-blue text-white px-6 py-2 rounded-md hover:bg-user-blue transition-colors disabled:opacity-50"
-                  >
-                    {isSaving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  <button
-                    type="button"
+                  />
+                  <ViewModeButton
+                    icon={XMarkIcon}
+                    label="Cancel"
+                    variant="destructive"
                     onClick={() => setIsEditing(false)}
-                    className="bg-secondary-200 text-secondary-700 px-6 py-2 rounded-md hover:bg-secondary-300 transition-colors"
-                  >
-                    Cancel
-                  </button>
+                  />
                 </div>
               </form>
             ) : (
@@ -634,9 +665,11 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
               </button>
             </div>
             <div className="flex justify-end pt-4">
-              <button onClick={handleSaveNotifications} className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
-                Save Notification Settings
-              </button>
+              <ViewModeButton
+                icon={BookmarkIcon}
+                label="Save Notification Settings"
+                onClick={handleSaveNotifications}
+              />
             </div>
           </div>
         </div>
@@ -655,7 +688,9 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                 <h3 className="text-sm font-medium text-secondary-900">Two-Factor Authentication</h3>
                 <p className="text-sm text-secondary-500">Add an extra layer of security to your account</p>
               </div>
-              <button 
+              <ViewModeButton
+                icon={ShieldCheckIcon}
+                label="Enable 2FA"
                 onClick={async () => {
                   const existing = (user?.preferences || {}) as any;
                   const merged = { ...existing, two_factor_enabled: true };
@@ -666,9 +701,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     dispatch(addNotification({ type: 'error', title: 'Failed', message: 'Could not enable 2FA preference', duration: 5000 }));
                   }
                 }}
-                className="bg-user-blue text-white px-4 py-2 rounded-md hover:bg-user-blue transition-colors">
-                Enable 2FA
-              </button>
+              />
             </div>
             
             <div className="flex items-center justify-between p-4 border border-secondary-200 rounded-lg">
@@ -676,11 +709,11 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                 <h3 className="text-sm font-medium text-secondary-900">Change Password</h3>
                 <p className="text-sm text-secondary-500">Update your account password</p>
               </div>
-              <button 
+              <ViewModeButton
+                icon={KeyIcon}
+                label="Change Password"
                 onClick={handleChangePassword}
-                className="bg-secondary-200 text-secondary-700 px-4 py-2 rounded-md hover:bg-secondary-300 transition-colors">
-                Change Password
-              </button>
+              />
             </div>
             
             <div className="flex items-center justify-between p-4 border border-secondary-200 rounded-lg">
@@ -688,9 +721,11 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                 <h3 className="text-sm font-medium text-secondary-900">Active Sessions</h3>
                 <p className="text-sm text-secondary-500">Manage your active login sessions</p>
               </div>
-              <button className="bg-secondary-200 text-secondary-700 px-4 py-2 rounded-md hover:bg-secondary-300 transition-colors">
-                View Sessions
-              </button>
+              <ViewModeButton
+                icon={ComputerDesktopIcon}
+                label="View Sessions"
+                onClick={() => {}}
+              />
             </div>
           </div>
         </div>
@@ -771,9 +806,11 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
               </select>
             </div>
             <div className="flex justify-end pt-4">
-              <button onClick={handleSavePreferences} className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
-                Save Preferences
-              </button>
+              <ViewModeButton
+                icon={BookmarkIcon}
+                label="Save Preferences"
+                onClick={handleSavePreferences}
+              />
             </div>
           </div>
         </div>
@@ -785,13 +822,12 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
           <div className="px-6 py-4 border-b border-secondary-200 flex items-center justify-between">
             <h2 className="text-lg font-medium text-secondary-900">Organization Settings</h2>
             <div className="flex items-center space-x-3">
-              <button
+              <ViewModeButton
+                icon={BookmarkIcon}
+                label="Save Company Details"
                 onClick={handleSaveOrganization}
-                className="bg-user-blue text-white px-4 py-2 rounded-md hover:bg-user-blue transition-colors"
                 disabled={orgLoading}
-              >
-                Save Company Details
-              </button>
+              />
             </div>
           </div>
           <div className="px-6 py-6 space-y-8">
@@ -957,14 +993,12 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     className="block w-full text-sm text-secondary-700 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-secondary-100 file:text-secondary-700 hover:file:bg-secondary-200"
                   />
                   <div className="mt-3">
-                    <button
-                      type="button"
+                    <ViewModeButton
+                      icon={ArrowUpTrayIcon}
+                      label="Upload Logo"
                       onClick={() => logoFile && handleUploadLogo(logoFile)}
                       disabled={!logoFile}
-                      className={`px-4 py-2 rounded-md ${logoFile ? 'bg-user-blue text-white hover:bg-user-blue' : 'bg-secondary-200 text-secondary-600 cursor-not-allowed'}`}
-                    >
-                      Upload Logo
-                    </button>
+                    />
                   </div>
                 </div>
                 <div>
@@ -980,13 +1014,90 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
               </div>
             </div>
 
+            {/* Terms and Conditions */}
+            <div>
+              <h3 className="text-md font-medium text-secondary-900 mb-4">Terms & Conditions</h3>
+              <p className="text-sm text-secondary-500 mb-4">
+                Define default terms and conditions for various documents. These will be automatically included in generated documents.
+              </p>
+              
+              <div className="space-y-6">
+                {/* Invoice Terms */}
+                <div>
+                  <label className="block text-sm font-medium text-secondary-900 mb-2">
+                    Invoice Terms & Conditions
+                  </label>
+                  <p className="text-xs text-secondary-500 mb-2">
+                    These terms will be included in all invoices.
+                  </p>
+                  <textarea
+                    value={termsForm.invoice_terms}
+                    onChange={(e) => setTermsForm(prev => ({ ...prev, invoice_terms: e.target.value }))}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm"
+                    placeholder="Payment due within 30 days. Late fees may apply."
+                  />
+                </div>
+
+                {/* Project Terms */}
+                <div>
+                  <label className="block text-sm font-medium text-secondary-900 mb-2">
+                    Project Terms & Conditions
+                  </label>
+                  <p className="text-xs text-secondary-500 mb-2">
+                    These terms will be included in project agreements.
+                  </p>
+                  <textarea
+                    value={termsForm.project_terms}
+                    onChange={(e) => setTermsForm(prev => ({ ...prev, project_terms: e.target.value }))}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm"
+                    placeholder="Project scope defined in SOW. Changes require approval."
+                  />
+                </div>
+
+                {/* Proposal Terms */}
+                <div>
+                  <label className="block text-sm font-medium text-secondary-900 mb-2">
+                    Proposal Terms & Conditions
+                  </label>
+                  <p className="text-xs text-secondary-500 mb-2">
+                    These terms will be included in proposals.
+                  </p>
+                  <textarea
+                    value={termsForm.proposal_terms}
+                    onChange={(e) => setTermsForm(prev => ({ ...prev, proposal_terms: e.target.value }))}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm"
+                    placeholder="Proposal valid for 30 days. 50% deposit required."
+                  />
+                </div>
+
+                {/* Purchase Order Terms */}
+                <div>
+                  <label className="block text-sm font-medium text-secondary-900 mb-2">
+                    Purchase Order Terms & Conditions
+                  </label>
+                  <p className="text-xs text-secondary-500 mb-2">
+                    These terms will be included in purchase orders.
+                  </p>
+                  <textarea
+                    value={termsForm.purchase_order_terms}
+                    onChange={(e) => setTermsForm(prev => ({ ...prev, purchase_order_terms: e.target.value }))}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm"
+                    placeholder="Delivery as per schedule. Payment upon receipt."
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-end pt-2">
-              <button
+              <ViewModeButton
+                icon={BookmarkIcon}
+                label="Save Organization Settings"
                 onClick={handleSaveOrganization}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                Save Organization Settings
-              </button>
+              />
             </div>
           </div>
         </div>
@@ -1008,6 +1119,32 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
           </div>
           <div className="p-6">
             <CustomFieldsPage />
+          </div>
+        </div>
+      )}
+
+      {/* Roles & Permissions Tab */}
+      {activeTab === 'roles' && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-secondary-200">
+            <h2 className="text-lg font-medium text-secondary-900">Roles & Permissions</h2>
+            <p className="text-sm text-secondary-500 mt-1">Manage roles and permission matrix</p>
+          </div>
+          <div className="p-6">
+            <RolesPermissionsPage />
+          </div>
+        </div>
+      )}
+
+      {/* Integrations Tab */}
+      {activeTab === 'integrations' && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-secondary-200">
+            <h2 className="text-lg font-medium text-secondary-900">Integrations</h2>
+            <p className="text-sm text-secondary-500 mt-1">Connect Google Meet, Microsoft Teams, WhatsApp, and more</p>
+          </div>
+          <div className="p-0">
+            <IntegrationsPanel />
           </div>
         </div>
       )}

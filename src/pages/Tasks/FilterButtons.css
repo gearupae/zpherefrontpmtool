@@ -1,0 +1,49 @@
+.filter-popup-btn {
+  border-radius: 5px !important;
+  padding: 0px 6px !important;
+  font-size: 12px !important;
+  line-height: 20px !important;
+  height: 20px !important;
+  min-height: 0px !important;
+  box-sizing: border-box !important;
+}
+
+.filter-popup-btn-clear {
+  color: white !important;
+  background-color: black !important;
+}
+
+.filter-popup-btn-clear:hover {
+  background-color: rgb(31, 41, 55) !important;
+}
+
+.filter-popup-btn-filter {
+  color: white !important;
+  background-color: rgb(220, 38, 38) !important;
+}
+
+.filter-popup-btn-filter:hover {
+  background-color: rgb(185, 28, 28) !important;
+}
+
+.filter-popup-btn-close {
+  color: white !important;
+  background-color: rgb(220, 38, 38) !important;
+}
+
+.filter-popup-btn-close:hover {
+  background-color: rgb(185, 28, 28) !important;
+}
+
+/* Responsive tweaks for tasks table paddings on small screens */
+.projects-table th,
+.projects-table td {
+  padding: 0.5rem 0.75rem; /* Smaller padding for mobile */
+}
+
+@media (min-width: 640px) {
+  .projects-table th,
+  .projects-table td {
+    padding: 0.75rem 1.5rem; /* Restore larger padding on sm+ */
+  }
+}

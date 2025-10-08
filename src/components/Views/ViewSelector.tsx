@@ -14,6 +14,7 @@ import CalendarView from './CalendarView';
 import GanttChart from './GanttChart';
 import ProjectHealthDashboard from '../Dashboard/ProjectHealthDashboard';
 import TodoPage from '../../pages/Todo/TodoPage';
+import ViewModeButton from '../UI/ViewModeButton';
 
 interface ViewSelectorProps {
   tasks?: Task[];
@@ -183,21 +184,15 @@ const ViewSelector: React.FC<ViewSelectorProps> = ({
             {availableViews.map((view) => {
               const IconComponent = view.icon;
               const isActive = activeView === view.key;
-              
               return (
-                <button
+                <ViewModeButton
                   key={view.key}
+                  icon={IconComponent}
+                  label={view.name}
+                  active={isActive}
                   onClick={() => setActiveView(view.key)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-all duration-200 ${
-                    isActive
-                      ? 'bg-blue-50 border-blue-200 text-blue-700'
-                      : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-                  }`}
                   title={view.description}
-                >
-                  <IconComponent className="w-4 h-4" />
-                  <span className="text-sm font-medium">{view.name}</span>
-                </button>
+                />
               );
             })}
           </div>

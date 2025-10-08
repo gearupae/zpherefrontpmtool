@@ -351,10 +351,20 @@ const TaskDetailOverviewPage: React.FC = () => {
       const { assignee_ids, ...taskFields } = editForm;
       
       // Update basic task fields (set assignee_id to first assignee if multiple)
-      const taskUpdateData = {
+      const taskUpdateData: any = {
         ...taskFields,
         assignee_id: (assignee_ids as string[])?.length > 0 ? (assignee_ids as string[])[0] : undefined
       };
+
+      // Normalize sprint date fields to ISO 8601 datetimes if provided as YYYY-MM-DD
+      if (taskUpdateData.sprint_start_date) {
+        const s = String(taskUpdateData.sprint_start_date);
+        taskUpdateData.sprint_start_date = s.includes('T') ? s : `${s}T00:00:00.000Z`;
+      }
+      if (taskUpdateData.sprint_end_date) {
+        const e = String(taskUpdateData.sprint_end_date);
+        taskUpdateData.sprint_end_date = e.includes('T') ? e : `${e}T23:59:59.999Z`;
+      }
       
       await apiClient.put(`/tasks/${task.id}`, taskUpdateData);
       
@@ -706,11 +716,7 @@ const TaskDetailOverviewPage: React.FC = () => {
   console.log('TaskDetailOverviewPage rendering - task:', task, 'isLoading:', isLoading, 'id:', id);
   
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="large" />
-      </div>
-    );
+    return <div />;
   }
 
   if (!task) {
@@ -777,36 +783,36 @@ const TaskDetailOverviewPage: React.FC = () => {
         <div className="flex space-x-3">
           <button
             onClick={() => setActiveTab('edit')}
-            className="btn btn-primary inline-flex items-center"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
-            <PencilIcon className="h-5 w-5 mr-2" />
+            <PencilIcon className="h-5 w-5" />
             Edit
           </button>
           <button
             onClick={() => handleStatusChange(TaskStatus.IN_PROGRESS)}
-            className="btn btn-primary inline-flex items-center"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
-            <PlayIcon className="h-5 w-5 mr-2" />
+            <PlayIcon className="h-5 w-5" />
             Start Task
           </button>
           <button
             onClick={() => handleStatusChange(TaskStatus.COMPLETED)}
-            className="btn btn-primary inline-flex items-center"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
-            <CheckCircleIcon className="h-5 w-5 mr-2" />
+            <CheckCircleIcon className="h-5 w-5" />
             Mark as Complete
           </button>
           <button
             onClick={() => project && navigate(`/projects/${project.id}`)}
             disabled={!project}
-            className="btn btn-primary inline-flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <FolderIcon className="h-5 w-5 mr-2" />
+            <FolderIcon className="h-5 w-5" />
             View Project
           </button>
           <button
             onClick={handleDeleteTask}
-            className="btn btn-danger inline-flex items-center"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
             <TrashIcon className="h-4 w-4" />
             <span>Delete</span>

@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../../hooks/redux';
 import { Customer, Project, ProjectInvoice as Invoice, Proposal } from '../../types';
-import LoadingSpinner from '../../components/UI/LoadingSpinner';
 import { addNotification } from '../../store/slices/notificationSlice';
+import ViewModeButton from '../../components/UI/ViewModeButton';
 import {
   UserIcon,
   BuildingOfficeIcon,
@@ -322,11 +322,7 @@ const CustomerOverviewPage: React.FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="large" />
-      </div>
-    );
+    return <div />;
   }
 
   if (!customer) {
@@ -364,53 +360,42 @@ const CustomerOverviewPage: React.FC = () => {
           </div>
         </div>
         <div className="flex space-x-3">
-          <button
+          <ViewModeButton
+            icon={PencilIcon}
+            label="Edit"
+            active={activeTab === 'edit'}
             onClick={() => setActiveTab('edit')}
-            className="inline-flex items-center px-4 py-2 border border-secondary-300 text-sm font-medium rounded-md text-secondary-700 bg-white hover:bg-secondary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            <PencilIcon className="h-4 w-4 mr-2" />
-            Edit
-          </button>
-
-          {/* Added actions next to Edit button */}
-          <button
+          />
+          <ViewModeButton
+            icon={EnvelopeIcon}
+            label="Send Email"
             onClick={() => window.open(`mailto:${customer.email}`)}
-            className="inline-flex items-center px-4 py-2 border border-secondary-300 text-sm font-medium rounded-md text-secondary-700 bg-white hover:bg-secondary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            <EnvelopeIcon className="h-4 w-4 mr-2" />
-            Send Email
-          </button>
+          />
           {customer.phone && (
-            <button
+            <ViewModeButton
+              icon={PhoneIcon}
+              label="Call Customer"
               onClick={() => window.open(`tel:${customer.phone}`)}
-              className="inline-flex items-center px-4 py-2 border border-secondary-300 text-sm font-medium rounded-md text-secondary-700 bg-white hover:bg-secondary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              <PhoneIcon className="h-4 w-4 mr-2" />
-              Call Customer
-            </button>
+            />
           )}
-          <button
+          <ViewModeButton
+            icon={FolderIcon}
+            label={`View Projects (${projects.length})`}
+            active={activeTab === 'projects'}
             onClick={() => setActiveTab('projects')}
-            className="inline-flex items-center px-4 py-2 border border-secondary-300 text-sm font-medium rounded-md text-secondary-700 bg-white hover:bg-secondary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            <FolderIcon className="h-4 w-4 mr-2" />
-            View Projects ({projects.length})
-          </button>
-          <button
+          />
+          <ViewModeButton
+            icon={BanknotesIcon}
+            label={`View Invoices (${invoices.length})`}
+            active={activeTab === 'invoices'}
             onClick={() => setActiveTab('invoices')}
-            className="inline-flex items-center px-4 py-2 border border-secondary-300 text-sm font-medium rounded-md text-secondary-700 bg-white hover:bg-secondary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            <BanknotesIcon className="h-4 w-4 mr-2" />
-            View Invoices ({invoices.length})
-          </button>
-
-          <button
+          />
+          <ViewModeButton
+            icon={TrashIcon}
+            label="Delete"
+            variant="destructive"
             onClick={handleDeleteCustomer}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-          >
-            <TrashIcon className="h-4 w-4 mr-2" />
-            Delete
-          </button>
+          />
         </div>
       </div>
 
@@ -453,7 +438,7 @@ const CustomerOverviewPage: React.FC = () => {
           {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* Customer Information */}
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white shadow rounded-lg detail-card">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Customer Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
@@ -647,7 +632,7 @@ const CustomerOverviewPage: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 gap-6">
               {projects.map((project) => (
-                <div key={project.id} className="bg-white shadow rounded-lg p-6">
+                <div key={project.id} className="bg-white shadow rounded-lg detail-card">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-lg font-medium text-gray-900">{project.name}</h4>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
@@ -705,7 +690,7 @@ const CustomerOverviewPage: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 gap-6">
               {invoices.map((invoice) => (
-                <div key={invoice.id} className="bg-white shadow rounded-lg p-6">
+                <div key={invoice.id} className="bg-white shadow rounded-lg detail-card">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-lg font-medium text-gray-900">{invoice.title}</h4>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(invoice.status || 'draft')}`}>
@@ -760,7 +745,7 @@ const CustomerOverviewPage: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 gap-6">
               {proposals.map((proposal) => (
-                <div key={proposal.id} className="bg-white shadow rounded-lg p-6">
+                <div key={proposal.id} className="bg-white shadow rounded-lg detail-card">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-lg font-medium text-gray-900">{proposal.title}</h4>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(proposal.status || 'draft')}`}>
@@ -794,7 +779,7 @@ const CustomerOverviewPage: React.FC = () => {
 
       {/* Edit Tab */}
       {activeTab === 'edit' && (
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-white shadow rounded-lg detail-card">
           <h3 className="text-lg font-medium text-gray-900 mb-6">Edit Customer</h3>
           <form onSubmit={handleUpdateCustomer} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

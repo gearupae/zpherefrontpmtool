@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   ArrowLeftIcon, 
@@ -9,7 +9,12 @@ import {
   BuildingOfficeIcon,
   ClockIcon,
   DocumentArrowDownIcon,
-  ArrowsRightLeftIcon
+  ArrowsRightLeftIcon,
+  ChartBarIcon,
+  BanknotesIcon,
+  LinkIcon,
+  CalendarIcon,
+  CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon, XCircleIcon, ClockIcon as ClockSolidIcon } from '@heroicons/react/24/solid';
 import { useAppDispatch } from '../../hooks/redux';
@@ -17,6 +22,13 @@ import { addNotification } from '../../store/slices/notificationSlice';
 import { apiClient } from '../../api/client';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
 import ProposalForm from '../../components/Proposals/ProposalForm';
+import ViewModeButton from '../../components/UI/ViewModeButton';
+import { encodeShareIdCompact, slugify } from '../../utils/shortLink';
+import CustomerDetailsCard from '../../components/Proposals/Insights/CustomerDetailsCard';
+import ProjectStatsCard from '../../components/Proposals/Insights/ProjectStatsCard';
+import FinancialOverviewCard from '../../components/Proposals/Insights/FinancialOverviewCard';
+import ProposalHistoryCard from '../../components/Proposals/Insights/ProposalHistoryCard';
+import { ProposalCustomerInsights } from '../../types/proposalInsights';
 
 interface ProposalItem {
   item_id: string;
@@ -77,6 +89,23 @@ interface Proposal {
   updated_at: string;
 }
 
+interface OverviewMetrics {
+  proposals_total: number;
+  proposals_draft: number;
+  proposals_sent: number;
+  proposals_viewed: number;
+  proposals_accepted: number;
+  proposals_rejected: number;
+  proposals_expired: number;
+  invoices_total: number;
+  invoices_pending: number;
+  invoices_overdue: number;
+  invoices_paid: number;
+  invoices_outstanding_amount: number;
+  projects_total: number;
+  projects_active: number;
+}
+
 const ProposalDetailOverviewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -90,12 +119,55 @@ const ProposalDetailOverviewPage: React.FC = () => {
     searchParams.get('tab') === 'edit' ? 'edit' : 'overview'
   );
   const [isUpdating, setIsUpdating] = useState(false);
+  const [overviewMetrics, setOverviewMetrics] = useState<OverviewMetrics | null>(null);
+  const [overviewCustomer, setOverviewCustomer] = useState<{ id: string; display_name: string; email?: string; company_name?: string } | null>(null);
+  const [shareId, setShareId] = useState<string | null>(null);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+
+  // Customer Insights
+  const [insights, setInsights] = useState<ProposalCustomerInsights | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState<boolean>(false);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
+
+  // Fallback customer details when insights/overview are unavailable
+  const [fallbackCustomerDetails, setFallbackCustomerDetails] = useState<{
+    id: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    company?: string;
+    address?: string;
+    customerSince?: string;
+  } | null>(null);
+
+  const publicLink = useMemo(() => {
+    if (!shareId || !proposal) return null;
+    const code = encodeShareIdCompact(shareId);
+    if (!code) return null;
+    const slug = slugify(proposal.title);
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `${origin}/pr/${slug}-${code}`;
+  }, [shareId, proposal]);
 
   const fetchProposal = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.get(`/proposals/${id}`);
+      let response: any;
+      try {
+        // Prefer trailing slash to avoid proxy redirects where supported
+        response = await apiClient.get(`/proposals/${id}/`);
+      } catch (err1: any) {
+        // Fallback to no trailing slash if backend defines it that way
+        try {
+          response = await apiClient.get(`/proposals/${id}`);
+        } catch (err2: any) {
+          console.error('Error fetching proposal (both variants failed):', err1, err2);
+          throw err2 || err1;
+        }
+      }
       setProposal(response.data);
     } catch (error: any) {
       console.error('Error fetching proposal:', error);
@@ -114,36 +186,343 @@ const ProposalDetailOverviewPage: React.FC = () => {
     fetchProposal();
   }, [fetchProposal]);
 
+  useEffect(() => {
+    const loadOverview = async () => {
+      if (!id) return;
+      try {
+        const res = await apiClient.get(`/proposals/${id}/overview`);
+        const data = res.data || {};
+        if (data.metrics) setOverviewMetrics(data.metrics);
+        if (data.customer) setOverviewCustomer(data.customer);
+        if (data.share_id) setShareId(data.share_id);
+      } catch (e) {
+        // Non-blocking
+      }
+    };
+    loadOverview();
+  }, [id]);
+
+
+  useEffect(() => {
+    const loadInsights = async () => {
+      if (!id) return;
+      setInsightsLoading(true);
+      setInsightsError(null);
+      try {
+        // Use trailing slash to avoid 307 redirect losing headers
+        const res = await apiClient.get(`/proposals/${id}/customer-insights/`);
+        setInsights(res.data);
+      } catch (e: any) {
+        setInsights(null);
+        const msg = e?.response?.data?.detail || 'Failed to load customer insights';
+        setInsightsError(msg);
+      } finally {
+        setInsightsLoading(false);
+      }
+    };
+    loadInsights();
+  }, [id]);
+
+  // Auto-create or fetch public share link on mount if missing
+  useEffect(() => {
+    if (!id) return;
+    if (shareId) return;
+    // Silently attempt to create/fetch link without showing errors to the user
+    handleGeneratePublicLink(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, shareId]);
+
+  // If insights/overview lack customer, fetch by proposal.customer_id to show details
+  useEffect(() => {
+    if (!proposal) return;
+    // Already have a primary customer source
+    if (insights?.customer || overviewCustomer || fallbackCustomerDetails) return;
+    const cid = (proposal as any).customer?.id || (proposal as any).customer_id;
+    if (!cid) return;
+
+    (async () => {
+      try {
+        let res: any;
+        try {
+          res = await apiClient.get(`/customers/${cid}/`);
+        } catch (e1: any) {
+          // Fallback without trailing slash
+          res = await apiClient.get(`/customers/${cid}`);
+        }
+        const c = res.data || {};
+        const name = c.display_name || c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.company_name || c.email || 'Customer';
+        const address = c.address_line1
+          ? [c.address_line1, c.address_line2, c.city, c.state, c.postal_code, c.country].filter(Boolean).join(', ')
+          : (c.address || '');
+        setFallbackCustomerDetails({
+          id: cid,
+          name,
+          email: c.email || undefined,
+          phone: c.phone || c.phone_number || undefined,
+          company: c.company_name || c.company || undefined,
+          address: address || undefined,
+          customerSince: c.created_at || c.customer_since || undefined,
+        });
+      } catch (e) {
+        // Silent: leave as null
+      }
+    })();
+  }, [proposal, insights, overviewCustomer, fallbackCustomerDetails]);
+
+  const handleGeneratePublicLink = async (silent = false): Promise<string | null> => {
+    if (!id) {
+      console.error('No proposal ID available');
+      return null;
+    }
+
+    const parseShareId = (data: any): string | null => {
+      if (!data) return null;
+      if (typeof data.share_id === 'string') return data.share_id;
+      if (typeof data.shareId === 'string') return data.shareId; // tolerate camelCase
+      // handle { public_url: "/shared/proposal/<share_id>" } or { share_url: "/shared/proposal/<share_id>" }
+      const url = data.public_url || data.share_url || data.url || '';
+      const m = typeof url === 'string' ? url.match(/\/shared\/proposal\/(.+)$/) : null;
+      return m ? m[1] : null;
+    };
+
+    try {
+      setShareError(null);
+      setIsGeneratingLink(true);
+
+      // 1) Try POST /proposals/{id}/share/
+      try {
+        const r1 = await apiClient.post(`/proposals/${id}/share/`);
+        const sid = parseShareId(r1.data);
+        if (sid) {
+          setShareId(sid);
+          if (!silent) {
+            dispatch(addNotification({ type: 'success', title: 'Success', message: 'Public link generated successfully' }));
+          }
+          return sid;
+        }
+      } catch (e: any) {
+        // proceed to next attempt
+      }
+
+      // 2) Try GET /proposals/{id}/share/ (fetch existing)
+      try {
+        const r2 = await apiClient.get(`/proposals/${id}/share/`);
+        const sid = parseShareId(r2.data);
+        if (sid) {
+          setShareId(sid);
+          if (!silent) {
+            dispatch(addNotification({ type: 'success', title: 'Link Ready', message: 'Using existing public link' }));
+          }
+          return sid;
+        }
+      } catch (e: any) {
+        // proceed to next
+      }
+
+      // 2b) Try GET /proposals/{id}/share (no trailing slash)
+      try {
+        const r2b = await apiClient.get(`/proposals/${id}/share`);
+        const sid = parseShareId(r2b.data);
+        if (sid) {
+          setShareId(sid);
+          if (!silent) {
+            dispatch(addNotification({ type: 'success', title: 'Link Ready', message: 'Using existing public link' }));
+          }
+          return sid;
+        }
+      } catch (e: any) {
+        // proceed to next
+      }
+
+      // 3) Try POST analytics style endpoint similar to projects
+      try {
+        const r3 = await apiClient.post(`/analytics/reports/share/proposal/${id}`);
+        const sid = parseShareId(r3.data);
+        if (sid) {
+          setShareId(sid);
+          if (!silent) {
+            dispatch(addNotification({ type: 'success', title: 'Success', message: 'Public link generated successfully' }));
+          }
+          return sid;
+        }
+      } catch (e: any) {
+        // proceed to final fallback
+      }
+
+      // 4) Final fallback: POST without trailing slash
+      try {
+        const r4 = await apiClient.post(`/proposals/${id}/share`);
+        const sid = parseShareId(r4.data);
+        if (sid) {
+          setShareId(sid);
+          if (!silent) {
+            dispatch(addNotification({ type: 'success', title: 'Success', message: 'Public link generated successfully' }));
+          }
+          return sid;
+        }
+      } catch (e: any) {
+        // Give up after this
+      }
+
+      throw new Error('No compatible share endpoint available');
+    } catch (error: any) {
+      console.error('Error generating public link:', error);
+      const errorMsg = error?.response?.data?.detail || error?.message || 'Failed to generate public link';
+      setShareError(errorMsg);
+      if (!silent) {
+        dispatch(addNotification({ type: 'error', title: 'Error', message: errorMsg }));
+      }
+      return null;
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
+
+  const handleCopyPublicLink = async () => {
+    if (!publicLink) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(publicLink);
+      } else {
+        const el = document.createElement('textarea');
+        el.value = publicLink;
+        el.setAttribute('readonly', '');
+        el.style.position = 'absolute';
+        el.style.left = '-9999px';
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      }
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+      dispatch(addNotification({
+        type: 'success',
+        title: 'Copied',
+        message: 'Public link copied to clipboard'
+      }));
+    } catch (e) {
+      dispatch(addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to copy link'
+      }));
+    }
+  };
+
+  const buildPublicLinkFromSid = (sid: string): string | null => {
+    if (!proposal) return null;
+    const code = encodeShareIdCompact(sid);
+    if (!code) return null;
+    const slug = slugify(proposal.title);
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `${origin}/pr/${slug}-${code}`;
+  };
+
+  const handleShareProposal = async () => {
+    let sid = shareId;
+    if (!sid) {
+      sid = await handleGeneratePublicLink(false);
+    }
+    if (!sid) return; // error already notified
+
+    const link = buildPublicLinkFromSid(sid);
+    if (!link) return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link);
+      } else {
+        const el = document.createElement('textarea');
+        el.value = link;
+        el.setAttribute('readonly', '');
+        el.style.position = 'absolute';
+        el.style.left = '-9999px';
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      }
+      dispatch(addNotification({
+        type: 'success',
+        title: 'Link Copied',
+        message: 'Share link copied to clipboard'
+      }));
+    } catch (e) {
+      dispatch(addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to copy share link'
+      }));
+    }
+  };
+
   const handleUpdateProposal = async (formData: any) => {
     try {
       setIsUpdating(true);
       
-      // Transform formData to match backend schema
-      const updateData = {
+      // Transform formData to match backend schema. Avoid sending nulls when optional.
+      const raw: any = {
         title: formData.title,
         description: formData.description,
+        customer_id: formData.customer_id,
         proposal_type: formData.proposal_type,
         status: formData.status,
-        valid_until: formData.valid_until ? new Date(formData.valid_until).toISOString() : null,
-        total_amount: formData.total_amount ? Math.round(formData.total_amount * 100) : null, // Convert to cents
+        valid_until: formData.valid_until ? new Date(formData.valid_until).toISOString() : undefined,
+        total_amount: typeof formData.total_amount === 'number' ? Math.round(formData.total_amount * 100) : undefined, // cents
         currency: formData.currency,
         content: formData.content,
         notes: formData.notes,
         tags: formData.tags,
-        response_notes: formData.response_notes,
-        rejection_reason: formData.rejection_reason,
-        follow_up_date: formData.follow_up_date ? new Date(formData.follow_up_date).toISOString() : null,
+        response_notes: formData.response_notes || undefined,
+        rejection_reason: formData.rejection_reason || undefined,
+        follow_up_date: formData.follow_up_date ? new Date(formData.follow_up_date).toISOString() : undefined,
         custom_fields: {
-          terms_and_conditions: formData.terms_and_conditions,
+          terms_and_conditions: formData.terms_and_conditions || undefined,
           email_preferences: {
             send_email: formData.send_email,
-            email_subject: formData.email_subject,
-            email_message: formData.email_message
+            email_subject: formData.email_subject || undefined,
+            email_message: formData.email_message || undefined,
           }
         }
       };
 
-      const response = await apiClient.put(`/proposals/${id}`, updateData);
+      // Prune undefined recursively so we don't send fields backend might reject
+      const prune = (obj: any): any => {
+        if (Array.isArray(obj)) return obj.map(prune);
+        if (obj && typeof obj === 'object') {
+          const out: any = {};
+          Object.keys(obj).forEach((k) => {
+            const v = prune(obj[k]);
+            if (v !== undefined) out[k] = v;
+          });
+          return out;
+        }
+        return obj;
+      };
+      const updateData = prune(raw);
+
+      // Try PATCH/PUT with/without trailing slash for maximum compatibility
+      let response: any;
+      try {
+        response = await apiClient.patch(`/proposals/${id}/`, updateData);
+      } catch (e1: any) {
+        try {
+          response = await apiClient.put(`/proposals/${id}/`, updateData);
+        } catch (e2: any) {
+          try {
+            response = await apiClient.patch(`/proposals/${id}`, updateData);
+          } catch (e3: any) {
+            try {
+              response = await apiClient.put(`/proposals/${id}`, updateData);
+            } catch (e4: any) {
+              const detail = e4?.response?.data?.detail || e3?.response?.data?.detail || e2?.response?.data?.detail || e1?.response?.data?.detail || e4?.message || 'Failed to update proposal';
+              throw new Error(detail);
+            }
+          }
+        }
+      }
+
       setProposal(response.data);
       setActiveTab('overview');
       dispatch(addNotification({
@@ -153,10 +532,11 @@ const ProposalDetailOverviewPage: React.FC = () => {
       }));
     } catch (error: any) {
       console.error('Error updating proposal:', error);
+      const msg = error?.message || error?.response?.data?.detail || 'Failed to update proposal';
       dispatch(addNotification({
         type: 'error',
         title: 'Error',
-        message: 'Failed to update proposal'
+        message: msg
       }));
     } finally {
       setIsUpdating(false);
@@ -457,70 +837,73 @@ const ProposalDetailOverviewPage: React.FC = () => {
           </button>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">{proposal.title}</h1>
-            <div className="flex items-center space-x-2 mt-1 text-gray-600">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(proposal.status)}`}>
-                {proposal.status}
-              </span>
-              <span>• #{proposal.proposal_number}</span>
-              <span>• Created {new Date(proposal.created_at).toLocaleDateString()}</span>
-            </div>
+            <p className="text-gray-600">
+              {proposal.status} • #{proposal.proposal_number} • Created {new Date(proposal.created_at).toLocaleDateString()}
+            </p>
           </div>
         </div>
         <div className="flex space-x-3">
-          {/* Major actions on top */}
           {proposal.status && proposal.status.toLowerCase() === 'draft' && (
             <button
               onClick={handleSend}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-[#0d0d0d] bg-white hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
             >
-              <DocumentTextIcon className="h-4 w-4 mr-2" />
+              <DocumentTextIcon className="h-4 w-4" />
               Send
             </button>
           )}
+          {/* Share Proposal button */}
+          <button
+            onClick={handleShareProposal}
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
+          >
+            <LinkIcon className="h-4 w-4" />
+            Share Proposal
+          </button>
           {proposal.status && ['sent','viewed'].includes(proposal.status.toLowerCase()) && (
             <>
               <button
                 onClick={handleAccept}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-green-700 bg-white hover:bg-green-50 hover:border-green-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
               >
-                <CheckCircleIcon className="h-4 w-4 mr-2" />
+                <CheckCircleIcon className="h-4 w-4" />
                 Accept
               </button>
               <button
                 onClick={handleReject}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
               >
-                <XCircleIcon className="h-4 w-4 mr-2" />
+                <XCircleIcon className="h-4 w-4" />
                 Reject
               </button>
             </>
           )}
           <button
             onClick={handleDownloadPDF}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-[#0d0d0d] bg-white hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
-            <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
+            <DocumentArrowDownIcon className="h-4 w-4" />
             Download PDF
           </button>
           <button
             onClick={handleConvertToInvoice}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-[#0d0d0d] bg-white hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
-            <ArrowsRightLeftIcon className="h-4 w-4 mr-2" />
+            <ArrowsRightLeftIcon className="h-4 w-4" />
             Convert to Invoice
           </button>
           <button
             onClick={() => setActiveTab('edit')}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-[#0d0d0d] bg-white hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
-            <PencilIcon className="h-4 w-4 mr-2" />
+            <PencilIcon className="h-4 w-4" />
             Edit
           </button>
           <button
             onClick={handleDelete}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
-            <TrashIcon className="h-4 w-4 mr-2" />
+            <TrashIcon className="h-4 w-4" />
             Delete
           </button>
         </div>
@@ -532,26 +915,122 @@ const ProposalDetailOverviewPage: React.FC = () => {
           <button
             onClick={() => setActiveTab('overview')}
             className={`py-2 px-3 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
-              activeTab === 'overview' ? 'text-indigo-600' : 'text-black hover:text-gray-700'
+              activeTab === 'overview'
+                ? 'text-indigo-600'
+                : 'text-black hover:text-gray-700'
             }`}
           >
-            Overview
+            <div className="flex items-center space-x-2">
+              <DocumentTextIcon className="h-4 w-4" />
+              <span>Overview</span>
+            </div>
           </button>
           <button
             onClick={() => setActiveTab('edit')}
             className={`py-2 px-3 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
-              activeTab === 'edit' ? 'text-indigo-600' : 'text-black hover:text-gray-700'
+              activeTab === 'edit'
+                ? 'text-indigo-600'
+                : 'text-black hover:text-gray-700'
             }`}
           >
-            Edit
+            <div className="flex items-center space-x-2">
+              <PencilIcon className="h-4 w-4" />
+              <span>Edit</span>
+            </div>
           </button>
         </nav>
       </div>
 
-      {activeTab === 'overview' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Split Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-8">
+          {/* Tab Content */}
+          {activeTab === 'overview' && proposal && (
+            <div className="space-y-6">
+              {/* Key Financial Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-5">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <CurrencyDollarIcon className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Proposal Value</p>
+                        <p className="text-2xl font-bold">${((proposal.total_amount || 0) / 100).toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-5">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        {getStatusIcon(proposal.status)}
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Status</p>
+                        <p className="text-lg font-bold capitalize">{proposal.status}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-5">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-yellow-100 rounded-lg">
+                        <CalendarIcon className="h-6 w-6 text-yellow-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Valid Until</p>
+                        <p className="text-lg font-bold">{proposal.valid_until ? new Date(proposal.valid_until).toLocaleDateString() : 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-5">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-purple-100 rounded-lg">
+                        <DocumentTextIcon className="h-6 w-6 text-purple-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Items</p>
+                        <p className="text-2xl font-bold">{proposal.content?.items?.length || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer Metrics - only show if we have overview data */}
+              {overviewMetrics && (
+                <div className="bg-white shadow rounded-lg detail-card">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Customer Overview</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Proposals</p>
+                      <p className="text-2xl font-bold text-blue-600">{overviewMetrics.proposals_total || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Accepted</p>
+                      <p className="text-2xl font-bold text-green-600">{overviewMetrics.proposals_accepted || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Projects</p>
+                      <p className="text-2xl font-bold text-purple-600">{overviewMetrics.projects_total || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Invoices</p>
+                      <p className="text-2xl font-bold text-orange-600">{overviewMetrics.invoices_total || 0}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
           {/* Proposal Details */}
           <div className="bg-white shadow rounded-lg">
             <div className="p-6">
@@ -627,133 +1106,89 @@ const ProposalDetailOverviewPage: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Summary */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Summary</h3>
-              <dl className="space-y-3">
-                <div className="flex justify-between">
-                  <dt className="text-sm font-medium text-gray-500">Total Amount</dt>
-                  <dd className="text-lg font-bold text-gray-900">
-                    ${(proposal.total_amount / 100).toFixed(2)} {proposal.currency?.toUpperCase()}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm font-medium text-gray-500">Type</dt>
-                  <dd className="text-sm text-gray-900 capitalize">{proposal.proposal_type}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm font-medium text-gray-500">Created</dt>
-                  <dd className="text-sm text-gray-900">
-                    {new Date(proposal.created_at).toLocaleDateString()}
-                  </dd>
-                </div>
-                {proposal.valid_until && (
-                  <div className="flex justify-between">
-                    <dt className="text-sm font-medium text-gray-500">Valid Until</dt>
-                    <dd className="text-sm text-gray-900">
-                      {new Date(proposal.valid_until).toLocaleDateString()}
-                    </dd>
-                  </div>
-                )}
-              </dl>
-            </div>
-          </div>
-
-          {/* Customer Info */}
-          {proposal.customer && (
-            <div className="bg-white shadow rounded-lg">
-              <div className="p-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Customer</h3>
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
-                    <UserIcon className="h-6 w-6 text-user-blue" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{proposal.customer.display_name}</p>
-                    <p className="text-sm text-gray-500">{proposal.customer.email}</p>
-                  </div>
-                </div>
-                {proposal.customer.company_name && (
-                  <div className="flex items-center space-x-2 text-sm text-gray-600">
-                    <BuildingOfficeIcon className="h-4 w-4" />
-                    <span>{proposal.customer.company_name}</span>
-                  </div>
-                )}
-              </div>
             </div>
           )}
 
-          {/* Timeline */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Timeline</h3>
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <ClockIcon className="h-4 w-4 text-gray-400" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Created</p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(proposal.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-                {proposal.sent_date && (
-                  <div className="flex items-center space-x-3">
-                    <ClockIcon className="h-4 w-4 text-blue-400" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Sent</p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(proposal.sent_date).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {proposal.viewed_date && (
-                  <div className="flex items-center space-x-3">
-                    <ClockIcon className="h-4 w-4 text-yellow-400" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Viewed</p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(proposal.viewed_date).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {proposal.responded_date && (
-                  <div className="flex items-center space-x-3">
-                    <CheckCircleIcon className="h-4 w-4 text-green-400" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Responded</p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(proposal.responded_date).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
+          {/* Edit Tab */}
+          {activeTab === 'edit' && proposal && (
+            <div className="bg-white shadow rounded-lg detail-card">
+              <h3 className="text-lg font-medium text-gray-900 mb-6">Edit Proposal</h3>
+              <ProposalForm
+                onSubmit={handleUpdateProposal}
+                onCancel={() => setActiveTab('overview')}
+                isLoading={isUpdating}
+                initialData={prepareInitialData()}
+                mode="edit"
+              />
             </div>
-          </div>
+          )}
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-8">
+          {/* 1. Customer Details */}
+          <CustomerDetailsCard
+            customer={(() => {
+              if (insights?.customer) {
+                return {
+                  id: insights.customer.id,
+                  name: insights.customer.name,
+                  email: insights.customer.email,
+                  phone: insights.customer.phone,
+                  company: insights.customer.company,
+                  address: insights.customer.address,
+                  customerSince: insights.customer.customerSince,
+                };
+              }
+              if (overviewCustomer) {
+                return {
+                  id: overviewCustomer.id,
+                  name: overviewCustomer.display_name,
+                  email: overviewCustomer.email,
+                  company: overviewCustomer.company_name,
+                } as any;
+              }
+              if (fallbackCustomerDetails) {
+                return fallbackCustomerDetails;
+              }
+              const pid = (proposal as any)?.customer?.id || (proposal as any)?.customer_id;
+              if (pid) {
+                return {
+                  id: pid,
+                  name: (proposal as any)?.customer?.display_name || undefined,
+                  email: (proposal as any)?.customer?.email || undefined,
+                  company: (proposal as any)?.customer?.company_name || undefined,
+                } as any;
+              }
+              return null;
+            })()}
+            isLoading={insightsLoading}
+            error={insightsError}
+          />
+
+          {/* 2. Project Statistics */}
+          <ProjectStatsCard
+            stats={insights?.projects || null}
+            customerId={insights?.customer?.id || overviewCustomer?.id || null}
+            isLoading={insightsLoading}
+          />
+
+          {/* 3. Financial Overview */}
+          <FinancialOverviewCard
+            financial={insights?.financial || null}
+            customerId={insights?.customer?.id || overviewCustomer?.id || null}
+            isLoading={insightsLoading}
+          />
+
+          {/* 4. Proposal History */}
+          <ProposalHistoryCard
+            history={insights?.proposals || null}
+            customerId={insights?.customer?.id || overviewCustomer?.id || null}
+            isLoading={insightsLoading}
+          />
+
         </div>
       </div>
-      ) : (
-        <div className="bg-white shadow rounded-lg">
-          <div className="p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Edit Proposal</h3>
-            <ProposalForm
-              onSubmit={handleUpdateProposal}
-              onCancel={() => setActiveTab('overview')}
-              isLoading={isUpdating}
-              initialData={prepareInitialData()}
-              mode="edit"
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { addNotification } from '../../store/slices/notificationSlice';
+import { SparklesIcon } from '@heroicons/react/24/outline';
 
 type PanelProps = React.PropsWithChildren<{ title: string }>
 const Panel: React.FC<PanelProps>=({ title, children })=> (
@@ -59,9 +60,11 @@ const AIDashboardPage: React.FC = () => {
     (async () => {
       try {
         const { default: apiClient } = await import('../../api/client');
-        const resp = await apiClient.get('/projects');
+        const resp = await apiClient.get('/projects/');
+        console.log('Projects loaded for AI dashboard:', resp.data);
         setProjects(resp.data.map((p: any) => ({ id: p.id, name: p.name })));
-      } catch {
+      } catch (err: any) {
+        console.error('Failed to load projects for AI dashboard:', err);
         // Graceful fallback; dropdowns will still allow manual entry
         setProjects([]);
       }
@@ -72,12 +75,20 @@ const AIDashboardPage: React.FC = () => {
     (async () => {
       try {
         const { default: apiClient } = await import('../../api/client');
-        const resp = await apiClient.get('/subscriptions');
+        const resp = await apiClient.get('/subscriptions/');
+        console.log('Subscription loaded for AI dashboard:', resp.data);
         setSubscription(resp.data);
         const tier = (resp.data?.tier || '').toString().toLowerCase();
-        // Temporarily enable AI for professional and above
-        setAiEnabled(['professional','business','enterprise'].includes(tier));
+        // Temporarily enable AI for professional and above, or enable for dev if no subscription
+        const hasSubscription = resp.data && resp.data.tier;
+        if (hasSubscription) {
+          setAiEnabled(['professional','business','enterprise'].includes(tier));
+        } else {
+          // Dev mode: enable AI if no subscription endpoint
+          setAiEnabled(true);
+        }
       } catch (e) {
+        console.log('No subscription endpoint, enabling AI for development');
         setAiEnabled(true);
       }
     })();
@@ -109,16 +120,21 @@ const AIDashboardPage: React.FC = () => {
   }
 
   const onPredictRisk = async () => {
+    console.log('onPredictRisk called with:', riskInput);
     try {
-      const data = await callAPI('/ai/risk/predict', {
+      const payload = {
         project_id: riskInput.project_id,
         task_id: riskInput.task_id || null,
         context: safeParseJSON(riskInput.context, {})
-      });
+      };
+      console.log('Sending risk prediction request:', payload);
+      const data = await callAPI('/ai/risk/predict', payload);
+      console.log('Risk prediction response:', data);
       setRiskResult(data);
       dispatch(addNotification({ type: 'success', title: 'Risk predicted', message: 'AI risk score generated' }));
     } catch (e:any) {
-      dispatch(addNotification({ type: 'error', title: 'Error', message: e.response?.data?.detail || 'Failed to predict risk' }));
+      console.error('Risk prediction error:', e);
+      dispatch(addNotification({ type: 'error', title: 'Error', message: e.response?.data?.detail || e.message || 'Failed to predict risk' }));
     }
   };
 
@@ -179,7 +195,10 @@ const AIDashboardPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">AI Assistant</h1>
+        <div>
+          <h1 className="page-title font-bold">AI Assistant</h1>
+          <div className="text-gray-600 mt-1 text-sm">Insights, automation, and predictions for your work</div>
+        </div>
         {subscription && (
           <span className="px-2 py-0.5 text-xs rounded bg-purple-50 text-purple-700 border border-purple-200">Plan: {String(subscription.tier || '').toUpperCase()}</span>
         )}
@@ -216,7 +235,14 @@ const AIDashboardPage: React.FC = () => {
               <textarea className="input" rows={3} placeholder="Eg: { 'blocked_by': 2, 'budget_overrun': true }" value={riskInput.context} onChange={(e)=>setRiskInput({...riskInput, context:e.target.value})} />
               <HelperText text="You can provide simple hints; strict JSON is not required—I'll try to parse it." />
             </Section>
-            <button className="btn-page-action btn-styled" onClick={onPredictRisk}>Predict Risk</button>
+            <button
+              onClick={onPredictRisk}
+              disabled={!riskInput.project_id || !aiEnabled}
+              className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <SparklesIcon className="h-4 w-4" />
+              <span>Predict Risk</span>
+            </button>
             {riskResult && (
               <pre className="bg-gray-50 p-2 rounded text-xs overflow-auto">{JSON.stringify(riskResult, null, 2)}</pre>
             )}
@@ -240,7 +266,14 @@ const AIDashboardPage: React.FC = () => {
               <textarea className="input" rows={3} placeholder='Eg: [{"id":"t1","skills":["frontend"]}]' value={optInput.tasks} onChange={(e)=>setOptInput({...optInput, tasks:e.target.value})} />
               <HelperText text="Paste the set of tasks to allocate. Use plain English or JSON; I'll try to parse it." />
             </Section>
-            <button className="btn-page-action btn-styled" onClick={onOptimize}>Optimize</button>
+            <button
+              onClick={onOptimize}
+              disabled={!optInput.project_id || !aiEnabled}
+              className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <SparklesIcon className="h-4 w-4" />
+              <span>Optimize</span>
+            </button>
             {optResult && (<pre className="bg-gray-50 p-2 rounded text-xs overflow-auto">{JSON.stringify(optResult, null, 2)}</pre>)}
           </div>
         </Panel>
@@ -255,7 +288,14 @@ const AIDashboardPage: React.FC = () => {
               <HelperText text="Select a project to anchor the plan, or leave empty for a general suggestion." />
             </Section>
             <textarea className="input" rows={3} placeholder="Type a natural language instruction..." value={nlPrompt} onChange={(e)=>setNlPrompt(e.target.value)} />
-            <button className="btn-page-action btn-styled" onClick={onNL}>Process</button>
+            <button
+              onClick={onNL}
+              disabled={!nlPrompt || !aiEnabled}
+              className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <SparklesIcon className="h-4 w-4" />
+              <span>Process</span>
+            </button>
             {nlResult && (<pre className="bg-gray-50 p-2 rounded text-xs overflow-auto">{JSON.stringify(nlResult, null, 2)}</pre>)}
           </div>
         </Panel>
@@ -270,7 +310,14 @@ const AIDashboardPage: React.FC = () => {
               <HelperText text="Link the summary to a project, or leave empty." />
             </Section>
             <textarea className="input" rows={4} placeholder="Paste transcript/email/chat text here..." value={meetingTranscript} onChange={(e)=>setMeetingTranscript(e.target.value)} />
-            <button className="btn-page-action btn-styled" onClick={onSummarize}>Summarize</button>
+            <button
+              onClick={onSummarize}
+              disabled={!meetingTranscript || !aiEnabled}
+              className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <SparklesIcon className="h-4 w-4" />
+              <span>Summarize</span>
+            </button>
             {meetingResult && (<pre className="bg-gray-50 p-2 rounded text-xs overflow-auto">{JSON.stringify(meetingResult, null, 2)}</pre>)}
           </div>
         </Panel>
@@ -285,7 +332,14 @@ const AIDashboardPage: React.FC = () => {
               <HelperText text="Pick the project for what-if analysis." />
             </Section>
             <textarea className="input" rows={3} placeholder="Assumptions JSON" value={assumptions} onChange={(e)=>setAssumptions(e.target.value)} />
-            <button className="btn-page-action btn-styled" onClick={onScenario}>Analyze</button>
+            <button
+              onClick={onScenario}
+              disabled={!scenarioProject || !aiEnabled}
+              className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <SparklesIcon className="h-4 w-4" />
+              <span>Analyze</span>
+            </button>
             {scenarioResult && (<pre className="bg-gray-50 p-2 rounded text-xs overflow-auto">{JSON.stringify(scenarioResult, null, 2)}</pre>)}
           </div>
         </Panel>
@@ -310,7 +364,14 @@ const AIDashboardPage: React.FC = () => {
               <textarea className="input" rows={3} placeholder='Eg: {"velocity": 20} or {"monthly_budget": 20000}' value={forecastInputs} onChange={(e)=>setForecastInputs(e.target.value)} />
               <HelperText text="Provide a couple of simple inputs. Plain English or light JSON is okay." />
             </Section>
-            <button className="btn-page-action btn-styled" onClick={onForecast}>Forecast</button>
+            <button
+              onClick={onForecast}
+              disabled={!forecastProject || !aiEnabled}
+              className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <SparklesIcon className="h-4 w-4" />
+              <span>Forecast</span>
+            </button>
             {forecastResult && (<pre className="bg-gray-50 p-2 rounded text-xs overflow-auto">{JSON.stringify(forecastResult, null, 2)}</pre>)}
           </div>
         </Panel>

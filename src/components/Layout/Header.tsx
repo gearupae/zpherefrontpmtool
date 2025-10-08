@@ -26,6 +26,7 @@ import {
   CalendarDaysIcon,
   CheckCircleIcon,
   EnvelopeIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import SmartNotificationCenter from '../SmartNotifications/SmartNotificationCenter';
 import { UserRole } from '../../types';
@@ -45,7 +46,7 @@ const tenantNavigation = [
   { name: 'Proposals', href: '/proposals', icon: DocumentTextIcon },
   { name: 'Invoices', href: '/invoices', icon: BanknotesIcon },
   { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
-  { name: 'AI', href: '/ai', icon: ChartBarIcon },
+  { name: 'AI', href: '/ai', icon: SparklesIcon },
   { name: 'Knowledge', href: '/knowledge', icon: AcademicCapIcon },
   { name: 'Settings', href: '/settings', icon: CogIcon },
 ];
@@ -93,6 +94,7 @@ const Header: React.FC = () => {
         wsRef.current = ws;
 
         ws.onopen = () => {
+          console.log('✅ WebSocket connected to notifications');
           reconnectAttemptsRef.current = 0;
           // Optionally send a ping to keep alive
           try { ws.send(JSON.stringify({ type: 'ping' })); } catch {}
@@ -101,8 +103,11 @@ const Header: React.FC = () => {
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
+            console.log('🔔 WebSocket message received:', data);
             if (data.type === 'notification' && data.notification) {
               const n = data.notification;
+              console.log('📬 Processing notification:', n);
+              // Show a lightweight toast for visibility
               dispatch(addNotification({
                 type: 'info',
                 title: n.title || 'Notification',
@@ -111,9 +116,42 @@ const Header: React.FC = () => {
               }));
               // Increment unread badge optimistically
               setUnreadCount((c) => c + 1);
+              console.log('🔢 Badge count incremented');
+              // Broadcast to SmartNotificationCenter so the panel updates immediately
+              try {
+                const normalized = {
+                  id: n.id,
+                  title: n.title || 'Notification',
+                  message: n.message || '',
+                  short_description: n.short_description || '',
+                  notification_type: n.notification_type || n.type || 'system_alert',
+                  priority: n.priority || 'normal',
+                  category: n.category || undefined,
+                  project_id: n.project_id,
+                  task_id: n.task_id,
+                  context_card_id: n.context_card_id,
+                  decision_log_id: n.decision_log_id,
+                  handoff_summary_id: n.handoff_summary_id,
+                  relevance_score: n.relevance_score ?? 0.5,
+                  context_data: n.context_data || {},
+                  action_required: n.action_required ?? false,
+                  auto_generated: n.auto_generated ?? true,
+                  is_read: n.is_read ?? false,
+                  is_dismissed: n.is_dismissed ?? false,
+                  action_taken: n.action_taken ?? false,
+                  created_at: n.created_at || new Date().toISOString(),
+                  tags: n.tags || [],
+                };
+                console.log('🚀 Broadcasting notification event:', normalized);
+                window.dispatchEvent(new CustomEvent('smart-notification:new', { detail: normalized }));
+              } catch (err) {
+                console.error('Failed to broadcast notification event:', err);
+              }
+            } else {
+              console.log('ℹ️ Non-notification message:', data.type);
             }
           } catch (e) {
-            // ignore malformed messages
+            console.error('Error parsing WebSocket message:', e);
           }
         };
 
@@ -151,7 +189,17 @@ const Header: React.FC = () => {
       try {
         const resp = await apiClient.get('/smart-notifications/?page=1&size=1&grouped=false');
         setUnreadCount(resp.data?.unread_count || 0);
-      } catch {}
+      } catch (err) {
+        console.warn('Smart unread fetch failed, falling back to basic notifications', err);
+        try {
+          const basic = await apiClient.get('/notifications/?page=1&size=1&unread_only=true');
+          const unread = basic.data?.unread_count ?? (Array.isArray(basic.data?.notifications) ? basic.data.notifications.filter((n: any)=>!n.is_read).length : 0);
+          setUnreadCount(unread || 0);
+        } catch (e) {
+          console.error('Fallback unread fetch failed:', e);
+          setUnreadCount(0);
+        }
+      }
     };
 
     fetchUnread();
@@ -170,7 +218,7 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-white shadow-sm border-b border-secondary-200">
+    <header className="bg-black shadow-sm border-b border-gray-800">
       {/* Optimized navigation bar with better spacing and responsiveness */}
       <div className="px-3 sm:px-4 lg:px-6">
         <div className="flex items-center justify-between h-14">
@@ -180,11 +228,11 @@ const Header: React.FC = () => {
             className="flex items-center flex-shrink-0 group"
             title="Go to Dashboard"
           >
-            <div className="w-7 h-7 bg-piano rounded-lg flex items-center justify-center group-hover:bg-piano-800 transition-colors">
-              <span className="text-white font-bold text-sm">Z</span>
+            <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center group-hover:bg-gray-200 transition-colors">
+              <span className="text-black font-bold text-sm">Z</span>
             </div>
             <div className="ml-2 hidden sm:block">
-              <h1 className="text-base font-bold text-piano group-hover:text-piano">zphere.io</h1>
+              <h1 className="text-base font-bold" style={{color: '#ced4da'}}>zphere.io</h1>
             </div>
           </NavLink>
 
@@ -192,7 +240,7 @@ const Header: React.FC = () => {
           <nav className="hidden lg:flex flex-1 items-center justify-center max-w-none mx-2">
             <div className="flex items-center flex-wrap gap-x-1 gap-y-1">
 {navigation.map((item) => {
-                const targetHref = isPlatformAdmin ? item.href : getTenantRoute(item.href, user?.role, user?.organization);
+                const targetHref = isPlatformAdmin ? item.href : (item.href === '/settings' ? '/settings' : getTenantRoute(item.href, user?.role, user?.organization));
                 const isActive = location.pathname === targetHref || 
                   (targetHref !== '/dashboard' && location.pathname.startsWith(targetHref));
                 
@@ -203,14 +251,14 @@ const Header: React.FC = () => {
                     title={item.name}
                     className={`flex items-center px-1 py-0.5 text-sm font-medium rounded-md transition-colors duration-200 whitespace-nowrap ${
                       isActive
-                        ? 'text-piano bg-gray-100'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        ? 'bg-gray-800'
+                        : 'hover:bg-gray-800'
                     }`}
+                    style={{color: isActive ? '#ffffff' : '#ced4da'}}
                   >
                     <item.icon
-                      className={`flex-shrink-0 w-5 h-5 ${
-                        isActive ? 'text-piano' : 'text-gray-400'
-                      }`}
+                      className="flex-shrink-0 w-5 h-5"
+                      style={{color: isActive ? '#ffffff' : '#ced4da'}}
                     />
                     {item.name !== 'Knowledge' && item.name !== 'Settings' && (
                       <span className="hidden xl:inline-block ml-1">{item.name}</span>
@@ -227,7 +275,8 @@ const Header: React.FC = () => {
             <div className="relative flex items-center">
               <button
                 onClick={() => setSearchOpen((s) => !s)}
-                className={`p-1.5 rounded-md transition-colors ${searchOpen ? 'text-blue-600 bg-gray-100' : 'text-secondary-400 hover:text-secondary-600 hover:bg-secondary-100'}`}
+                className={`p-1.5 rounded-md transition-colors ${searchOpen ? 'bg-gray-800' : 'hover:bg-gray-800'}`}
+                style={{color: '#ced4da'}}
                 aria-label="Toggle search"
                 title="Search"
               >
@@ -251,7 +300,8 @@ const Header: React.FC = () => {
             {/* Mobile/Tablet menu button for medium screens */}
             <button
               onClick={toggleMobileMenu}
-              className="lg:hidden p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              className="lg:hidden p-2 hover:bg-gray-800 rounded-md transition-colors"
+              style={{color: '#ced4da'}}
             >
               {mobileMenuOpen ? (
                 <XMarkIcon className="w-5 h-5" />
@@ -263,7 +313,8 @@ const Header: React.FC = () => {
             {/* Calendar */}
             <NavLink
               to={isPlatformAdmin ? '/calendar' : getTenantRoute('/calendar', user?.role, user?.organization)}
-                className={({isActive}) => `relative p-1.5 ${isActive ? 'text-piano bg-gray-100' : 'text-secondary-400'} hover:text-secondary-600 hover:bg-secondary-100 rounded-md transition-colors duration-200`}
+              className={({isActive}) => `relative p-1.5 ${isActive ? 'bg-gray-800' : ''} hover:bg-gray-800 rounded-md transition-colors duration-200`}
+              style={{color: '#ced4da'}}
               aria-label="Open calendar"
               title="Calendar"
             >
@@ -275,7 +326,8 @@ const Header: React.FC = () => {
             {/* To‑Do */}
             <NavLink
               to={isPlatformAdmin ? '/todo' : getTenantRoute('/todo', user?.role, user?.organization)}
-                className={({isActive}) => `relative p-1.5 ${isActive ? 'text-piano bg-gray-100' : 'text-secondary-400'} hover:text-secondary-600 hover:bg-secondary-100 rounded-md transition-colors duration-200`}
+              className={({isActive}) => `relative p-1.5 ${isActive ? 'bg-gray-800' : ''} hover:bg-gray-800 rounded-md transition-colors duration-200`}
+              style={{color: '#ced4da'}}
               aria-label="Open to‑do"
               title="To‑Do"
             >
@@ -285,7 +337,8 @@ const Header: React.FC = () => {
             {/* Notifications */}
             <button 
               onClick={() => setShowNotifications(true)}
-              className="relative p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-secondary-100 rounded-md transition-colors duration-200"
+              className="relative p-1.5 hover:bg-gray-800 rounded-md transition-colors duration-200"
+              style={{color: '#ced4da'}}
               aria-label="Open notifications"
               title={unreadCount > 0 ? `${unreadCount} unread` : 'Notifications'}
             >
@@ -301,18 +354,18 @@ const Header: React.FC = () => {
             <div className="relative">
               <button
                 onClick={handleLogout}
-                className="flex items-center space-x-2 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-piano"
+                className="flex items-center space-x-2 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-gray-600"
               >
-                <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                  <span className="text-piano font-medium text-sm">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{backgroundColor: '#ced4da'}}>
+                  <span className="text-black font-medium text-sm">
                     {user?.first_name?.[0]}{user?.last_name?.[0]}
                   </span>
                 </div>
                 <div className="hidden xl:block text-left">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium" style={{color: '#ced4da'}}>
                     {user?.full_name}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs" style={{color: '#ced4da'}}>
                     {user?.role}
                   </p>
                 </div>
@@ -324,14 +377,14 @@ const Header: React.FC = () => {
 
       {/* Mobile/Tablet Navigation Menu - Updated for better responsiveness */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-white border-t border-gray-200 shadow-lg">
+        <div className="lg:hidden bg-black border-t border-gray-800 shadow-lg">
           <div className="px-3 py-3 space-y-1 max-h-96 overflow-y-auto">
             {/* Mobile Search removed; we use the top icon search toggler */}
             
             {/* Mobile Navigation Links - Organized in grid for better space usage */}
             <div className="grid grid-cols-2 gap-1">
 {navigation.map((item) => {
-                const targetHref = isPlatformAdmin ? item.href : getTenantRoute(item.href, user?.role, user?.organization);
+                const targetHref = isPlatformAdmin ? item.href : (item.href === '/settings' ? '/settings' : getTenantRoute(item.href, user?.role, user?.organization));
                 const isActive = location.pathname === targetHref || 
                   (targetHref !== '/dashboard' && location.pathname.startsWith(targetHref));
                 
@@ -342,14 +395,14 @@ const Header: React.FC = () => {
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
                       isActive
-                        ? 'text-piano bg-gray-100'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        ? 'bg-gray-800'
+                        : 'hover:bg-gray-800'
                     }`}
+                    style={{color: isActive ? '#ffffff' : '#ced4da'}}
                   >
                     <item.icon
-                      className={`flex-shrink-0 w-5 h-5 mr-1.5 ${
-                        isActive ? 'text-piano' : 'text-gray-400'
-                      }`}
+                      className="flex-shrink-0 w-5 h-5 mr-1.5"
+                      style={{color: isActive ? '#ffffff' : '#ced4da'}}
                     />
                     {item.name}
                   </NavLink>

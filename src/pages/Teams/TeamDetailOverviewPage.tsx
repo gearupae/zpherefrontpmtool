@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../../hooks/redux';
 import { TeamMember, User, Project, Task, UserRole, UserStatus } from '../../types';
-import LoadingSpinner from '../../components/UI/LoadingSpinner';
+import ViewModeButton from '../../components/UI/ViewModeButton';
 import { addNotification } from '../../store/slices/notificationSlice';
 import {
   UserGroupIcon,
@@ -65,7 +65,6 @@ const TeamDetailOverviewPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'tasks' | 'activity' | 'edit'>('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<User>>({});
-  const [showQuickActions, setShowQuickActions] = useState(false);
 
   useEffect(() => {
     console.log('TeamDetailOverviewPage useEffect - id:', id);
@@ -273,11 +272,7 @@ const TeamDetailOverviewPage: React.FC = () => {
   console.log('TeamDetailOverviewPage rendering - teamMember:', teamMember, 'isLoading:', isLoading, 'id:', id);
   
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="large" />
-      </div>
-    );
+    return <div />;
   }
 
   if (!teamMember) {
@@ -343,70 +338,39 @@ const TeamDetailOverviewPage: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="flex space-x-3">
-          <button
+        <div className="flex flex-wrap gap-2">
+          <ViewModeButton
+            icon={FolderIcon}
+            label="View Project"
+            active={activeTab === 'projects'}
+            onClick={() => setActiveTab('projects')}
+          />
+          <ViewModeButton
+            icon={EnvelopeIcon}
+            label="Send Mail"
+            onClick={() => window.open(`mailto:${teamMember.email}`)}
+          />
+          <ViewModeButton
+            icon={DocumentTextIcon}
+            label="View Task"
+            active={activeTab === 'tasks'}
+            onClick={() => setActiveTab('tasks')}
+          />
+          <ViewModeButton
+            icon={PencilIcon}
+            label="Edit"
+            active={activeTab === 'edit'}
             onClick={() => setActiveTab('edit')}
-            className="inline-flex items-center px-4 py-2 border border-secondary-300 text-sm font-medium rounded-md text-secondary-700 bg-white hover:bg-secondary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            <PencilIcon className="h-4 w-4 mr-2" />
-            Edit
-          </button>
-          <button
+          />
+          <ViewModeButton
+            icon={TrashIcon}
+            label="Remove"
+            variant="destructive"
             onClick={handleDeleteMember}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-          >
-            <TrashIcon className="h-4 w-4 mr-2" />
-            Remove
-          </button>
+          />
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white shadow rounded-lg p-4 mb-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
-          <button
-            onClick={() => setShowQuickActions(!showQuickActions)}
-            className="text-sm text-user-blue hover:text-primary-800"
-          >
-            {showQuickActions ? 'Hide' : 'Show'} Actions
-          </button>
-        </div>
-        {showQuickActions && (
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-            <button
-              onClick={() => window.open(`mailto:${teamMember.email}`)}
-              className="flex flex-col items-center p-3 border border-secondary-200 rounded-lg hover:bg-secondary-50 transition-colors"
-            >
-              <EnvelopeIcon className="h-6 w-6 text-user-blue mb-2" />
-              <span className="text-sm font-medium text-gray-700">Send Email</span>
-            </button>
-            {teamMember.phone && (
-              <button
-                onClick={() => window.open(`tel:${teamMember.phone}`)}
-                className="flex flex-col items-center p-3 border border-secondary-200 rounded-lg hover:bg-secondary-50 transition-colors"
-              >
-                <PhoneIcon className="h-6 w-6 text-user-blue mb-2" />
-                <span className="text-sm font-medium text-gray-700">Call</span>
-              </button>
-            )}
-            <button
-              onClick={() => setActiveTab('projects')}
-              className="flex flex-col items-center p-3 border border-secondary-200 rounded-lg hover:bg-secondary-50 transition-colors"
-            >
-              <FolderIcon className="h-6 w-6 text-user-blue mb-2" />
-              <span className="text-sm font-medium text-gray-700">View Projects</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('tasks')}
-              className="flex flex-col items-center p-3 border border-secondary-200 rounded-lg hover:bg-secondary-50 transition-colors"
-            >
-              <DocumentTextIcon className="h-6 w-6 text-user-blue mb-2" />
-              <span className="text-sm font-medium text-gray-700">View Tasks</span>
-            </button>
-          </div>
-        )}
-      </div>
 
       {/* Navigation Tabs */}
       <div className="border-b border-gray-200">
@@ -443,7 +407,7 @@ const TeamDetailOverviewPage: React.FC = () => {
         <div className="space-y-6">
           {/* Performance Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white shadow rounded-lg detail-card">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <FolderIcon className="h-8 w-8 text-blue-600" />
@@ -454,7 +418,7 @@ const TeamDetailOverviewPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white shadow rounded-lg detail-card">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <CheckCircleIcon className="h-8 w-8 text-green-600" />
@@ -465,7 +429,7 @@ const TeamDetailOverviewPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white shadow rounded-lg detail-card">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <ClockIcon className="h-8 w-8 text-orange-600" />
@@ -476,7 +440,7 @@ const TeamDetailOverviewPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white shadow rounded-lg detail-card">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <BoltIcon className="h-8 w-8 text-purple-600" />
@@ -490,7 +454,7 @@ const TeamDetailOverviewPage: React.FC = () => {
           </div>
 
           {/* Member Information */}
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white shadow rounded-lg detail-card">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
@@ -557,7 +521,7 @@ const TeamDetailOverviewPage: React.FC = () => {
           </div>
 
           {/* Performance Overview */}
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white shadow rounded-lg detail-card">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Performance Overview</h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -589,7 +553,7 @@ const TeamDetailOverviewPage: React.FC = () => {
       {/* Projects Tab */}
       {activeTab === 'projects' && (
         <div className="space-y-6">
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white shadow rounded-lg detail-card">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Projects</h3>
             {memberProjects.length === 0 ? (
               <div className="text-center py-8">
@@ -630,7 +594,7 @@ const TeamDetailOverviewPage: React.FC = () => {
       {/* Tasks Tab */}
       {activeTab === 'tasks' && (
         <div className="space-y-6">
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white shadow rounded-lg detail-card">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Tasks</h3>
             {memberTasks.length === 0 ? (
               <div className="text-center py-8">
@@ -674,7 +638,7 @@ const TeamDetailOverviewPage: React.FC = () => {
       {/* Activity Tab */}
       {activeTab === 'activity' && (
         <div className="space-y-6">
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white shadow rounded-lg detail-card">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
             <div className="space-y-4">
               <div className="text-center py-8">
@@ -688,7 +652,7 @@ const TeamDetailOverviewPage: React.FC = () => {
 
       {/* Edit Tab */}
       {activeTab === 'edit' && teamMember && (
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-white shadow rounded-lg detail-card">
           <h3 className="text-lg font-medium text-gray-900 mb-6">Edit Team Member</h3>
           <form onSubmit={handleUpdateMember} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -892,6 +856,45 @@ const TeamDetailOverviewPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Compliance & Expiry Indicators */}
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Compliance & Documents</h3>
+              <div className="space-y-3">
+                {(() => {
+                  const items: {label: string; date?: string}[] = [
+                    { label: 'ID Expiry', date: (teamMember as any).id_expiry_date },
+                    { label: 'Visa Expiry', date: (teamMember as any).visa_expiry_date },
+                    { label: 'Passport Expiry', date: (teamMember as any).passport_expiry_date },
+                    { label: 'Contract Expiry', date: (teamMember as any).contract_expiry_date },
+                  ];
+                  const now = new Date();
+                  const daysDiff = (d: Date) => Math.ceil((d.getTime() - now.getTime()) / (1000*60*60*24));
+                  return items.map((it) => {
+                    if (!it.date) return (
+                      <div key={it.label} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-500">{it.label}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">Not set</span>
+                      </div>
+                    );
+                    const d = new Date(it.date);
+                    const dd = daysDiff(d);
+                    let badge = { text: '', className: '' } as any;
+                    if (dd < 0) badge = { text: `Overdue by ${Math.abs(dd)}d`, className: 'bg-red-100 text-red-700' };
+                    else if (dd <= 7) badge = { text: `Due in ${dd}d`, className: 'bg-yellow-100 text-yellow-800' };
+                    else badge = { text: `In ${dd}d`, className: 'bg-green-100 text-green-700' };
+                    return (
+                      <div key={it.label} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">{it.label}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${badge.className}`}>{badge.text}</span>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          </div>
+
           {/* Recent Activity */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
@@ -908,44 +911,6 @@ const TeamDetailOverviewPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                <button
-                  onClick={() => window.open(`mailto:${teamMember.email}`)}
-                  className="w-full flex items-center justify-center px-4 py-2 text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100"
-                >
-                  <EnvelopeIcon className="h-4 w-4 mr-2" />
-                  Send Email
-                </button>
-                {teamMember.phone && (
-                  <button
-                    onClick={() => window.open(`tel:${teamMember.phone}`)}
-                    className="w-full flex items-center justify-center px-4 py-2 text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100"
-                  >
-                    <PhoneIcon className="h-4 w-4 mr-2" />
-                    Call
-                  </button>
-                )}
-                <button
-                  onClick={() => setActiveTab('projects')}
-                  className="w-full flex items-center justify-center px-4 py-2 text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100"
-                >
-                  <FolderIcon className="h-4 w-4 mr-2" />
-                  View Projects
-                </button>
-                <button
-                  onClick={() => setActiveTab('tasks')}
-                  className="w-full flex items-center justify-center px-4 py-2 text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100"
-                >
-                  <DocumentTextIcon className="h-4 w-4 mr-2" />
-                  View Tasks
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

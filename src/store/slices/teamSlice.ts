@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import apiClient from '../../api/client';
 import { TeamMember, ProjectMemberResponse, ProjectMemberCreate, ProjectMemberUpdate } from '../../types';
+import { notifyTeamMemberAdded, notifyTeamMemberUpdated, notifyTeamMemberRemoved } from '../../utils/notificationHelper';
 
 interface TeamState {
   teamMembers: TeamMember[];
@@ -94,6 +95,13 @@ export const addProjectMember = createAsyncThunk(
   async ({ projectId, memberData }: { projectId: string; memberData: ProjectMemberCreate }, { rejectWithValue }) => {
     try {
       const response = await apiClient.post(`/teams/projects/${projectId}/members`, memberData);
+      
+      // Notify about member addition
+      if (response?.data?.id) {
+        const memberName = response.data.user_name || response.data.email || 'Team Member';
+        await notifyTeamMemberAdded(response.data.id, memberName, projectId);
+      }
+      
       return { projectId, member: response.data };
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;
@@ -117,6 +125,13 @@ export const updateProjectMember = createAsyncThunk(
   async ({ projectId, memberId, memberData }: { projectId: string; memberId: string; memberData: ProjectMemberUpdate }, { rejectWithValue }) => {
     try {
       const response = await apiClient.put(`/teams/projects/${projectId}/members/${memberId}`, memberData);
+      
+      // Notify about member update
+      if (response?.data?.id) {
+        const memberName = response.data.user_name || response.data.email || 'Team Member';
+        await notifyTeamMemberUpdated(response.data.id, memberName, projectId);
+      }
+      
       return { projectId, member: response.data };
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;
@@ -137,9 +152,19 @@ export const updateProjectMember = createAsyncThunk(
 
 export const removeProjectMember = createAsyncThunk(
   'team/removeProjectMember',
-  async ({ projectId, memberId }: { projectId: string; memberId: string }, { rejectWithValue }) => {
+  async ({ projectId, memberId }: { projectId: string; memberId: string }, { rejectWithValue, getState }) => {
     try {
+      // Get member info before deletion
+      const state: any = getState();
+      const members = state?.team?.projectMembers?.[projectId];
+      const member = members?.find((m: ProjectMemberResponse) => m.id === memberId);
+      const memberName = member?.user_name || member?.email || 'Team Member';
+      
       await apiClient.delete(`/teams/projects/${projectId}/members/${memberId}`);
+      
+      // Notify about member removal
+      await notifyTeamMemberRemoved(memberId, memberName, projectId);
+      
       return { projectId, memberId };
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;
