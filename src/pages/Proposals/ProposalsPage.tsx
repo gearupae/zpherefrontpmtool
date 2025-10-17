@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import ReactDOM from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux';
-import { Proposal, ProposalCreate, ProposalStatus, ProposalType, Customer } from '../../types';
+import { Proposal, ProposalCreate, ProposalStatus, ProposalType, Customer, ProposalPDFStructure } from '../../types';
 import { addNotification } from '../../store/slices/notificationSlice';
 import InvoiceItemsTable from '../../components/Invoices/InvoiceItemsTable';
 import DateRangeCalendar from '../../components/UI/DateRangeCalendar';
@@ -146,12 +146,47 @@ const ProposalsPage: React.FC = () => {
   const [emailSubject, setEmailSubject] = useState<string>('');
   const [emailMessage, setEmailMessage] = useState<string>('');
 
+  const makeDefaultPDFContent = (): ProposalPDFStructure => ({
+    section1: {
+      logo_url: '',
+      company_details: {
+        name: '',
+        address: '',
+        phone: '',
+        email: '',
+        website: ''
+      }
+    },
+    section2: {
+      heading: 'Proposal',
+      subheading: ''
+    },
+    section3: {
+      left: {
+        content: 'Project Details',
+        details: ''
+      },
+      right: {
+        title: '',
+        content: ''
+      }
+    },
+    sections: [
+      { title: 'Project Overview', content: '' },
+      { title: 'Scope of Work', content: '' },
+      { title: 'Timeline', content: '' },
+      { title: 'Investment', content: '' },
+      { title: 'Terms & Conditions', content: '' }
+    ],
+    items: []
+  });
+
   const [newProposal, setNewProposal] = useState<ProposalCreate>({
     title: '',
     description: '',
     customer_id: '',
     proposal_type: ProposalType.PROJECT,
-    content: {},
+    content: makeDefaultPDFContent(),
     custom_template: {},
     total_amount: 0,
     currency: 'usd',
@@ -421,7 +456,7 @@ const ProposalsPage: React.FC = () => {
         description: '',
         customer_id: '',
         proposal_type: ProposalType.PROJECT,
-        content: {},
+        content: makeDefaultPDFContent(),
         custom_template: {},
         total_amount: 0,
         currency: 'usd',
@@ -756,7 +791,7 @@ const ProposalsPage: React.FC = () => {
   const sendProposal = async (id: string) => {
     try {
       const { default: apiClient } = await import('../../api/client');
-      await apiClient.post(`/proposals/${id}/send`);
+      await apiClient.post(`/proposals/${id}/send/`);
       await fetchProposals();
       await fetchStats();
       dispatch(addNotification({
@@ -780,6 +815,7 @@ const ProposalsPage: React.FC = () => {
   const downloadProposalPDF = async (id: string, number?: string) => {
     try {
       const { default: apiClient } = await import('../../api/client');
+      // Backend route is GET /proposals/{id}/pdf (no trailing slash)
       const response = await apiClient.get(`/proposals/${id}/pdf`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
@@ -797,7 +833,7 @@ const ProposalsPage: React.FC = () => {
   const convertToInvoice = async (proposalId: string) => {
     try {
       const { default: apiClient } = await import('../../api/client');
-      const detail = await apiClient.get(`/proposals/${proposalId}`);
+      const detail = await apiClient.get(`/proposals/${proposalId}/`);
       const p = detail.data || {};
       if (!p.customer_id && !p.customer?.id) {
         dispatch(addNotification({ type: 'error', title: 'Cannot Convert', message: 'Proposal has no customer.', duration: 4000 }));
@@ -865,7 +901,7 @@ const ProposalsPage: React.FC = () => {
       dispatch(addNotification({ type: 'success', title: 'Converted', message: 'Proposal converted to invoice.', duration: 3000 }));
       const invId = res.data?.id;
       if (invId) {
-        navigate(`/invoices/${invId}`);
+        navigate(getTenantRoute(`/invoices/${invId}`, user?.role, user?.organization));
       }
     } catch (error: any) {
       const msg = error?.response?.data?.detail || 'Failed to convert to invoice';
@@ -913,8 +949,8 @@ const ProposalsPage: React.FC = () => {
           </div>
           
           <form onSubmit={handleCreateProposal} className="space-y-6">
-            {/* Row 1: Title, Customer, Status */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Row 1: Title, Customer, Status, Currency */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Title <span className="text-red-600">*</span>
@@ -924,7 +960,7 @@ const ProposalsPage: React.FC = () => {
                   required
                   value={newProposal.title}
                   onChange={(e) => setNewProposal({ ...newProposal, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter proposal title"
                 />
               </div>
@@ -937,7 +973,7 @@ const ProposalsPage: React.FC = () => {
                   required
                   value={newProposal.customer_id}
                   onChange={(e) => setNewProposal({ ...newProposal, customer_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select a customer</option>
                   {customers.map((customer) => (
@@ -954,33 +990,33 @@ const ProposalsPage: React.FC = () => {
                   type="text"
                   value="DRAFT"
                   disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
+                  className="w-full py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
                 />
               </div>
-            </div>
 
-            {/* Row 2: Currency, Date Created, Valid Until */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
                 <select
                   value={newProposal.currency}
                   onChange={(e) => setNewProposal({ ...newProposal, currency: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="usd">USD</option>
                   <option value="eur">EUR</option>
                   <option value="gbp">GBP</option>
                 </select>
               </div>
+            </div>
 
+            {/* Row 2: Date Created, Valid Until, Proposal Type, Created By */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date Created</label>
                 <input
                   type="date"
                   value={new Date().toISOString().split('T')[0]}
                   disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
+                  className="w-full py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
                 />
               </div>
 
@@ -990,19 +1026,16 @@ const ProposalsPage: React.FC = () => {
                   type="date"
                   value={validUntil}
                   onChange={(e) => setValidUntil(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-            </div>
 
-            {/* Row 3: Proposal Type, Created By, Tags */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Proposal Type</label>
                 <select
                   value={newProposal.proposal_type}
                   onChange={(e) => setNewProposal({ ...newProposal, proposal_type: e.target.value as ProposalType })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value={ProposalType.PROJECT}>Project</option>
                   <option value={ProposalType.CONSULTING}>Consulting</option>
@@ -1018,51 +1051,29 @@ const ProposalsPage: React.FC = () => {
                   type="text"
                   value={createdByName}
                   disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
+                  className="w-full py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
                 />
               </div>
+            </div>
 
+            {/* Row 3: Tags, Discount Type, Discount Value, Assigned To */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
                 <input
                   type="text"
                   value={tagsInput}
                   onChange={(e) => setTagsInput(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="e.g., urgent, consulting"
                 />
               </div>
-            </div>
-
-            {/* Description - Full Width */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <textarea
-                value={newProposal.description}
-                onChange={(e) => setNewProposal({ ...newProposal, description: e.target.value })}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Describe the proposal details and services provided"
-              />
-            </div>
-
-            {/* Items Section */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Items *</label>
-              <InvoiceItemsTable
-                selectedItems={selectedItems}
-                onItemsChange={setSelectedItems}
-              />
-            </div>
-
-            {/* Discount Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Discount Type</label>
                 <select
                   value={discountType}
                   onChange={(e) => setDiscountType(e.target.value as 'percent' | 'amount')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="percent">Percentage</option>
                   <option value="amount">Fixed Amount</option>
@@ -1076,7 +1087,7 @@ const ProposalsPage: React.FC = () => {
                   min="0"
                   value={discountValue}
                   onChange={(e) => setDiscountValue(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <div>
@@ -1084,7 +1095,7 @@ const ProposalsPage: React.FC = () => {
                 <select
                   value={assignedToId}
                   onChange={(e) => setAssignedToId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Not assigned</option>
                   {users.map((u) => (
@@ -1095,6 +1106,28 @@ const ProposalsPage: React.FC = () => {
                 </select>
               </div>
             </div>
+
+            {/* Description - Full Width */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                value={newProposal.description}
+                onChange={(e) => setNewProposal({ ...newProposal, description: e.target.value })}
+                rows={3}
+                className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Describe the proposal details and services provided"
+              />
+            </div>
+
+            {/* Items Section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Items *</label>
+              <InvoiceItemsTable
+                selectedItems={selectedItems}
+                onItemsChange={setSelectedItems}
+              />
+            </div>
+
 
             {/* Email Notification Section */}
             <div>
@@ -1119,7 +1152,7 @@ const ProposalsPage: React.FC = () => {
                       type="email"
                       value={emailTo}
                       onChange={(e) => setEmailTo(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="recipient@example.com"
                     />
                   </div>
@@ -1129,7 +1162,7 @@ const ProposalsPage: React.FC = () => {
                       type="text"
                       value={emailSubject}
                       onChange={(e) => setEmailSubject(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Proposal for your review"
                     />
                   </div>
@@ -1139,7 +1172,7 @@ const ProposalsPage: React.FC = () => {
                       value={emailMessage}
                       onChange={(e) => setEmailMessage(e.target.value)}
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter your message..."
                     />
                   </div>
@@ -1250,7 +1283,7 @@ const ProposalsPage: React.FC = () => {
                     placeholder="Search proposals..."
                     value={proposalSearch}
                     onChange={(e) => setProposalSearch(e.target.value)}
-                    className="w-40 pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-0 focus:border-gray-300"
+                    className="w-40 pl-7 pr-2.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-0 focus:border-gray-300"
                   />
                 </div>
                 <button
@@ -1305,10 +1338,10 @@ const ProposalsPage: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th onDoubleClick={() => onHeaderDblClick('proposal')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                  <th onDoubleClick={() => onHeaderDblClick('proposal')} className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                     Proposal
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     <div className="inline-flex items-center gap-1">
                       <span>Customer</span>
                       <span className="relative">
@@ -1330,13 +1363,13 @@ const ProposalsPage: React.FC = () => {
                       </span>
                     </div>
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Title
                   </th>
-                  <th onDoubleClick={() => onHeaderDblClick('total_amount')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                  <th onDoubleClick={() => onHeaderDblClick('total_amount')} className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                     Amount
                   </th>
-                  <th onDoubleClick={() => onHeaderDblClick('status')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                  <th onDoubleClick={() => onHeaderDblClick('status')} className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                     <div className="inline-flex items-center gap-1">
                       <span>Status</span>
                       <span className="relative">
@@ -1358,7 +1391,7 @@ const ProposalsPage: React.FC = () => {
                       </span>
                     </div>
                   </th>
-                  <th onDoubleClick={() => onHeaderDblClick('created_at')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                  <th onDoubleClick={() => onHeaderDblClick('created_at')} className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                     <div className="inline-flex items-center gap-1">
                       <span>Created Date</span>
                       <span className="relative">
@@ -1382,7 +1415,7 @@ const ProposalsPage: React.FC = () => {
                       </span>
                     </div>
                   </th>
-                  <th onDoubleClick={() => onHeaderDblClick('valid_until')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                  <th onDoubleClick={() => onHeaderDblClick('valid_until')} className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                     <div className="inline-flex items-center gap-1">
                       <span>Valid Until</span>
                       <span className="relative">
@@ -1406,16 +1439,16 @@ const ProposalsPage: React.FC = () => {
                       </span>
                     </div>
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Invoice Due
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Projects
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Total Proposals
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -1423,7 +1456,7 @@ const ProposalsPage: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {displayedProposals.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-3 py-8 text-center text-sm text-gray-500">
+                    <td colSpan={11} className="py-8 text-center text-sm text-gray-500">
                       No proposals found
                     </td>
                   </tr>
@@ -1441,30 +1474,30 @@ const ProposalsPage: React.FC = () => {
                   <tr
                     key={proposal.id}
                     className="hover:bg-gray-50 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/proposals/${proposal.id}`)}
+                    onClick={() => navigate(getTenantRoute(`/proposals/${proposal.id}`, user?.role, user?.organization))}
                   >
-                    <td className="px-3 py-2 whitespace-nowrap text-base font-semibold text-black">
+                    <td className="py-2 whitespace-nowrap text-base font-semibold text-black">
                       {formatProposalNumber(proposal, idx)}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-base text-black">
+                    <td className="py-2 whitespace-nowrap text-base text-black">
                       {customerName}
                     </td>
                     <td
-                      className="px-3 py-2 text-sm text-gray-900 cursor-pointer hover:bg-user-blue/10 transition-colors"
+                      className="py-2 text-sm text-gray-900 cursor-pointer hover:bg-user-blue/10 transition-colors"
                       onClick={(e) => startInlineEdit(e, proposal, 'title')}
                       title="Click to edit title"
                     >
                       {proposal.title || '(No Title)'}
                     </td>
                     <td
-                      className="px-3 py-2 whitespace-nowrap text-sm font-semibold text-gray-900 cursor-pointer hover:bg-user-blue/10 transition-colors"
+                      className="py-2 whitespace-nowrap text-sm font-semibold text-gray-900 cursor-pointer hover:bg-user-blue/10 transition-colors"
                       onClick={(e) => startInlineEdit(e, proposal, 'amount')}
                       title="Click to edit amount"
                     >
                       {formatCurrency(amountDollars)}
                     </td>
                     <td
-                      className="px-3 py-2 whitespace-nowrap cursor-pointer hover:bg-user-blue/10 transition-colors"
+                      className="py-2 whitespace-nowrap cursor-pointer hover:bg-user-blue/10 transition-colors"
                       onClick={(e) => startInlineEdit(e, proposal, 'status')}
                       title="Click to edit status"
                     >
@@ -1472,28 +1505,28 @@ const ProposalsPage: React.FC = () => {
                         {proposal.status}
                       </span>
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-700">
+                    <td className="py-2 whitespace-nowrap text-sm text-gray-700">
                       {createdStr}
                     </td>
                     <td
-                      className="px-3 py-2 whitespace-nowrap text-sm text-gray-700 cursor-pointer hover:bg-user-blue/10 transition-colors"
+                      className="py-2 whitespace-nowrap text-sm text-gray-700 cursor-pointer hover:bg-user-blue/10 transition-colors"
                       onClick={(e) => startInlineEdit(e, proposal, 'valid_until')}
                       title="Click to edit valid until date"
                     >
                       {validStr}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <td className="py-2 whitespace-nowrap text-sm text-gray-900">
                       {customerData[proposal.customer_id]?.invoiceDue !== undefined
                         ? formatCurrency(customerData[proposal.customer_id].invoiceDue / 100)
                         : '-'}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <td className="py-2 whitespace-nowrap text-sm text-gray-900">
                       {customerData[proposal.customer_id]?.projectsCount ?? '-'}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <td className="py-2 whitespace-nowrap text-sm text-gray-900">
                       {customerData[proposal.customer_id]?.totalProposals ?? '-'}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-sm font-medium">
+                    <td className="py-2 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         {proposal.status === 'DRAFT' && (
                           <button
@@ -1521,7 +1554,7 @@ const ProposalsPage: React.FC = () => {
                           </button>
                         )}
                         <button
-                          onClick={(e) => { e.stopPropagation(); navigate(`/proposals/${proposal.id}`); }}
+                          onClick={(e) => { e.stopPropagation(); navigate(getTenantRoute(`/proposals/${proposal.id}`, user?.role, user?.organization)); }}
                           className="inline-flex items-center justify-center p-2 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
                           title="View Details"
                         >
@@ -1548,7 +1581,7 @@ const ProposalsPage: React.FC = () => {
           {headerFilterOpen === 'status' && (
             <FilterPortal buttonRect={filterButtonRect}>
               <div ref={headerFilterRef} className="w-40 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
-                <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter status</div>
+                <div className="px-1.5 text-xs text-gray-800 font-medium">Filter status</div>
                 <ul className="max-h-48 overflow-auto">
                   {(['DRAFT', 'SENT', 'VIEWED', 'PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'WITHDRAWN'] as ProposalStatusType[]).map(st => {
                     const checked = filterStatus.includes(st);
@@ -1570,7 +1603,7 @@ const ProposalsPage: React.FC = () => {
                     );
                   })}
                 </ul>
-                <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                <div className="flex justify-end gap-2 px-1.5 border-t border-gray-100 mt-1">
                   <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); setFilterStatus([]); }}>Clear</button>
                   <button className="filter-popup-btn filter-popup-btn-close" onClick={(e) => { e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
                 </div>
@@ -1581,7 +1614,7 @@ const ProposalsPage: React.FC = () => {
           {headerFilterOpen === 'customer' && (
             <FilterPortal buttonRect={filterButtonRect}>
               <div ref={headerFilterRef} className="w-52 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{borderRadius: '5px'}}>
-                <div className="px-1.5 py-1 text-xs text-gray-800 font-medium">Filter customer</div>
+                <div className="px-1.5 text-xs text-gray-800 font-medium">Filter customer</div>
                 <ul className="max-h-48 overflow-auto">
                   {customers.map(c => {
                     const selected = filterCustomerIds.includes(c.id);
@@ -1604,7 +1637,7 @@ const ProposalsPage: React.FC = () => {
                     );
                   })}
                 </ul>
-                <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                <div className="flex justify-end gap-2 px-1.5 border-t border-gray-100 mt-1">
                   <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e)=>{ e.stopPropagation(); setFilterCustomerIds([]); }}>Clear</button>
                   <button className="filter-popup-btn filter-popup-btn-close" onClick={(e)=>{ e.stopPropagation(); setHeaderFilterOpen(null); }}>Close</button>
                 </div>
@@ -1630,7 +1663,7 @@ const ProposalsPage: React.FC = () => {
                     }}
                   />
                 </div>
-                <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                <div className="flex justify-end gap-2 px-1.5 border-t border-gray-100 mt-1">
                   <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); setCreatedDateFilterFrom(''); setCreatedDateFilterTo(''); setHeaderFilterOpen(null); }}>Clear</button>
                   <button className="filter-popup-btn filter-popup-btn-filter" onClick={(e) => {
                     e.stopPropagation();
@@ -1663,7 +1696,7 @@ const ProposalsPage: React.FC = () => {
                     }}
                   />
                 </div>
-                <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                <div className="flex justify-end gap-2 px-1.5 border-t border-gray-100 mt-1">
                   <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); setValidUntilFilterFrom(''); setValidUntilFilterTo(''); setHeaderFilterOpen(null); }}>Clear</button>
                   <button className="filter-popup-btn filter-popup-btn-filter" onClick={(e) => {
                     e.stopPropagation();
@@ -1711,7 +1744,7 @@ const ProposalsPage: React.FC = () => {
                       }}
                     />
                   </div>
-                  <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                  <div className="flex justify-end gap-2 px-1.5 border-t border-gray-100 mt-1">
                     <button className="filter-popup-btn filter-popup-btn-clear" onClick={(e) => { e.stopPropagation(); setFilterFromDate(''); setFilterToDate(''); setToolbarDateOpen(false); }}>Clear</button>
                     <button className="filter-popup-btn filter-popup-btn-filter" onClick={(e) => {
                       e.stopPropagation();
@@ -1737,7 +1770,7 @@ const ProposalsPage: React.FC = () => {
               {['draft','sent','viewed','pending','accepted','rejected','expired','withdrawn'].map((opt) => (
                 <li
                   key={opt}
-                  className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${String(editValue).toLowerCase() === opt ? 'bg-gray-50' : ''}`}
+                  className={`px-2 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${String(editValue).toLowerCase() === opt ? 'bg-gray-50' : ''}`}
                   onClick={() => { saveInlineEdit(editingProposalId, opt); }}
                 >
                   <span className="capitalize">{opt.replace('_', ' ')}</span>
@@ -1765,7 +1798,7 @@ const ProposalsPage: React.FC = () => {
                 }
               }}
               onBlur={() => saveInlineEdit(editingProposalId)}
-              className="block w-full h-8 px-2 py-1 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
+              className="block w-full h-8 px-2 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
             />
           </div>
         </InlineEditPortal>
@@ -1788,7 +1821,7 @@ const ProposalsPage: React.FC = () => {
                 }
               }}
               onBlur={() => saveInlineEdit(editingProposalId)}
-              className="block w-full h-8 px-2 py-1 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
+              className="block w-full h-8 px-2 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
             />
           </div>
         </InlineEditPortal>
@@ -1807,12 +1840,38 @@ const ProposalsPage: React.FC = () => {
                   cancelInlineEdit();
                 }
               }}
-              className="block w-full h-8 px-2 py-1 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
+              className="block w-full h-8 px-2 border border-gray-300 rounded-sm shadow-none focus:outline-none focus:ring-0 focus:border-gray-400 text-xs"
             />
           </div>
         </InlineEditPortal>
       )}
 
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50" onClick={() => setConfirmDeleteId(null)}>
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-sm p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start">
+              <div className="flex-1">
+                <h3 className="text-base font-semibold text-gray-900">Delete proposal?</h3>
+                <p className="mt-1 text-sm text-gray-600">This action cannot be undone.</p>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                className="px-3 py-1.5 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                onClick={() => setConfirmDeleteId(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-3 py-1.5 text-sm rounded-md bg-red-600 text-white hover:bg-red-700"
+                onClick={async () => { await handleDeleteProposal(confirmDeleteId!); setConfirmDeleteId(null); }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

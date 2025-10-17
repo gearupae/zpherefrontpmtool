@@ -229,7 +229,7 @@ const ListenMeetingButton: React.FC<ListenMeetingButtonProps> = ({ context, proj
     <div className="relative">
       <button
         onClick={onClick}
-        className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border ${recording ? 'bg-red-600 text-white border-red-700 hover:bg-red-700' : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'}`}
+        className={`inline-flex items-center rounded-md text-sm font-medium transition-colors shadow-sm border ${recording ? 'bg-red-600 text-white border-red-700 hover:bg-red-700' : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'}`}
         title={recording ? 'Stop Recording' : 'Listen Meeting'}
         aria-label="Listen Meeting"
         disabled={busy && !recording}
@@ -268,7 +268,7 @@ const ListenMeetingButton: React.FC<ListenMeetingButtonProps> = ({ context, proj
               <div className="pt-2">
                 <button
                   onClick={handleSummarizeAndCreateProject}
-                  className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-user-blue text-white hover:bg-user-blue"
+                  className="inline-flex items-center rounded-md text-sm font-medium bg-user-blue text-white hover:bg-user-blue"
                   disabled={processing !== 'idle'}
                 >
                   <DocumentTextIcon className="h-4 w-4 mr-2" />

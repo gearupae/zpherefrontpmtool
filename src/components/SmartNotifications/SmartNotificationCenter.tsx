@@ -397,7 +397,7 @@ const SmartNotificationCenter: React.FC<SmartNotificationCenterProps> = ({
                 <BellIcon className="h-6 w-6 text-piano" />
                 <h2 className="text-lg font-semibold text-piano">Smart Notifications</h2>
                 {focusModeActive && (
-                  <div className="flex items-center gap-1 rounded-full bg-gray-200 px-2 py-1 text-xs text-piano">
+                  <div className="flex items-center gap-1 rounded-full bg-gray-200 px-2 text-xs text-piano">
                     <MoonIcon className="h-3 w-3" />
                     Focus Mode
                   </div>
@@ -444,7 +444,7 @@ const SmartNotificationCenter: React.FC<SmartNotificationCenterProps> = ({
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab as any)}
-                  className={`rounded-md px-3 py-1 text-sm font-medium capitalize ${
+                  className={`rounded-md text-sm font-medium capitalize ${
                     activeTab === tab
                       ? 'bg-gray-200 text-piano'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
@@ -482,7 +482,7 @@ const SmartNotificationCenter: React.FC<SmartNotificationCenterProps> = ({
                     </select>
                     <button
                       onClick={() => setGroupedView(!groupedView)}
-                      className={`rounded px-2 py-1 text-xs ${
+                      className={`rounded px-2 text-xs ${
                         groupedView 
                           ? 'bg-gray-200 text-piano' 
                           : 'bg-gray-100 text-gray-600'
@@ -496,11 +496,11 @@ const SmartNotificationCenter: React.FC<SmartNotificationCenterProps> = ({
                 {/* Notifications List */}
                 <div className="divide-y divide-gray-200">
                   {loading ? (
-                    <div className="flex items-center justify-center py-12">
+                    <div className="flex items-center justify-center2">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
                     </div>
                   ) : notifications.length === 0 ? (
-                    <div className="px-4 py-12 text-center">
+                    <div className="px-42 text-center">
                       <BellIcon className="mx-auto h-12 w-12 text-gray-400" />
                       <h3 className="mt-2 text-sm font-medium text-gray-900">No notifications</h3>
                       <p className="mt-1 text-sm text-gray-500">
@@ -612,20 +612,20 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
               </p>
               
               <div className="mt-2 flex items-center gap-2">
-                <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
+                <span className={`inline-flex px-2 text-xs rounded-full ${
                   getPriorityBadgeColor(notification.priority)
                 }`}>
                   {notification.priority}
                 </span>
                 
                 {notification.auto_generated && (
-                  <span className="inline-flex px-2 py-1 text-xs rounded-full bg-gray-100 text-black">
+                  <span className="inline-flex px-2 text-xs rounded-full bg-gray-100 text-black">
                     AI
                   </span>
                 )}
                 
                 {notification.action_required && (
-                  <span className="inline-flex px-2 py-1 text-xs rounded-full bg-gray-100 text-black">
+                  <span className="inline-flex px-2 text-xs rounded-full bg-gray-100 text-black">
                     Action Required
                   </span>
                 )}
@@ -683,7 +683,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                     e.stopPropagation();
                     handleFeedback(true);
                   }}
-                  className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"
+                  className="text-xs bg-green-100 text-green-700 px-2 rounded hover:bg-green-200"
                 >
                   Yes, relevant
                 </button>
@@ -692,7 +692,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                     e.stopPropagation();
                     handleFeedback(false);
                   }}
-                  className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200"
+                  className="text-xs bg-red-100 text-red-700 px-2 rounded hover:bg-red-200"
                 >
                   Not relevant
                 </button>
@@ -716,7 +716,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
 }) => {
   if (!preferences) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center2">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
       </div>
     );

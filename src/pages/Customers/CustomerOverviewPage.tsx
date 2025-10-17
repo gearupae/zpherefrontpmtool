@@ -327,7 +327,7 @@ const CustomerOverviewPage: React.FC = () => {
 
   if (!customer) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center2">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Customer Not Found</h2>
         <p className="text-gray-600 mb-6">The customer you're looking for doesn't exist.</p>
         <button
@@ -412,7 +412,7 @@ const CustomerOverviewPage: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`py-2 px-3 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
+              className={`py-2 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
                 activeTab === tab.id ? 'text-indigo-600' : 'text-black hover:text-gray-700'
               }`}
             >
@@ -624,7 +624,7 @@ const CustomerOverviewPage: React.FC = () => {
           </div>
           
           {projects.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center2">
               <FolderIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No projects</h3>
               <p className="mt-1 text-sm text-gray-500">Get started by creating a new project.</p>
@@ -682,7 +682,7 @@ const CustomerOverviewPage: React.FC = () => {
           </div>
           
           {invoices.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center2">
               <BanknotesIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No invoices</h3>
               <p className="mt-1 text-sm text-gray-500">Get started by creating a new invoice.</p>
@@ -737,7 +737,7 @@ const CustomerOverviewPage: React.FC = () => {
           </div>
           
           {proposals.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center2">
               <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No proposals</h3>
               <p className="mt-1 text-sm text-gray-500">Get started by creating a new proposal.</p>
@@ -792,7 +792,7 @@ const CustomerOverviewPage: React.FC = () => {
                   required
                   value={editForm.first_name || ''}
                   onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
               
@@ -805,7 +805,7 @@ const CustomerOverviewPage: React.FC = () => {
                   required
                   value={editForm.last_name || ''}
                   onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
               
@@ -818,7 +818,7 @@ const CustomerOverviewPage: React.FC = () => {
                   required
                   value={editForm.email || ''}
                   onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
               
@@ -830,7 +830,7 @@ const CustomerOverviewPage: React.FC = () => {
                   type="tel"
                   value={editForm.phone || ''}
                   onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
               
@@ -842,7 +842,7 @@ const CustomerOverviewPage: React.FC = () => {
                   type="text"
                   value={editForm.company_name || ''}
                   onChange={(e) => setEditForm({ ...editForm, company_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
               
@@ -854,7 +854,7 @@ const CustomerOverviewPage: React.FC = () => {
                   type="text"
                   value={editForm.job_title || ''}
                   onChange={(e) => setEditForm({ ...editForm, job_title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
               
@@ -866,7 +866,7 @@ const CustomerOverviewPage: React.FC = () => {
                   type="url"
                   value={editForm.company_website || ''}
                   onChange={(e) => setEditForm({ ...editForm, company_website: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
               
@@ -877,12 +877,53 @@ const CustomerOverviewPage: React.FC = () => {
                 <select
                   value={editForm.customer_type || 'client'}
                   onChange={(e) => setEditForm({ ...editForm, customer_type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
                   <option value="prospect">Prospect</option>
                   <option value="client">Client</option>
                   <option value="lead">Lead</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Row: Source, Address Line 1, City, Country (match create form layout) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Source</label>
+                <input
+                  type="text"
+                  value={editForm.source || ''}
+                  onChange={(e) => setEditForm({ ...editForm, source: e.target.value })}
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="How they found us"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Address Line 1</label>
+                <input
+                  type="text"
+                  value={editForm.address_line_1 || ''}
+                  onChange={(e) => setEditForm({ ...editForm, address_line_1: e.target.value })}
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                <input
+                  type="text"
+                  value={editForm.city || ''}
+                  onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
+                <input
+                  type="text"
+                  value={editForm.country || ''}
+                  onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
               </div>
             </div>
             
@@ -894,9 +935,99 @@ const CustomerOverviewPage: React.FC = () => {
                 rows={4}
                 value={editForm.notes || ''}
                 onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 placeholder="Add any additional notes about this customer..."
               />
+            </div>
+
+            {/* Attachments (inline in edit tab) */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">Attachments</label>
+                <label className="inline-flex items-center border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={async (e) => {
+                      const files = Array.from(e.target.files || []);
+                      if (files.length) await uploadAttachments(files as File[]);
+                      e.currentTarget.value = '';
+                    }}
+                  />
+                  <PlusIcon className="w-4 h-4 mr-1" /> Add
+                </label>
+              </div>
+              {(!Array.isArray(attachments) || attachments.length === 0) ? (
+                <p className="text-sm text-gray-500">No attachments uploaded.</p>
+              ) : (
+                <ul className="divide-y divide-gray-200">
+                  {(Array.isArray(attachments) ? attachments : []).map((a) => (
+                    <li key={a.id} className="py-3 flex items-center justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">{a.original_filename || 'Attachment'}</p>
+                        <input
+                          type="text"
+                          value={a.description || ''}
+                          onChange={(e) => updateAttachment(a.id, e.target.value)}
+                          placeholder="Add description"
+                          className="mt-1 w-full text-xs border border-gray-200 rounded px-2"
+                        />
+                      </div>
+                      <div className="ml-3 flex items-center space-x-2">
+                        <button
+                          onClick={async () => {
+                            try {
+                              const { default: apiClient } = await import('../../api/client');
+                              const res = await apiClient.get(`/customers/attachments/${a.id}/preview/`, { responseType: 'blob' });
+                              const blob = res.data as Blob;
+                              const url = URL.createObjectURL(blob);
+                              window.open(url, '_blank');
+                              setTimeout(() => URL.revokeObjectURL(url), 60_000);
+                            } catch (err) {
+                              dispatch(addNotification({ type: 'error', title: 'Preview Failed', message: 'Could not preview file', duration: 4000 }));
+                            }
+                          }}
+                          className="p-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded"
+                          title="Preview attachment"
+                        >
+                          <EyeIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const { default: apiClient } = await import('../../api/client');
+                              const res = await apiClient.get(`/customers/attachments/${a.id}/download/`, { responseType: 'blob' });
+                              const blob = res.data as Blob;
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.download = a.original_filename || 'attachment';
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              setTimeout(() => URL.revokeObjectURL(url), 60_000);
+                            } catch (err) {
+                              dispatch(addNotification({ type: 'error', title: 'Download Failed', message: 'Could not download file', duration: 4000 }));
+                            }
+                          }}
+                          className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded"
+                          title="Download attachment"
+                        >
+                          <DocumentArrowDownIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => deleteAttachment(a.id)}
+                          className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded"
+                          title="Delete attachment"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
             
             <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
@@ -1001,7 +1132,7 @@ const CustomerOverviewPage: React.FC = () => {
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg leading-6 font-medium text-gray-900">Attachments</h3>
-                <label className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">
+                <label className="inline-flex items-center border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">
                   <input
                     type="file"
                     multiple
@@ -1028,7 +1159,7 @@ const CustomerOverviewPage: React.FC = () => {
                           value={a.description || ''}
                           onChange={(e) => updateAttachment(a.id, e.target.value)}
                           placeholder="Add description"
-                          className="mt-1 w-full text-xs border border-gray-200 rounded px-2 py-1"
+                          className="mt-1 w-full text-xs border border-gray-200 rounded px-2"
                         />
                       </div>
                       <div className="ml-3 flex items-center space-x-2">
@@ -1036,7 +1167,7 @@ const CustomerOverviewPage: React.FC = () => {
                           onClick={async () => {
                             try {
                               const { default: apiClient } = await import('../../api/client');
-                              const res = await apiClient.get(`/customers/attachments/${a.id}/preview`, { responseType: 'blob' });
+                              const res = await apiClient.get(`/customers/attachments/${a.id}/preview/`, { responseType: 'blob' });
                               const blob = res.data as Blob;
                               const url = URL.createObjectURL(blob);
                               window.open(url, '_blank');
@@ -1054,7 +1185,7 @@ const CustomerOverviewPage: React.FC = () => {
                           onClick={async () => {
                             try {
                               const { default: apiClient } = await import('../../api/client');
-                              const res = await apiClient.get(`/customers/attachments/${a.id}/download`, { responseType: 'blob' });
+                              const res = await apiClient.get(`/customers/attachments/${a.id}/download/`, { responseType: 'blob' });
                               const blob = res.data as Blob;
                               const url = URL.createObjectURL(blob);
                               const link = document.createElement('a');

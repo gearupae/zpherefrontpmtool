@@ -55,6 +55,7 @@ apiClient.interceptors.request.use(
         config.headers[key] = tenantHeaders[key];
       });
       console.log('🔧 API Request Debug:');
+      console.log('  BaseURL:', config.baseURL);
       console.log('  URL:', config.url);
       console.log('  Method:', config.method);
       console.log('  User Role:', userRole);

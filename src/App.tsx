@@ -161,45 +161,20 @@ function AppContent() {
 
           {/* Protected routes */}
           <Route path="/" element={<ProtectedRoute />}>
-            <Route path="" element={<AdminRedirect />} />
+            <Route index element={<AdminRedirect />} />
             
-            {/* Legacy tenant routes (for backward compatibility) */}
-            <Route path="pricing" element={<TenantOnlyRoute><Layout><PricingPage /></Layout></TenantOnlyRoute>} />
-            <Route path="dashboard" element={<TenantOnlyRoute><Layout><DashboardPage /></Layout></TenantOnlyRoute>} />
-            <Route path="projects" element={<TenantOnlyRoute><Layout><ProjectOverviewPage /></Layout></TenantOnlyRoute>} />
-            <Route path="projects/:id" element={<TenantOnlyRoute><Layout><ProjectDetailOverviewPage /></Layout></TenantOnlyRoute>} />
-            <Route path="tasks" element={<TenantOnlyRoute><Layout><TasksPage /></Layout></TenantOnlyRoute>} />
-            <Route path="tasks/:id" element={<TenantOnlyRoute><Layout><TaskDetailOverviewPage /></Layout></TenantOnlyRoute>} />
-            <Route path="teams" element={<TenantOnlyRoute><Layout><TeamsPage /></Layout></TenantOnlyRoute>} />
-            <Route path="teams/:id" element={<TenantOnlyRoute><Layout><TeamDetailOverviewPage /></Layout></TenantOnlyRoute>} />
-            <Route path="customers" element={<TenantOnlyRoute><Layout><CustomersPage /></Layout></TenantOnlyRoute>} />
-            <Route path="customers/:id" element={<TenantOnlyRoute><Layout><CustomerOverviewPage /></Layout></TenantOnlyRoute>} />
-            <Route path="proposals" element={<TenantOnlyRoute><Layout><ProposalsPage /></Layout></TenantOnlyRoute>} />
-            <Route path="proposals/:id" element={<TenantOnlyRoute><Layout><ProposalDetailOverviewPage /></Layout></TenantOnlyRoute>} />
-            <Route path="purchase" element={<TenantOnlyRoute><Layout><PurchasePage /></Layout></TenantOnlyRoute>} />
-<Route path="goals" element={<TenantOnlyRoute><Layout><GoalsPage /></Layout></TenantOnlyRoute>} />
-            <Route path="goals/:id" element={<TenantOnlyRoute><Layout><GoalDetailOverviewPage /></Layout></TenantOnlyRoute>} />
-            <Route path="invoices" element={<TenantOnlyRoute><Layout><InvoicesPage /></Layout></TenantOnlyRoute>} />
-            <Route path="invoices/:id" element={<TenantOnlyRoute><Layout><InvoiceDetailOverviewPage /></Layout></TenantOnlyRoute>} />
-            <Route path="knowledge" element={<TenantOnlyRoute><Layout><KnowledgeHubPage /></Layout></TenantOnlyRoute>} />
-            <Route path="knowledge/context-cards" element={<TenantOnlyRoute><Layout><ContextCardsPage /></Layout></TenantOnlyRoute>} />
-            <Route path="knowledge/handoff-summaries" element={<TenantOnlyRoute><Layout><HandoffSummariesPage /></Layout></TenantOnlyRoute>} />
-            <Route path="knowledge/decision-log" element={<TenantOnlyRoute><Layout><DecisionLogPage /></Layout></TenantOnlyRoute>} />
-            <Route path="analytics" element={<TenantOnlyRoute><Layout><AnalyticsPage /></Layout></TenantOnlyRoute>} />
-            <Route path="calendar" element={<TenantOnlyRoute><Layout><CalendarPage /></Layout></TenantOnlyRoute>} />
-            <Route path="todo" element={<TenantOnlyRoute><Layout><TodoPage /></Layout></TenantOnlyRoute>} />
-            <Route path="chat" element={<TenantOnlyRoute><Layout><ChatPage /></Layout></TenantOnlyRoute>} />
-            {/* AI */}
-            <Route path="ai" element={<TenantOnlyRoute><Layout><AIDashboardPage /></Layout></TenantOnlyRoute>} />
-            {/* Test Pages (Dev/Debug) */}
-            <Route path="test/notifications" element={<TenantOnlyRoute><Layout><NotificationTestPage /></Layout></TenantOnlyRoute>} />
-            <Route path="test/notification-debug" element={<TenantOnlyRoute><Layout><NotificationDebugPage /></Layout></TenantOnlyRoute>} />
-            <Route path="settings" element={<TenantOnlyRoute><Layout><SettingsPage /></Layout></TenantOnlyRoute>} />
-            <Route path="billing" element={<TenantOnlyRoute><Layout><BillingPage /></Layout></TenantOnlyRoute>} />
-            <Route path="collaboration" element={<TenantOnlyRoute><Layout><TeamCollaborationPage /></Layout></TenantOnlyRoute>} />
-            <Route path="views" element={<TenantOnlyRoute><Layout><ProjectViewsPage /></Layout></TenantOnlyRoute>} />
+            {/* Admin-only routes - must come before tenant routes to avoid slug conflicts */}
+            <Route path="admin" element={<AdminOnlyRoute><Layout><AdminDashboardPage /></Layout></AdminOnlyRoute>} />
+            <Route path="admin/tenants" element={<AdminOnlyRoute><Layout><TenantsPage /></Layout></AdminOnlyRoute>} />
+            <Route path="admin/tenants/:tenantId" element={<AdminOnlyRoute><Layout><TenantDetailPage /></Layout></AdminOnlyRoute>} />
+            <Route path="admin/subscriptions" element={<AdminOnlyRoute><Layout><SubscriptionsPage /></Layout></AdminOnlyRoute>} />
+            <Route path="admin/analytics" element={<AdminOnlyRoute><Layout><AdminAnalyticsPage /></Layout></AdminOnlyRoute>} />
+            <Route path="admin/billing" element={<AdminOnlyRoute><Layout><BillingManagementPage /></Layout></AdminOnlyRoute>} />
+            <Route path="admin/settings" element={<AdminOnlyRoute><Layout><AdminSettingsPage /></Layout></AdminOnlyRoute>} />
+            <Route path="admin/projects" element={<AdminOnlyRoute><Layout><ProjectOverviewPage /></Layout></AdminOnlyRoute>} />
+            <Route path="admin/projects/:id" element={<AdminOnlyRoute><Layout><ProjectDetailOverviewPage /></Layout></AdminOnlyRoute>} />
             
-            {/* Tenant slug-based routes */}
+            {/* Tenant slug-based routes - prioritize these to match /:slug/... paths first */}
             <Route path=":tenantSlug/pricing" element={<TenantOnlyRoute><Layout><PricingPage /></Layout></TenantOnlyRoute>} />
             <Route path=":tenantSlug/dashboard" element={<TenantOnlyRoute><Layout><DashboardPage /></Layout></TenantOnlyRoute>} />
             <Route path=":tenantSlug/projects" element={<TenantOnlyRoute><Layout><ProjectOverviewPage /></Layout></TenantOnlyRoute>} />
@@ -215,7 +190,7 @@ function AppContent() {
             <Route path=":tenantSlug/purchase" element={<TenantOnlyRoute><Layout><PurchasePage /></Layout></TenantOnlyRoute>} />
             <Route path=":tenantSlug/purchase/vendors/:id" element={<TenantOnlyRoute><Layout><VendorDetailPage /></Layout></TenantOnlyRoute>} />
             <Route path=":tenantSlug/purchase/orders/:id" element={<TenantOnlyRoute><Layout><PurchaseOrderDetailPage /></Layout></TenantOnlyRoute>} />
-<Route path=":tenantSlug/goals" element={<TenantOnlyRoute><Layout><GoalsPage /></Layout></TenantOnlyRoute>} />
+            <Route path=":tenantSlug/goals" element={<TenantOnlyRoute><Layout><GoalsPage /></Layout></TenantOnlyRoute>} />
             <Route path=":tenantSlug/goals/:id" element={<TenantOnlyRoute><Layout><GoalDetailOverviewPage /></Layout></TenantOnlyRoute>} />
             <Route path=":tenantSlug/invoices" element={<TenantOnlyRoute><Layout><InvoicesPage /></Layout></TenantOnlyRoute>} />
             <Route path=":tenantSlug/invoices/:id" element={<TenantOnlyRoute><Layout><InvoiceDetailOverviewPage /></Layout></TenantOnlyRoute>} />
@@ -227,25 +202,50 @@ function AppContent() {
             <Route path=":tenantSlug/calendar" element={<TenantOnlyRoute><Layout><CalendarPage /></Layout></TenantOnlyRoute>} />
             <Route path=":tenantSlug/todo" element={<TenantOnlyRoute><Layout><TodoPage /></Layout></TenantOnlyRoute>} />
             <Route path=":tenantSlug/chat" element={<TenantOnlyRoute><Layout><ChatPage /></Layout></TenantOnlyRoute>} />
-            {/* AI */}
             <Route path=":tenantSlug/ai" element={<TenantOnlyRoute><Layout><AIDashboardPage /></Layout></TenantOnlyRoute>} />
             <Route path=":tenantSlug/settings" element={<TenantOnlyRoute><Layout><SettingsPage /></Layout></TenantOnlyRoute>} />
             <Route path=":tenantSlug/billing" element={<TenantOnlyRoute><Layout><BillingPage /></Layout></TenantOnlyRoute>} />
             <Route path=":tenantSlug/collaboration" element={<TenantOnlyRoute><Layout><TeamCollaborationPage /></Layout></TenantOnlyRoute>} />
             <Route path=":tenantSlug/views" element={<TenantOnlyRoute><Layout><ProjectViewsPage /></Layout></TenantOnlyRoute>} />
             
-            {/* Admin-only routes */}
-            <Route path="admin" element={<AdminOnlyRoute><Layout><AdminDashboardPage /></Layout></AdminOnlyRoute>} />
-            <Route path="admin/tenants" element={<AdminOnlyRoute><Layout><TenantsPage /></Layout></AdminOnlyRoute>} />
-            <Route path="admin/tenants/:tenantId" element={<AdminOnlyRoute><Layout><TenantDetailPage /></Layout></AdminOnlyRoute>} />
-            <Route path="admin/subscriptions" element={<AdminOnlyRoute><Layout><SubscriptionsPage /></Layout></AdminOnlyRoute>} />
-            <Route path="admin/analytics" element={<AdminOnlyRoute><Layout><AdminAnalyticsPage /></Layout></AdminOnlyRoute>} />
-            <Route path="admin/billing" element={<AdminOnlyRoute><Layout><BillingManagementPage /></Layout></AdminOnlyRoute>} />
-            <Route path="admin/settings" element={<AdminOnlyRoute><Layout><AdminSettingsPage /></Layout></AdminOnlyRoute>} />
+            {/* Legacy tenant routes (for backward compatibility) - placed after slug routes */}
+            <Route path="pricing" element={<TenantOnlyRoute><Layout><PricingPage /></Layout></TenantOnlyRoute>} />
+            <Route path="dashboard" element={<TenantOnlyRoute><Layout><DashboardPage /></Layout></TenantOnlyRoute>} />
+            <Route path="projects" element={<TenantOnlyRoute><Layout><ProjectOverviewPage /></Layout></TenantOnlyRoute>} />
+            <Route path="projects/:id" element={<TenantOnlyRoute><Layout><ProjectDetailOverviewPage /></Layout></TenantOnlyRoute>} />
+            <Route path="tasks" element={<TenantOnlyRoute><Layout><TasksPage /></Layout></TenantOnlyRoute>} />
+            <Route path="tasks/:id" element={<TenantOnlyRoute><Layout><TaskDetailOverviewPage /></Layout></TenantOnlyRoute>} />
+            <Route path="teams" element={<TenantOnlyRoute><Layout><TeamsPage /></Layout></TenantOnlyRoute>} />
+            <Route path="teams/:id" element={<TenantOnlyRoute><Layout><TeamDetailOverviewPage /></Layout></TenantOnlyRoute>} />
+            <Route path="customers" element={<TenantOnlyRoute><Layout><CustomersPage /></Layout></TenantOnlyRoute>} />
+            <Route path="customers/:id" element={<TenantOnlyRoute><Layout><CustomerOverviewPage /></Layout></TenantOnlyRoute>} />
+            <Route path="proposals" element={<TenantOnlyRoute><Layout><ProposalsPage /></Layout></TenantOnlyRoute>} />
+            <Route path="proposals/:id" element={<TenantOnlyRoute><Layout><ProposalDetailOverviewPage /></Layout></TenantOnlyRoute>} />
+            <Route path="purchase" element={<TenantOnlyRoute><Layout><PurchasePage /></Layout></TenantOnlyRoute>} />
+            <Route path="goals" element={<TenantOnlyRoute><Layout><GoalsPage /></Layout></TenantOnlyRoute>} />
+            <Route path="goals/:id" element={<TenantOnlyRoute><Layout><GoalDetailOverviewPage /></Layout></TenantOnlyRoute>} />
+            <Route path="invoices" element={<TenantOnlyRoute><Layout><InvoicesPage /></Layout></TenantOnlyRoute>} />
+            <Route path="invoices/:id" element={<TenantOnlyRoute><Layout><InvoiceDetailOverviewPage /></Layout></TenantOnlyRoute>} />
+            <Route path="knowledge" element={<TenantOnlyRoute><Layout><KnowledgeHubPage /></Layout></TenantOnlyRoute>} />
+            <Route path="knowledge/context-cards" element={<TenantOnlyRoute><Layout><ContextCardsPage /></Layout></TenantOnlyRoute>} />
+            <Route path="knowledge/handoff-summaries" element={<TenantOnlyRoute><Layout><HandoffSummariesPage /></Layout></TenantOnlyRoute>} />
+            <Route path="knowledge/decision-log" element={<TenantOnlyRoute><Layout><DecisionLogPage /></Layout></TenantOnlyRoute>} />
+            <Route path="analytics" element={<TenantOnlyRoute><Layout><AnalyticsPage /></Layout></TenantOnlyRoute>} />
+            <Route path="calendar" element={<TenantOnlyRoute><Layout><CalendarPage /></Layout></TenantOnlyRoute>} />
+            <Route path="todo" element={<TenantOnlyRoute><Layout><TodoPage /></Layout></TenantOnlyRoute>} />
+            <Route path="chat" element={<TenantOnlyRoute><Layout><ChatPage /></Layout></TenantOnlyRoute>} />
+            <Route path="ai" element={<TenantOnlyRoute><Layout><AIDashboardPage /></Layout></TenantOnlyRoute>} />
+            {/* Test Pages (Dev/Debug) */}
+            <Route path="test/notifications" element={<TenantOnlyRoute><Layout><NotificationTestPage /></Layout></TenantOnlyRoute>} />
+            <Route path="test/notification-debug" element={<TenantOnlyRoute><Layout><NotificationDebugPage /></Layout></TenantOnlyRoute>} />
+            <Route path="settings" element={<TenantOnlyRoute><Layout><SettingsPage /></Layout></TenantOnlyRoute>} />
+            <Route path="billing" element={<TenantOnlyRoute><Layout><BillingPage /></Layout></TenantOnlyRoute>} />
+            <Route path="collaboration" element={<TenantOnlyRoute><Layout><TeamCollaborationPage /></Layout></TenantOnlyRoute>} />
+            <Route path="views" element={<TenantOnlyRoute><Layout><ProjectViewsPage /></Layout></TenantOnlyRoute>} />
+            
+            {/* Catch-all inside protected routes to avoid racing the router */}
+            <Route path="*" element={<DefaultRedirect />} />
           </Route>
-
-          {/* Catch all route */}
-          <Route path="*" element={<DefaultRedirect />} />
         </Routes>
       </Router>
       

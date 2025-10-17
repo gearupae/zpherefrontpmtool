@@ -169,7 +169,7 @@ const TodoPage: React.FC = () => {
           <div className="w-80 border-r border-gray-200 flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
               <h2 className="text-sm font-semibold text-gray-700">Notes & Sections</h2>
-              <button onClick={addSection} className="inline-flex items-center text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
+              <button onClick={addSection} className="inline-flex items-center text-xs bg-blue-600 text-white rounded hover:bg-blue-700">
                 <PlusIcon className="w-4 h-4 mr-1" /> New
               </button>
             </div>
@@ -217,7 +217,7 @@ const TodoPage: React.FC = () => {
                 <h1 className="text-lg font-semibold text-gray-900">{active?.name || 'Untitled'}</h1>
                 <p className="text-xs text-gray-500 mt-0.5">{remaining} pending</p>
               </div>
-              <button onClick={addTodo} className="inline-flex items-center px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">
+              <button onClick={addTodo} className="inline-flex items-center text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">
                 <PlusIcon className="w-4 h-4 mr-1" /> Add To‑Do
               </button>
             </div>
@@ -231,7 +231,7 @@ const TodoPage: React.FC = () => {
                   value={active?.notes || ''}
                   onChange={updateNotes}
                   placeholder="Write notes here..."
-                  className="w-full min-h-[140px] rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full min-h-[140px] rounded-md border border-gray-300 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -244,9 +244,9 @@ const TodoPage: React.FC = () => {
                     onChange={e => setTodoInput(e.target.value)}
                     onKeyDown={onTodoKey}
                     placeholder="Add a to‑do and press Enter"
-                    className="flex-1 px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className="flex-1 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                   />
-                  <button onClick={addTodo} className="inline-flex items-center px-3 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">
+                  <button onClick={addTodo} className="inline-flex items-center rounded-md bg-blue-600 text-white hover:bg-blue-700">
                     <PlusIcon className="w-4 h-4" />
                   </button>
                 </div>

@@ -523,7 +523,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                       <select
                         value={formData.item_id}
                         onChange={(e) => handleInputChange('item_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="">Select an item</option>
                         {items.map((it:any) => (
@@ -538,7 +538,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                         min={0}
                         value={formData.quantity}
                         onChange={(e) => handleInputChange('quantity', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="e.g., 10"
                       />
                     </div>
@@ -551,7 +551,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                         type="number"
                         value={formData.target_value}
                         onChange={(e) => handleInputChange('target_value', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="e.g., 2000"
                       />
                     </div>
@@ -561,7 +561,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                         type="text"
                         value={formData.unit}
                         onChange={(e) => handleInputChange('unit', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="e.g., pieces, dollars, hours"
                       />
                     </div>
@@ -573,7 +573,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                     className="mt-1 w-full border border-secondary-300 rounded-md bg-white cursor-pointer"
                     onClick={() => users.length > 0 && setIsMemberDropdownOpen((o) => !o)}
                   >
-                    <div className="px-3 py-2 flex flex-wrap gap-1 min-h-[40px]">
+                    <div className="py-2 flex flex-wrap gap-1 min-h-[40px]">
                       {users.length === 0 ? (
                         <div className="text-sm text-gray-500 flex items-center">
                           <UsersIcon className="h-4 w-4 mr-2" />
@@ -609,11 +609,11 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                               value={memberFilter}
                               onChange={(e) => setMemberFilter(e.target.value)}
                               placeholder="Search members..."
-                              className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full pl-7 pr-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
                         </div>
-                        <ul className="py-1">
+                        <ul >
                           {users
                             .filter((u) => {
                               const name = `${u.first_name || ''} ${u.last_name || ''}`.toLowerCase();
@@ -625,7 +625,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                               return (
                                 <li
                                   key={user.id}
-                                  className={`px-3 py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
+                                  className={`py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
                                   onClick={() => toggleMember(user.id)}
                                 >
                                   <div className="flex flex-col">
@@ -637,7 +637,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                               );
                             })}
                           {users.length === 0 && (
-                            <li className="px-3 py-2 text-sm text-gray-500">No team members found</li>
+                            <li className="py-2 text-sm text-gray-500">No team members found</li>
                           )}
                         </ul>
                       </div>
@@ -678,7 +678,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                     className="mt-1 w-full border border-gray-300 rounded-md bg-white cursor-pointer"
                     onClick={() => tasks.length > 0 && setIsTaskDropdownOpen((o) => !o)}
                   >
-                    <div className="px-3 py-2 flex flex-wrap gap-1 min-h-[40px]">
+                    <div className="py-2 flex flex-wrap gap-1 min-h-[40px]">
                       {tasks.length === 0 ? (
                         <div className="text-sm text-gray-500">No tasks available</div>
                       ) : (formData.selected_task_ids.length === 0 ? (
@@ -719,11 +719,11 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                               value={taskFilter}
                               onChange={(e) => setTaskFilter(e.target.value)}
                               placeholder="Search tasks..."
-                              className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full pl-7 pr-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
                         </div>
-                        <ul className="py-1">
+                        <ul >
                           {tasks
                             .filter((t) => {
                               const name = (t.title || t.name || t.id || '').toString().toLowerCase();
@@ -736,7 +736,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                               return (
                                 <li
                                   key={id}
-                                  className={`px-3 py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
+                                  className={`py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
                                   onClick={() => {
                                     if (formData.multi_task) {
                                       if (selected) {
@@ -762,7 +762,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                               );
                             })}
                           {tasks.length === 0 && (
-                            <li className="px-3 py-2 text-sm text-gray-500">No tasks found</li>
+                            <li className="py-2 text-sm text-gray-500">No tasks found</li>
                           )}
                         </ul>
                       </div>
@@ -776,7 +776,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                   className="w-full border border-secondary-300 rounded-md bg-white cursor-pointer"
                   onClick={() => users.length > 0 && setIsMemberDropdownOpen((o) => !o)}
                 >
-                  <div className="px-3 py-2 flex flex-wrap gap-1 min-h-[40px]">
+                  <div className="py-2 flex flex-wrap gap-1 min-h-[40px]">
                     {users.length === 0 ? (
                       <div className="text-sm text-gray-500 flex items-center">
                         <UsersIcon className="h-4 w-4 mr-2" />
@@ -812,11 +812,11 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                             value={memberFilter}
                             onChange={(e) => setMemberFilter(e.target.value)}
                             placeholder="Search members..."
-                            className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full pl-7 pr-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
                       </div>
-                      <ul className="py-1">
+                      <ul >
                         {users
                           .filter((u) => {
                             const name = `${u.first_name || ''} ${u.last_name || ''}`.toLowerCase();
@@ -828,7 +828,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                             return (
                               <li
                                 key={user.id}
-                                className={`px-3 py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
+                                className={`py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
                                 onClick={() => toggleMember(user.id)}
                               >
                                 <div className="flex flex-col">
@@ -840,7 +840,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                             );
                           })}
                         {users.length === 0 && (
-                          <li className="px-3 py-2 text-sm text-gray-500">No team members found</li>
+                          <li className="py-2 text-sm text-gray-500">No team members found</li>
                         )}
                       </ul>
                     </div>
@@ -865,7 +865,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                   className="mt-1 w-full border border-gray-300 rounded-md bg-white cursor-pointer"
                   onClick={() => projects.length > 0 && setIsProjectDropdownOpen((o) => !o)}
                 >
-                  <div className="px-3 py-2 flex flex-wrap gap-1 min-h-[40px]">
+                  <div className="py-2 flex flex-wrap gap-1 min-h-[40px]">
                     {projects.length === 0 ? (
                       <div className="text-sm text-gray-500">No projects available</div>
                     ) : (formData.selected_project_ids.length === 0 ? (
@@ -907,11 +907,11 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                             value={projectFilter}
                             onChange={(e) => setProjectFilter(e.target.value)}
                             placeholder="Search projects..."
-                            className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full pl-7 pr-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
                       </div>
-                      <ul className="py-1">
+                      <ul >
                         {projects
                           .filter((p) => {
                             const name = (p.name || p.id || '').toString().toLowerCase();
@@ -924,7 +924,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                             return (
                               <li
                                 key={id}
-                                className={`px-3 py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
+                                className={`py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
                                 onClick={() => {
                                   if (formData.multi_project) {
                                     if (selected) {
@@ -950,7 +950,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                             );
                           })}
                         {projects.length === 0 && (
-                          <li className="px-3 py-2 text-sm text-gray-500">No projects found</li>
+                          <li className="py-2 text-sm text-gray-500">No projects found</li>
                         )}
                       </ul>
                     </div>
@@ -963,7 +963,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                   className="w-full border border-secondary-300 rounded-md bg-white cursor-pointer"
                   onClick={() => users.length > 0 && setIsMemberDropdownOpen((o) => !o)}
                 >
-                  <div className="px-3 py-2 flex flex-wrap gap-1 min-h-[40px]">
+                  <div className="py-2 flex flex-wrap gap-1 min-h-[40px]">
                     {users.length === 0 ? (
                       <div className="text-sm text-gray-500 flex items-center">
                         <UsersIcon className="h-4 w-4 mr-2" />
@@ -999,11 +999,11 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                             value={memberFilter}
                             onChange={(e) => setMemberFilter(e.target.value)}
                             placeholder="Search members..."
-                            className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full pl-7 pr-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
                       </div>
-                      <ul className="py-1">
+                      <ul >
                         {users
                           .filter((u) => {
                             const name = `${u.first_name || ''} ${u.last_name || ''}`.toLowerCase();
@@ -1015,7 +1015,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                             return (
                               <li
                                 key={user.id}
-                                className={`px-3 py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
+                                className={`py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
                                 onClick={() => toggleMember(user.id)}
                               >
                                 <div className="flex flex-col">
@@ -1027,7 +1027,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                             );
                           })}
                         {users.length === 0 && (
-                          <li className="px-3 py-2 text-sm text-gray-500">No team members found</li>
+                          <li className="py-2 text-sm text-gray-500">No team members found</li>
                         )}
                       </ul>
                     </div>
@@ -1054,28 +1054,28 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
 
             <div className="space-y-3">
               {checklistItems.map((item, index) => (
-                <div key={index} className="">
+                <div key={index} >
                   {/* Single row: title, description (single line), reminder (due date), delete */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
                     <input
                       type="text"
                       value={item.title}
                       onChange={(e) => updateChecklistItem(index, 'title', e.target.value)}
-                    className="md:col-span-3 mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="md:col-span-3 mt-1 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Checklist title..."
                     />
                     <input
                       type="text"
                       value={item.description || ''}
                       onChange={(e) => updateChecklistItem(index, 'description', e.target.value)}
-                    className="md:col-span-6 mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="md:col-span-6 mt-1 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Description..."
                     />
                     <input
                       type="date"
                       value={item.due_date || ''}
                       onChange={(e) => updateChecklistItem(index, 'due_date', e.target.value)}
-                    className="md:col-span-2 mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="md:col-span-2 mt-1 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                     <button
                       type="button"
@@ -1151,7 +1151,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                 type="text"
                 value={formData.title}
                 onChange={(e) => handleInputChange('title', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter goal title..."
                 required
               />
@@ -1165,7 +1165,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Describe your goal..."
               />
             </div>
@@ -1178,7 +1178,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                 <select
                   value={formData.goal_type}
                   onChange={(e) => handleInputChange('goal_type', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="personal">Personal</option>
                   <option value="team">Team</option>
@@ -1195,7 +1195,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                 <select
                   value={formData.priority}
                   onChange={(e) => handleInputChange('priority', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -1211,7 +1211,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                 <select
                   value={formData.project_id}
                   onChange={(e) => handleInputChange('project_id', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Select a project</option>
                   {projects.map(project => (
@@ -1334,7 +1334,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
               className="mt-1 w-full border border-gray-300 rounded-md bg-white cursor-pointer"
               onClick={() => users.length > 0 && setIsMemberDropdownOpen((o) => !o)}
             >
-              <div className="px-3 py-2 flex flex-wrap gap-1 min-h-[40px]">
+              <div className="py-2 flex flex-wrap gap-1 min-h-[40px]">
                 {users.length === 0 ? (
                   <div className="text-sm text-gray-500 flex items-center">
                     <UsersIcon className="h-4 w-4 mr-2" />
@@ -1385,11 +1385,11 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                         value={memberFilter}
                         onChange={(e) => setMemberFilter(e.target.value)}
                         placeholder="Search members..."
-                        className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full pl-7 pr-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
-                  <ul className="py-1">
+                  <ul >
                     {users
                       .filter((u) => {
                         const name = `${u.first_name || ''} ${u.last_name || ''}`.toLowerCase();
@@ -1401,7 +1401,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                         return (
                           <li
                             key={user.id}
-                            className={`px-3 py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
+                            className={`py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
                             onClick={() => toggleMember(user.id)}
                           >
                             <div className="flex flex-col">
@@ -1413,7 +1413,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                         );
                       })}
                     {users.length === 0 && (
-                      <li className="px-3 py-2 text-sm text-gray-500">No team members found</li>
+                      <li className="py-2 text-sm text-gray-500">No team members found</li>
                     )}
                   </ul>
                 </div>
@@ -1443,7 +1443,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                       type="text"
                       value={item.title}
                       onChange={(e) => updateChecklistItem(index, 'title', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mr-2"
+                      className="flex-1 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mr-2"
                       placeholder="Checklist item title..."
                     />
                     <button
@@ -1460,7 +1460,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                       value={item.description}
                       onChange={(e) => updateChecklistItem(index, 'description', e.target.value)}
                       rows={2}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Description (optional)..."
                     />
                     
@@ -1468,7 +1468,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                       <select
                         value={item.priority}
                         onChange={(e) => updateChecklistItem(index, 'priority', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="low">Low Priority</option>
                         <option value="medium">Medium Priority</option>
@@ -1480,7 +1480,7 @@ const CreateGoalForm: React.FC<CreateGoalFormProps> = ({ isOpen, onClose, onSubm
                         type="date"
                         value={item.due_date}
                         onChange={(e) => updateChecklistItem(index, 'due_date', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
                   </div>

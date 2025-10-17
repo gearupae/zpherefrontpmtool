@@ -24,15 +24,31 @@ export function hasPermissionRaw(
   action: PermissionAction
 ): boolean {
   // Platform Admin: allow all
-  if (userRole === 'ADMIN') return true;
+  if ((userRole || '').toUpperCase() === 'ADMIN') return true;
 
-  // If permissions not loaded yet
-  if (!userPermissions) {
-    // Optimistic: allow viewing while loading, block mutating actions
+  // Heuristic defaults when permissions are not loaded or empty
+  const permsMissing = !userPermissions || userPermissions.length === 0;
+  if (permsMissing) {
+    const role = (userRole || '').toUpperCase();
+    // Manager: broad CRUD on core modules
+    if (role === 'MANAGER') {
+      const crudModules = new Set([
+        'Projects','Teams','Tasks','Goals','Customers','Purchases','Vendors','Proposals','Invoices'
+      ]);
+      if (crudModules.has(module.toString())) return true; // allow all actions
+      if (module.toString() === 'Settings') return action === 'view';
+      return action === 'view';
+    }
+    // Member: can create/edit tasks by default; others view-only
+    if (role === 'MEMBER') {
+      if (module.toString() === 'Tasks') return action === 'view' || action === 'create' || action === 'edit';
+      return action === 'view';
+    }
+    // Client or unknown: view-only
     return action === 'view';
   }
 
-  const perm = userPermissions.find((p) => p.module.toLowerCase() === module.toLowerCase());
+  const perm = userPermissions.find((p) => String(p.module).toLowerCase() === String(module).toLowerCase());
   if (!perm) return action === 'view'; // if no explicit permission row, allow view by default
 
   switch (action) {

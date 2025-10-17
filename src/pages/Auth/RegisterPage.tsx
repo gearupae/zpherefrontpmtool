@@ -80,7 +80,7 @@ const RegisterPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await apiClient.post('/auth/register', {
+      const response = await apiClient.post('auth/register', {
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
@@ -127,7 +127,7 @@ const RegisterPage: React.FC = () => {
   }, [isAuthenticated, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-secondary-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-secondary-502 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="mx-auto h-12 w-12 bg-text-primary rounded-xl flex items-center justify-center">
@@ -160,7 +160,7 @@ const RegisterPage: React.FC = () => {
                   name="firstName"
                   type="text"
                   required
-                  className="mt-1 block w-full px-3 py-2 border border-secondary-300 rounded-md shadow-sm placeholder-secondary-400 focus:outline-none focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
+                  className="mt-1 block w-full py-2 border border-secondary-300 rounded-md shadow-sm placeholder-secondary-400 focus:outline-none focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
                   placeholder="John"
                   value={formData.firstName}
                   onChange={handleChange}
@@ -175,7 +175,7 @@ const RegisterPage: React.FC = () => {
                   name="lastName"
                   type="text"
                   required
-                  className="mt-1 block w-full px-3 py-2 border border-secondary-300 rounded-md shadow-sm placeholder-secondary-400 focus:outline-none focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
+                  className="mt-1 block w-full py-2 border border-secondary-300 rounded-md shadow-sm placeholder-secondary-400 focus:outline-none focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
                   placeholder="Doe"
                   value={formData.lastName}
                   onChange={handleChange}
@@ -193,7 +193,7 @@ const RegisterPage: React.FC = () => {
                 name="organizationName"
                 type="text"
                 required
-                className="mt-1 block w-full px-3 py-2 border border-secondary-300 rounded-md shadow-sm placeholder-secondary-400 focus:outline-none focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
+                className="mt-1 block w-full py-2 border border-secondary-300 rounded-md shadow-sm placeholder-secondary-400 focus:outline-none focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
                 placeholder="Your Company Name"
                 value={formData.organizationName}
                 onChange={handleChange}
@@ -211,7 +211,7 @@ const RegisterPage: React.FC = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className="mt-1 block w-full px-3 py-2 border border-secondary-300 rounded-md shadow-sm placeholder-secondary-400 focus:outline-none focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
+                className="mt-1 block w-full py-2 border border-secondary-300 rounded-md shadow-sm placeholder-secondary-400 focus:outline-none focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
                 placeholder="john@company.com"
                 value={formData.email}
                 onChange={handleChange}
@@ -230,7 +230,7 @@ const RegisterPage: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   required
-                  className="block w-full px-3 py-2 pr-10 border border-secondary-300 rounded-md shadow-sm placeholder-secondary-400 focus:outline-none focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
+                  className="block w-full py-2 pr-10 border border-secondary-300 rounded-md shadow-sm placeholder-secondary-400 focus:outline-none focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
                   placeholder="At least 8 characters"
                   value={formData.password}
                   onChange={handleChange}
@@ -261,7 +261,7 @@ const RegisterPage: React.FC = () => {
                   type={showConfirmPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   required
-                  className="block w-full px-3 py-2 pr-10 border border-secondary-300 rounded-md shadow-sm placeholder-secondary-400 focus:outline-none focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
+                  className="block w-full py-2 pr-10 border border-secondary-300 rounded-md shadow-sm placeholder-secondary-400 focus:outline-none focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
                   placeholder="Confirm your password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
@@ -308,7 +308,7 @@ const RegisterPage: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-user-blue hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <LoadingSpinner size="small" />

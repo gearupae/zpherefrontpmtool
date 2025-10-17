@@ -342,7 +342,7 @@ const resetForm = () => {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+          className="py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
         >
           <option value="ALL">All Status</option>
           <option value="DRAFT">Draft</option>
@@ -355,7 +355,7 @@ const resetForm = () => {
         <select
           value={projectFilter}
           onChange={(e) => setProjectFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+          className="py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
         >
           <option value="ALL">All Projects</option>
           {(projects || []).map((p) => (
@@ -365,7 +365,7 @@ const resetForm = () => {
         <select
           value={customerFilter}
           onChange={(e) => setCustomerFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+          className="py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
         >
           <option value="ALL">All Customers</option>
           {(customers || []).map((c) => {
@@ -396,7 +396,7 @@ const resetForm = () => {
                     required
                     value={formData.vendor_id}
                     onChange={(e) => setFormData({ ...formData, vendor_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                   >
                     <option value="">Select Vendor</option>
                     {(vendors || []).map((vendor) => (
@@ -414,7 +414,7 @@ const resetForm = () => {
                     type="date"
                     value={formData.expected_delivery_date}
                     onChange={(e) => setFormData({ ...formData, expected_delivery_date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -426,7 +426,7 @@ const resetForm = () => {
                     type="date"
                     value={formData.received_date || ''}
                     onChange={(e) => setFormData({ ...formData, received_date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
                 <div>
@@ -434,7 +434,7 @@ const resetForm = () => {
                   <select
                     value={formData.project_id || ''}
                     onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                   >
                     <option value="">Select Project (optional)</option>
                     {(projects || []).map((p) => (
@@ -447,7 +447,7 @@ const resetForm = () => {
                   <select
                     value={formData.customer_id || ''}
                     onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                   >
                     <option value="">Select Customer (optional)</option>
                     {(customers || []).map((c) => {
@@ -478,7 +478,7 @@ const resetForm = () => {
                             unit_price: selectedItem?.unit_price_display || 0,
                           });
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                       >
                         <option value="">Select Item</option>
                         {(items || []).filter(item => item.is_active).map((item) => (
@@ -495,7 +495,7 @@ const resetForm = () => {
                         min="1"
                         value={currentItem.quantity}
                         onChange={(e) => setCurrentItem({ ...currentItem, quantity: parseInt(e.target.value) || 1 })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                       />
                     </div>
                     <div>
@@ -505,7 +505,7 @@ const resetForm = () => {
                         step="0.01"
                         value={currentItem.unit_price}
                         onChange={(e) => setCurrentItem({ ...currentItem, unit_price: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                       />
                     </div>
                     <div>
@@ -514,7 +514,7 @@ const resetForm = () => {
                         placeholder="Description"
                         value={currentItem.description}
                         onChange={(e) => setCurrentItem({ ...currentItem, description: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                       />
                     </div>
                     <div>
@@ -522,7 +522,7 @@ const resetForm = () => {
                         type="button"
                         onClick={addItem}
                         disabled={!currentItem.item_id}
-                        className="w-full bg-indigo-600 text-white px-3 py-2 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                        className="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 disabled:opacity-50"
                       >
                         Add Item
                       </button>
@@ -585,7 +585,7 @@ const resetForm = () => {
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
 
@@ -676,7 +676,7 @@ const resetForm = () => {
                   <select
                     value={po.status}
                     onChange={(e) => handleStatusChange(po.id, e.target.value)}
-                    className={`text-xs font-semibold rounded-full px-2 py-1 border-none ${getStatusColor(po.status)}`}
+                    className={`text-xs font-semibold rounded-full px-2 border-none ${getStatusColor(po.status)}`}
                   >
                     <option value="DRAFT">Draft</option>
                     <option value="PENDING">Pending</option>
@@ -724,7 +724,7 @@ const resetForm = () => {
         </table>
         </div>
         {filteredPOs.length === 0 && (
-          <div className="text-center py-12">
+          <div className="text-center2">
             <div className="text-gray-500 text-lg">No purchase orders found</div>
             <button
               onClick={() => setShowForm(true)}
@@ -760,7 +760,7 @@ const resetForm = () => {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Status</label>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedPO.status)}`}>
+                  <span className={`inline-flex px-2 text-xs font-semibold rounded-full ${getStatusColor(selectedPO.status)}`}>
                     {selectedPO.status}
                   </span>
                 </div>

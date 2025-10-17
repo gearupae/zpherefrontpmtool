@@ -142,7 +142,7 @@ const ResourceDashboard: React.FC<ResourceDashboardProps> = ({ teamMembers, task
           <select
             value={selectedTimeframe}
             onChange={(e) => setSelectedTimeframe(e.target.value as 'week' | 'month' | 'quarter')}
-            className="text-sm border border-gray-300 rounded-md px-3 py-1 focus:ring-blue-500 focus:border-blue-500"
+            className="text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="week">This Week</option>
             <option value="month">This Month</option>
@@ -313,7 +313,7 @@ const ResourceDashboard: React.FC<ResourceDashboardProps> = ({ teamMembers, task
                   
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     {resource.upcomingDeadlines > 0 ? (
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      <span className={`inline-flex items-center px-2 rounded-full text-xs font-medium ${
                         resource.upcomingDeadlines > 3 ? 'bg-red-100 text-red-800' : 
                         resource.upcomingDeadlines > 1 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
                       }`}>
@@ -327,7 +327,7 @@ const ResourceDashboard: React.FC<ResourceDashboardProps> = ({ teamMembers, task
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
                       {resource.skillTags.map((skill, index) => (
-                        <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        <span key={index} className="inline-flex items-center px-2 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                           {skill}
                         </span>
                       ))}

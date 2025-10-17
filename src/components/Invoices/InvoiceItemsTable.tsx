@@ -267,14 +267,14 @@ const InvoiceItemsTable: React.FC<Props> = ({ selectedItems, onItemsChange, clas
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Item Name</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Description</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Rate</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Qty</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Discount %</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">VAT %</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Total</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+              <th className="py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Item Name</th>
+              <th className="py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Description</th>
+              <th className="py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Rate</th>
+              <th className="py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Qty</th>
+              <th className="py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Discount %</th>
+              <th className="py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">VAT %</th>
+              <th className="py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Total</th>
+              <th className="py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
@@ -283,7 +283,7 @@ const InvoiceItemsTable: React.FC<Props> = ({ selectedItems, onItemsChange, clas
               return (
                 <tr key={idx} className="hover:bg-gray-50">
                   {/* Item Name with search */}
-                  <td className="px-3 py-2 align-top" style={{ position: 'relative', overflow: 'visible' }}>
+                  <td className="py-2 align-top" style={{ position: 'relative', overflow: 'visible' }}>
                     <div style={{ position: 'relative', overflow: 'visible' }}>
                       <div className="flex items-center">
                         <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 mr-1" />
@@ -303,7 +303,7 @@ const InvoiceItemsTable: React.FC<Props> = ({ selectedItems, onItemsChange, clas
                               setFocusedRow(null);
                             }
                           }}
-                          className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-sm"
+                          className="w-full px-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-sm"
                           placeholder="Type to search items..."
                         />
                       </div>
@@ -322,7 +322,7 @@ const InvoiceItemsTable: React.FC<Props> = ({ selectedItems, onItemsChange, clas
                             <li
                               key={it.id}
                               onMouseDown={(e) => { e.preventDefault(); pickSuggestion(idx, it); }}
-                              className="px-3 py-2 cursor-pointer hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-b-0"
+                              className="py-2 cursor-pointer hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-b-0"
                             >
                               <div className="flex items-center justify-between">
                                 <div className="text-sm text-gray-900 font-medium">{it.display_name || it.name}</div>
@@ -339,44 +339,44 @@ const InvoiceItemsTable: React.FC<Props> = ({ selectedItems, onItemsChange, clas
                   </td>
 
                   {/* Description */}
-                  <td className="px-3 py-2 align-top">
+                  <td className="py-2 align-top">
                     <input
                       type="text"
                       value={row.description}
                       onChange={(e) => updateRow(idx, { description: e.target.value })}
-                      className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      className="w-full px-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                       placeholder="Description"
                     />
                   </td>
 
                   {/* Rate */}
-                  <td className="px-3 py-2 align-top text-right">
+                  <td className="py-2 align-top text-right">
                     <input
                       type="number"
                       min={0}
                       step={0.01}
                       value={Number(row.unit_price) || 0}
                       onChange={(e) => updateRow(idx, { unit_price: parseFloat(e.target.value || '0') })}
-                      className="w-28 px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm text-right"
+                      className="w-28 px-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm text-right"
                       placeholder="0.00"
                     />
                   </td>
 
                   {/* Qty */}
-                  <td className="px-3 py-2 align-top text-right">
+                  <td className="py-2 align-top text-right">
                     <input
                       type="number"
                       min={1}
                       step={1}
                       value={Number(row.quantity) || 1}
                       onChange={(e) => updateRow(idx, { quantity: Math.max(1, parseInt(e.target.value) || 1) })}
-                      className="w-20 px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm text-right"
+                      className="w-20 px-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm text-right"
                       placeholder="1"
                     />
                   </td>
 
                   {/* Discount */}
-                  <td className="px-3 py-2 align-top text-right">
+                  <td className="py-2 align-top text-right">
                     <input
                       type="number"
                       min={0}
@@ -384,13 +384,13 @@ const InvoiceItemsTable: React.FC<Props> = ({ selectedItems, onItemsChange, clas
                       step={0.01}
                       value={isNaN(row.discount_rate as any) ? 0 : row.discount_rate}
                       onChange={(e) => updateRow(idx, { discount_rate: Math.max(0, Math.min(100, parseFloat(e.target.value || '0'))) })}
-                      className="w-24 px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm text-right"
+                      className="w-24 px-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm text-right"
                       placeholder="0.00"
                     />
                   </td>
 
                   {/* VAT */}
-                  <td className="px-3 py-2 align-top text-right">
+                  <td className="py-2 align-top text-right">
                     <input
                       type="number"
                       min={0}
@@ -398,18 +398,18 @@ const InvoiceItemsTable: React.FC<Props> = ({ selectedItems, onItemsChange, clas
                       step={0.01}
                       value={isNaN(row.tax_rate as any) ? 0 : row.tax_rate}
                       onChange={(e) => updateRow(idx, { tax_rate: Math.max(0, Math.min(100, parseFloat(e.target.value || '0'))) })}
-                      className="w-24 px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm text-right"
+                      className="w-24 px-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm text-right"
                       placeholder="0.00"
                     />
                   </td>
 
                   {/* Total (read-only) */}
-                  <td className="px-3 py-2 align-top text-right">
+                  <td className="py-2 align-top text-right">
                     <div className="text-sm font-medium text-gray-900">${currency(lineTotal(row))}</div>
                   </td>
 
                   {/* Actions */}
-                  <td className="px-3 py-2 align-top text-right">
+                  <td className="py-2 align-top text-right">
                     <button
                       type="button"
                       onClick={() => removeRow(idx)}

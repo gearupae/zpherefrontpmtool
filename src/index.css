@@ -1548,3 +1548,49 @@ html.dark .section-neu {
     .detail-card { padding: 1.5rem; }
   }
 }
+
+/* ==========================================
+   Standardized Blue Buttons (primary/submit/variants)
+   - Applies only to elements that are buttons or role="button"
+   - Targets existing blue variants (Tailwind bg-blue-*, .btn-primary)
+   - Uses base button padding/radius
+   ========================================== */
+button.btn-primary,
+.btn.btn-primary,
+[role="button"].btn-primary,
+button[class*="bg-blue-"],
+[role="button"][class*="bg-blue-"],
+a[role="button"][class*="bg-blue-"],
+input[type="submit"].btn-primary,
+input[type="submit"][class*="bg-blue-"] {
+  background-color: #2563eb !important; /* blue-600 */
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+  padding: 0.5rem 0.75rem !important; /* base .btn padding */
+  border-radius: 10px !important;       /* base .btn radius */
+}
+
+button.btn-primary:hover,
+.btn.btn-primary:hover,
+[role="button"].btn-primary:hover,
+button[class*="bg-blue-"]:hover,
+[role="button"][class*="bg-blue-"]:hover,
+a[role="button"][class*="bg-blue-"]:hover,
+input[type="submit"].btn-primary:hover,
+input[type="submit"][class*="bg-blue-"]:hover {
+  background-color: #3b82f6 !important; /* blue-500 */
+  border-color: #3b82f6 !important;
+  color: #ffffff !important;
+}
+
+button.btn-primary:focus-visible,
+.btn.btn-primary:focus-visible,
+[role="button"].btn-primary:focus-visible,
+button[class*="bg-blue-"]:focus-visible,
+[role="button"][class*="bg-blue-"]:focus-visible,
+a[role="button"][class*="bg-blue-"]:focus-visible,
+input[type="submit"].btn-primary:focus-visible,
+input[type="submit"][class*="bg-blue-"]:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25) !important;
+}

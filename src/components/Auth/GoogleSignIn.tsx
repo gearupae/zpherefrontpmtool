@@ -34,7 +34,7 @@ const GoogleSignIn: React.FC<Props> = ({ onSuccess }) => {
       callback: async (response: any) => {
         const id_token = response.credential;
         try {
-          const resp = await apiClient.post('/auth/google', { id_token });
+          const resp = await apiClient.post('auth/google', { id_token });
           const { access_token, refresh_token } = resp.data;
           localStorage.setItem('access_token', access_token);
           localStorage.setItem('refresh_token', refresh_token);

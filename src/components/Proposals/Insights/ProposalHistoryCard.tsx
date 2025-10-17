@@ -81,7 +81,7 @@ const ProposalHistoryCard: React.FC<Props> = ({ history, customerId, isLoading }
         <div className="mt-4">
           <button
             onClick={handleViewProposals}
-            className="w-full flex items-center justify-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
+            className="w-full flex items-center justify-center space-x-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
             <DocumentTextIcon className="h-4 w-4" />
             <span>View All Proposals</span>

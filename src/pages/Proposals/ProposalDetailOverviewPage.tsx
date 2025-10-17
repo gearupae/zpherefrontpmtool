@@ -22,6 +22,7 @@ import { addNotification } from '../../store/slices/notificationSlice';
 import { apiClient } from '../../api/client';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
 import ProposalForm from '../../components/Proposals/ProposalForm';
+import { PDFSection1, PDFSection2, PDFSection3 } from '../../types';
 import ViewModeButton from '../../components/UI/ViewModeButton';
 import { encodeShareIdCompact, slugify } from '../../utils/shortLink';
 import CustomerDetailsCard from '../../components/Proposals/Insights/CustomerDetailsCard';
@@ -66,6 +67,9 @@ interface Proposal {
       title: string;
       content: string;
     }>;
+    section1?: PDFSection1;
+    section2?: PDFSection2;
+    section3?: PDFSection3;
   };
   tags?: string[];
   response_notes?: string;
@@ -556,6 +560,32 @@ const ProposalDetailOverviewPage: React.FC = () => {
       total_amount: proposal.total_amount ? proposal.total_amount / 100 : 0, // Convert from cents
       currency: proposal.currency,
       content: {
+        // New PDF section structure
+        section1: proposal.content?.section1 || {
+          logo_url: '',
+          company_details: {
+            name: '',
+            address: '',
+            phone: '',
+            email: '',
+            website: ''
+          }
+        },
+        section2: proposal.content?.section2 || {
+          heading: 'Proposal',
+          subheading: ''
+        },
+        section3: proposal.content?.section3 || {
+          left: {
+            content: 'Project Details',
+            details: ''
+          },
+          right: {
+            title: proposal.title || '',
+            content: ''
+          }
+        },
+        // Legacy sections
         sections: proposal.content?.sections || [
           { title: 'Project Overview', content: '' },
           { title: 'Scope of Work', content: '' },
@@ -807,7 +837,7 @@ const ProposalDetailOverviewPage: React.FC = () => {
 
   if (error || !proposal) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center2">
         <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
         <h3 className="mt-2 text-sm font-medium text-gray-900">Proposal not found</h3>
         <p className="mt-1 text-sm text-gray-500">{error || 'The proposal you are looking for does not exist.'}</p>
@@ -846,7 +876,7 @@ const ProposalDetailOverviewPage: React.FC = () => {
           {proposal.status && proposal.status.toLowerCase() === 'draft' && (
             <button
               onClick={handleSend}
-              className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
+              className="flex items-center space-x-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
             >
               <DocumentTextIcon className="h-4 w-4" />
               Send
@@ -855,7 +885,7 @@ const ProposalDetailOverviewPage: React.FC = () => {
           {/* Share Proposal button */}
           <button
             onClick={handleShareProposal}
-            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
+            className="flex items-center space-x-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
             <LinkIcon className="h-4 w-4" />
             Share Proposal
@@ -864,14 +894,14 @@ const ProposalDetailOverviewPage: React.FC = () => {
             <>
               <button
                 onClick={handleAccept}
-                className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
+                className="flex items-center space-x-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
               >
                 <CheckCircleIcon className="h-4 w-4" />
                 Accept
               </button>
               <button
                 onClick={handleReject}
-                className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
+                className="flex items-center space-x-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
               >
                 <XCircleIcon className="h-4 w-4" />
                 Reject
@@ -880,28 +910,28 @@ const ProposalDetailOverviewPage: React.FC = () => {
           )}
           <button
             onClick={handleDownloadPDF}
-            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
+            className="flex items-center space-x-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
             <DocumentArrowDownIcon className="h-4 w-4" />
             Download PDF
           </button>
           <button
             onClick={handleConvertToInvoice}
-            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
+            className="flex items-center space-x-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
             <ArrowsRightLeftIcon className="h-4 w-4" />
             Convert to Invoice
           </button>
           <button
             onClick={() => setActiveTab('edit')}
-            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
+            className="flex items-center space-x-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
             <PencilIcon className="h-4 w-4" />
             Edit
           </button>
           <button
             onClick={handleDelete}
-            className="flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
+            className="flex items-center space-x-2 rounded-md text-sm font-medium transition-colors shadow-sm border bg-white text-gray-900 border-gray-200 hover:bg-gray-50"
           >
             <TrashIcon className="h-4 w-4" />
             Delete
@@ -914,7 +944,7 @@ const ProposalDetailOverviewPage: React.FC = () => {
         <nav className="flex space-x-8">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`py-2 px-3 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
+            className={`py-2 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
               activeTab === 'overview'
                 ? 'text-indigo-600'
                 : 'text-black hover:text-gray-700'
@@ -927,7 +957,7 @@ const ProposalDetailOverviewPage: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('edit')}
-            className={`py-2 px-3 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
+            className={`py-2 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
               activeTab === 'edit'
                 ? 'text-indigo-600'
                 : 'text-black hover:text-gray-700'
@@ -1040,6 +1070,87 @@ const ProposalDetailOverviewPage: React.FC = () => {
                 <div className="mb-6">
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Description</h4>
                   <p className="text-sm text-gray-600">{proposal.description}</p>
+                </div>
+              )}
+
+              {/* PDF Section Structure */}
+              {proposal.content?.section1 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">PDF Structure Preview</h4>
+                  
+                  {/* Section 1: Logo + Company Details */}
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4">
+                    <h5 className="text-sm font-semibold text-gray-800 mb-3">Section 1: Logo + Company Details</h5>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        {proposal.content.section1.logo_url && (
+                          <div className="mb-2">
+                            <img src={proposal.content.section1.logo_url} alt="Company Logo" className="h-12 object-contain" />
+                          </div>
+                        )}
+                        <div className="text-sm text-gray-700">
+                          {proposal.content.section1.company_details.name && (
+                            <div className="font-medium">{proposal.content.section1.company_details.name}</div>
+                          )}
+                          {proposal.content.section1.company_details.address && (
+                            <div>{proposal.content.section1.company_details.address}</div>
+                          )}
+                          {proposal.content.section1.company_details.phone && (
+                            <div>{proposal.content.section1.company_details.phone}</div>
+                          )}
+                          {proposal.content.section1.company_details.email && (
+                            <div>{proposal.content.section1.company_details.email}</div>
+                          )}
+                          {proposal.content.section1.company_details.website && (
+                            <div>{proposal.content.section1.company_details.website}</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 2: Proposal Heading */}
+                  {proposal.content?.section2 && (
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4">
+                      <h5 className="text-sm font-semibold text-gray-800 mb-3">Section 2: Proposal Heading</h5>
+                      <div className="text-center">
+                        <h1 className="text-xl font-bold text-black mb-1">{proposal.content.section2.heading}</h1>
+                        {proposal.content.section2.subheading && (
+                          <p className="text-base text-gray-600">{proposal.content.section2.subheading}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Section 3: Left/Right Layout */}
+                  {proposal.content?.section3 && (
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4">
+                      <h5 className="text-sm font-semibold text-gray-800 mb-3">Section 3: Details (Left/Right Layout)</h5>
+                      <div className="grid grid-cols-2 gap-6">
+                        {/* Left Section */}
+                        <div>
+                          <h6 className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">Left Section</h6>
+                          <div className="text-sm text-gray-700">
+                            <div className="font-medium mb-1">{proposal.content.section3.left.content}</div>
+                            {proposal.content.section3.left.details && (
+                              <p className="text-xs whitespace-pre-wrap">{proposal.content.section3.left.details}</p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Right Section */}
+                        <div>
+                          <h6 className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">Right Section</h6>
+                          <div className="text-sm text-gray-700">
+                            <div className="font-bold text-base mb-1">{proposal.content.section3.right.title}</div>
+                            {proposal.content.section3.right.content && (
+                              <p className="text-xs whitespace-pre-wrap">{proposal.content.section3.right.content}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

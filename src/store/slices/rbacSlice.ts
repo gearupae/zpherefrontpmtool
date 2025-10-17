@@ -21,7 +21,7 @@ const initialState: RbacState = {
 // Roles
 export const fetchRoles = createAsyncThunk('rbac/fetchRoles', async (_, { rejectWithValue }) => {
   try {
-    const res = await apiClient.get('/roles');
+    const res = await apiClient.get('/roles/');
     return res.data as Role[];
   } catch (error: any) {
     const msg = error?.response?.data?.detail || 'Failed to fetch roles';
@@ -31,7 +31,7 @@ export const fetchRoles = createAsyncThunk('rbac/fetchRoles', async (_, { reject
 
 export const createRole = createAsyncThunk('rbac/createRole', async (payload: { name: string; description?: string }, { rejectWithValue }) => {
   try {
-    const res = await apiClient.post('/roles', payload);
+    const res = await apiClient.post('/roles/', payload);
     return res.data as Role;
   } catch (error: any) {
     const msg = error?.response?.data?.detail || 'Failed to create role';
@@ -41,7 +41,7 @@ export const createRole = createAsyncThunk('rbac/createRole', async (payload: { 
 
 export const updateRole = createAsyncThunk('rbac/updateRole', async ({ id, data }: { id: string; data: Partial<Role> }, { rejectWithValue }) => {
   try {
-    const res = await apiClient.put(`/roles/${id}`, data);
+    const res = await apiClient.put(`/roles/${id}/`, data);
     return res.data as Role;
   } catch (error: any) {
     const msg = error?.response?.data?.detail || 'Failed to update role';
@@ -51,7 +51,7 @@ export const updateRole = createAsyncThunk('rbac/updateRole', async ({ id, data 
 
 export const deleteRole = createAsyncThunk('rbac/deleteRole', async (id: string, { rejectWithValue }) => {
   try {
-    await apiClient.delete(`/roles/${id}`);
+    await apiClient.delete(`/roles/${id}/`);
     return id;
   } catch (error: any) {
     const msg = error?.response?.data?.detail || 'Failed to delete role';
@@ -62,7 +62,7 @@ export const deleteRole = createAsyncThunk('rbac/deleteRole', async (id: string,
 // Role permissions
 export const fetchRolePermissions = createAsyncThunk('rbac/fetchRolePermissions', async (roleId: string, { rejectWithValue }) => {
   try {
-    const res = await apiClient.get(`/roles/${roleId}/permissions`);
+    const res = await apiClient.get(`/roles/${roleId}/permissions/`);
     return { roleId, permissions: (res.data || []) as Permission[] };
   } catch (error: any) {
     const msg = error?.response?.data?.detail || 'Failed to fetch role permissions';
@@ -74,7 +74,7 @@ export const updateRolePermissions = createAsyncThunk(
   'rbac/updateRolePermissions',
   async ({ roleId, permissions }: { roleId: string; permissions: Permission[] }, { rejectWithValue }) => {
     try {
-      const res = await apiClient.put(`/roles/${roleId}/permissions`, { permissions });
+      const res = await apiClient.put(`/roles/${roleId}/permissions/`, { permissions });
       return { roleId, permissions: (res.data || []) as Permission[] };
     } catch (error: any) {
       const msg = error?.response?.data?.detail || 'Failed to update role permissions';

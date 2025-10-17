@@ -46,7 +46,7 @@ export const fetchTask = createAsyncThunk(
   'tasks/fetchTask',
   async (taskId: string, { rejectWithValue }) => {
     try {
-      const response = await apiClient.get(`/tasks/${taskId}`);
+      const response = await apiClient.get(`/tasks/${taskId}/`);
       return response.data;
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;
@@ -98,7 +98,7 @@ export const updateTask = createAsyncThunk(
   'tasks/updateTask',
   async ({ id, data }: { id: string; data: Partial<Task> }, { rejectWithValue }) => {
     try {
-      const response = await apiClient.put(`/tasks/${id}`, data);
+      const response = await apiClient.put(`/tasks/${id}/`, data);
       
       // Notify about task update
       if (response?.data?.id) {
@@ -134,7 +134,7 @@ export const deleteTask = createAsyncThunk(
       const taskTitle = task?.title || 'Task';
       const projectId = task?.project_id;
       
-      await apiClient.delete(`/tasks/${taskId}`);
+      await apiClient.delete(`/tasks/${taskId}/`);
       
       // Notify about deletion
       await notifyTaskDeleted(taskId, taskTitle, projectId);
@@ -184,7 +184,16 @@ const taskSlice = createSlice({
       })
       .addCase(fetchTasks.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.tasks = action.payload;
+        const payload = action.payload as any;
+        state.tasks = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.results)
+            ? payload.results
+            : Array.isArray(payload?.items)
+              ? payload.items
+              : Array.isArray(payload?.data)
+                ? payload.data
+                : [];
       })
       .addCase(fetchTasks.rejected, (state, action) => {
         state.isLoading = false;

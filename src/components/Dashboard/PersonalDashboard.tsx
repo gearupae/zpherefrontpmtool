@@ -9,7 +9,7 @@ import ViewModeButton from '../UI/ViewModeButton';
 
 // Enhanced widget components with real data
 const ProjectStatusWidget: React.FC<any> = ({ compact, data }) => {
-  const projects = data?.projects || [];
+  const projects = Array.isArray(data?.projects) ? data.projects : [];
   const activeProjects = projects.filter((p: any) => p.status === 'active' && !p.is_archived).length;
   const completedProjects = projects.filter((p: any) => p.status === 'completed').length;
   const atRiskProjects = projects.filter((p: any) => p.status === 'at_risk' || (p.due_date && new Date(p.due_date) < new Date())).length;
@@ -43,7 +43,7 @@ const ProjectStatusWidget: React.FC<any> = ({ compact, data }) => {
 };
 
 const MyTasksWidget: React.FC<any> = ({ compact, data, priorityFilter, viewFormat }) => {
-  const tasks = data?.tasks || [];
+  const tasks = Array.isArray(data?.tasks) ? data.tasks : [];
   const myTasks = tasks.filter((task: any) => task.assignee_id === data?.currentUserId);
   
   const filteredTasks = priorityFilter !== 'all' 
@@ -81,7 +81,7 @@ const MyTasksWidget: React.FC<any> = ({ compact, data, priorityFilter, viewForma
     <div className={`${compact ? 'p-3' : 'p-4'}`}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-medium text-gray-900">My Tasks</h3>
-        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+        <span className="text-xs text-gray-500 bg-gray-100 px-2 rounded-full">
           {sortedTasks.length} active
         </span>
       </div>
@@ -92,7 +92,7 @@ const MyTasksWidget: React.FC<any> = ({ compact, data, priorityFilter, viewForma
             const priorityTasks = sortedTasks.filter((task: any) => task.priority === priority);
             return (
               <div key={priority} className="space-y-1">
-                <div className={`text-center py-1 rounded text-white ${getPriorityColor(priority)}`}>
+                <div className={`text-center rounded text-white ${getPriorityColor(priority)}`}>
                   {priority.toUpperCase()}
                 </div>
                 {priorityTasks.slice(0, 2).map((task: any) => (
@@ -124,7 +124,7 @@ const MyTasksWidget: React.FC<any> = ({ compact, data, priorityFilter, viewForma
                     </div>
                   )}
                 </div>
-                <span className={`text-xs px-2 py-1 rounded-full ${
+                <span className={`text-xs px-2 rounded-full ${
                   task.priority === 'high' ? 'bg-red-100 text-red-700' :
                   task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
                   'bg-green-100 text-green-700'
@@ -141,8 +141,8 @@ const MyTasksWidget: React.FC<any> = ({ compact, data, priorityFilter, viewForma
 };
 
 const UpcomingDeadlinesWidget: React.FC<any> = ({ compact, data }) => {
-  const tasks = data?.tasks || [];
-  const projects = data?.projects || [];
+  const tasks = Array.isArray(data?.tasks) ? data.tasks : [];
+  const projects = Array.isArray(data?.projects) ? data.projects : [];
   
   const upcomingItems = [
     ...tasks
@@ -183,7 +183,7 @@ const UpcomingDeadlinesWidget: React.FC<any> = ({ compact, data }) => {
     <div className={`${compact ? 'p-3' : 'p-4'}`}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-medium text-gray-900">Upcoming Deadlines</h3>
-        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+        <span className="text-xs text-gray-500 bg-gray-100 px-2 rounded-full">
           {upcomingItems.length} items
         </span>
       </div>
@@ -202,7 +202,7 @@ const UpcomingDeadlinesWidget: React.FC<any> = ({ compact, data }) => {
                 <div className="text-sm font-medium text-gray-900 truncate">
                   {item.title || item.name}
                 </div>
-                <div className={`text-xs px-2 py-1 rounded-full inline-block ${getUrgencyColor(item.due_date)}`}>
+                <div className={`text-xs px-2 rounded-full inline-block ${getUrgencyColor(item.due_date)}`}>
                   {getTimeUntil(item.due_date)}
                 </div>
               </div>
@@ -416,7 +416,7 @@ const PersonalDashboard: React.FC = () => {
             <select
               value={preferences.priority_filter}
               onChange={(e) => setPreferences(prev => ({ ...prev, priority_filter: e.target.value as any }))}
-              className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
+              className="text-sm border border-gray-300 rounded-md px-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">All Priorities</option>
               <option value="high">High Priority</option>
@@ -431,7 +431,7 @@ const PersonalDashboard: React.FC = () => {
             <select
               value={preferences.view_format}
               onChange={(e) => setPreferences(prev => ({ ...prev, view_format: e.target.value as any }))}
-              className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
+              className="text-sm border border-gray-300 rounded-md px-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="standard">Standard View</option>
               <option value="priority_matrix">Priority Matrix</option>
@@ -526,7 +526,7 @@ const PersonalDashboard: React.FC = () => {
               <select
                 value={preferences.theme}
                 onChange={(e) => setPreferences(prev => ({ ...prev, theme: e.target.value as any }))}
-                className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full text-sm border border-gray-300 rounded-md py-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>
@@ -599,7 +599,7 @@ const PersonalDashboard: React.FC = () => {
 
       {/* Empty State */}
       {preferences.enabled_widgets.length === 0 && (
-        <div className="text-center py-12">
+        <div className="text-center2">
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012 2v2M7 7h10" />
           </svg>

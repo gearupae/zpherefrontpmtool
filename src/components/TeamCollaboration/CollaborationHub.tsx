@@ -156,7 +156,7 @@ const CollaborationHub: React.FC<CollaborationHubProps> = ({
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">{feature.title}</h3>
                       {feature.implemented && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span className="inline-flex items-center px-2 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           ✓ Implemented
                         </span>
                       )}
@@ -400,7 +400,7 @@ const CollaborationHub: React.FC<CollaborationHubProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`group inline-flex items-center py-3 px-3 font-medium text-sm whitespace-nowrap rounded-md transition-colors focus:outline-none focus:ring-0 ${
+              className={`group inline-flex items-center py-3 font-medium text-sm whitespace-nowrap rounded-md transition-colors focus:outline-none focus:ring-0 ${
                 activeTab === tab.id ? 'text-indigo-600' : 'text-black hover:text-gray-700'
               }`}
             >

@@ -215,7 +215,7 @@ const TeamPerformanceWidget: React.FC<TeamPerformanceWidgetProps> = ({
                 )}
                 
                 <div className={`
-                  text-xs font-medium px-2 py-1 rounded-full
+                  text-xs font-medium px-2 rounded-full
                   ${getVelocityColor(member.velocity_score)}
                 `}>
                   {member.velocity_score}

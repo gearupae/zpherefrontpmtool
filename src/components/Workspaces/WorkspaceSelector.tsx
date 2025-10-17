@@ -61,7 +61,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
     <div className="relative">
       <button
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        className="flex items-center space-x-2 px-3 py-2 text-sm border border-border rounded-lg hover:bg-surface-hover transition-colors min-w-[200px]"
+        className="flex items-center space-x-2 py-2 text-sm border border-border rounded-lg hover:bg-surface-hover transition-colors min-w-[200px]"
         disabled={isLoading}
       >
         {selectedWorkspace ? (
@@ -83,7 +83,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
 
       {isDropdownOpen && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-50">
-          <div className="py-1">
+          <div >
             {workspaces.map((workspace) => (
               <button
                 key={workspace.id}
@@ -91,7 +91,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                   onWorkspaceChange(workspace);
                   setIsDropdownOpen(false);
                 }}
-                className="w-full flex items-center space-x-2 px-3 py-2 text-sm hover:bg-surface-hover text-left"
+                className="w-full flex items-center space-x-2 py-2 text-sm hover:bg-surface-hover text-left"
               >
                 <div 
                   className="w-3 h-3 rounded-full"
@@ -122,7 +122,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                   onCreateWorkspace();
                   setIsDropdownOpen(false);
                 }}
-                className="w-full flex items-center space-x-2 px-3 py-2 text-sm hover:bg-surface-hover text-left text-user-blue"
+                className="w-full flex items-center space-x-2 py-2 text-sm hover:bg-surface-hover text-left text-user-blue"
               >
                 <PlusIcon className="h-4 w-4" />
                 <span>Create Workspace</span>

@@ -175,7 +175,7 @@ const KnowledgeIntegrationWidget: React.FC<KnowledgeIntegrationWidgetProps> = ({
               Knowledge Suggestions
             </h3>
             {totalSuggestions > 0 && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-indigo-100 text-indigo-800">
+              <span className="inline-flex items-center px-2 rounded-full text-xs bg-indigo-100 text-indigo-800">
                 {totalSuggestions}
               </span>
             )}
@@ -184,7 +184,7 @@ const KnowledgeIntegrationWidget: React.FC<KnowledgeIntegrationWidgetProps> = ({
             <button
               onClick={autoLinkKnowledge}
               disabled={linking}
-              className="text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700 disabled:opacity-50"
+              className="text-xs bg-indigo-600 text-white px-2 rounded hover:bg-indigo-700 disabled:opacity-50"
             >
               {linking ? 'Linking...' : 'Auto-Link'}
             </button>
@@ -285,7 +285,7 @@ const KnowledgeIntegrationWidget: React.FC<KnowledgeIntegrationWidgetProps> = ({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key as any)}
-              className={`rounded-md px-3 py-1 text-sm font-medium flex items-center gap-1 ${
+              className={`rounded-md text-sm font-medium flex items-center gap-1 ${
                 activeTab === tab.key
                   ? 'bg-indigo-100 text-indigo-700'
                   : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
@@ -309,11 +309,11 @@ const KnowledgeIntegrationWidget: React.FC<KnowledgeIntegrationWidgetProps> = ({
       {/* Content */}
       <div className="p-4">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center2">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           </div>
         ) : totalSuggestions === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center2">
             <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No knowledge found</h3>
             <p className="mt-1 text-sm text-gray-500">
@@ -408,7 +408,7 @@ const KnowledgeItemCard: React.FC<KnowledgeItemCardProps> = ({
               )}
               
               <div className="flex items-center gap-2 flex-wrap">
-                <span className={`inline-flex px-2 py-1 text-xs rounded-full ${getTypeColor(item.type)}`}>
+                <span className={`inline-flex px-2 text-xs rounded-full ${getTypeColor(item.type)}`}>
                   {item.type.replace('_', ' ')}
                 </span>
                 
@@ -427,7 +427,7 @@ const KnowledgeItemCard: React.FC<KnowledgeItemCardProps> = ({
                 )}
                 
                 {item.auto_captured && (
-                  <span className="inline-flex px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">
+                  <span className="inline-flex px-2 text-xs rounded-full bg-green-100 text-green-700">
                     Auto-captured
                   </span>
                 )}
@@ -444,7 +444,7 @@ const KnowledgeItemCard: React.FC<KnowledgeItemCardProps> = ({
               
               {item.impact_level && (
                 <div className="mt-2">
-                  <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
+                  <span className={`inline-flex px-2 text-xs rounded-full ${
                     item.impact_level === 'HIGH' || item.impact_level === 'CRITICAL'
                       ? 'bg-red-100 text-red-800'
                       : item.impact_level === 'MEDIUM'
@@ -540,7 +540,7 @@ const KnowledgeDetailsModal: React.FC<KnowledgeDetailsModalProps> = ({
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center2">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           </div>
         ) : (

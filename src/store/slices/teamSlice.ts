@@ -22,8 +22,8 @@ export const fetchTeamMembers = createAsyncThunk(
   'team/fetchTeamMembers',
   async (_, { rejectWithValue }) => {
     try {
-      console.log('fetchTeamMembers: Making API call to /teams/members');
-      const response = await apiClient.get('/teams/members');
+      console.log('fetchTeamMembers: Making API call to teams/members');
+      const response = await apiClient.get('teams/members');
       console.log('fetchTeamMembers: API response:', response.data);
       return response.data;
     } catch (error: any) {
@@ -48,7 +48,7 @@ export const createTeamMember = createAsyncThunk(
   'team/createTeamMember',
   async (memberData: Partial<TeamMember>, { rejectWithValue }) => {
     try {
-      const response = await apiClient.post('/teams/members', memberData);
+      const response = await apiClient.post('teams/members', memberData);
       return response.data;
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;
@@ -71,7 +71,7 @@ export const fetchProjectMembers = createAsyncThunk(
   'team/fetchProjectMembers',
   async (projectId: string, { rejectWithValue }) => {
     try {
-      const response = await apiClient.get(`/teams/projects/${projectId}/members`);
+      const response = await apiClient.get(`teams/projects/${projectId}/members`);
       return { projectId, members: response.data };
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;
@@ -94,7 +94,7 @@ export const addProjectMember = createAsyncThunk(
   'team/addProjectMember',
   async ({ projectId, memberData }: { projectId: string; memberData: ProjectMemberCreate }, { rejectWithValue }) => {
     try {
-      const response = await apiClient.post(`/teams/projects/${projectId}/members`, memberData);
+      const response = await apiClient.post(`teams/projects/${projectId}/members`, memberData);
       
       // Notify about member addition
       if (response?.data?.id) {
@@ -124,7 +124,7 @@ export const updateProjectMember = createAsyncThunk(
   'team/updateProjectMember',
   async ({ projectId, memberId, memberData }: { projectId: string; memberId: string; memberData: ProjectMemberUpdate }, { rejectWithValue }) => {
     try {
-      const response = await apiClient.put(`/teams/projects/${projectId}/members/${memberId}`, memberData);
+      const response = await apiClient.put(`teams/projects/${projectId}/members/${memberId}`, memberData);
       
       // Notify about member update
       if (response?.data?.id) {
@@ -160,7 +160,7 @@ export const removeProjectMember = createAsyncThunk(
       const member = members?.find((m: ProjectMemberResponse) => m.id === memberId);
       const memberName = member?.user_name || member?.email || 'Team Member';
       
-      await apiClient.delete(`/teams/projects/${projectId}/members/${memberId}`);
+      await apiClient.delete(`teams/projects/${projectId}/members/${memberId}`);
       
       // Notify about member removal
       await notifyTeamMemberRemoved(memberId, memberName, projectId);
@@ -204,7 +204,22 @@ const teamSlice = createSlice({
       })
       .addCase(fetchTeamMembers.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.teamMembers = action.payload;
+        const payload = action.payload as any;
+        state.teamMembers = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.results)
+            ? payload.results
+            : Array.isArray(payload?.items)
+              ? payload.items
+              : Array.isArray(payload?.data)
+                ? payload.data
+                : Array.isArray(payload?.members)
+                  ? payload.members
+                  : Array.isArray(payload?.team_members)
+                    ? payload.team_members
+                    : Array.isArray(payload?.users)
+                      ? payload.users
+                      : [];
       })
       .addCase(fetchTeamMembers.rejected, (state, action) => {
         state.isLoading = false;
@@ -221,8 +236,23 @@ const teamSlice = createSlice({
       
       // Fetch project members
       .addCase(fetchProjectMembers.fulfilled, (state, action) => {
-        const { projectId, members } = action.payload;
-        state.projectMembers[projectId] = members;
+        const { projectId, members } = action.payload as any;
+        const list = Array.isArray(members)
+          ? members
+          : Array.isArray(members?.results)
+            ? members.results
+            : Array.isArray(members?.items)
+              ? members.items
+              : Array.isArray(members?.data)
+                ? members.data
+                : Array.isArray(members?.members)
+                  ? members.members
+                  : Array.isArray(members?.team_members)
+                    ? members.team_members
+                    : Array.isArray(members?.users)
+                      ? members.users
+                      : [];
+        state.projectMembers[projectId] = list;
       })
       .addCase(fetchProjectMembers.rejected, (state, action) => {
         state.error = action.payload as string;

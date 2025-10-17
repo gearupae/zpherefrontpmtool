@@ -196,7 +196,7 @@ const UpcomingDeadlinesWidget: React.FC<UpcomingDeadlinesWidgetProps> = ({
                 </div>
                 
                 <div className="text-right">
-                  <div className={`text-xs font-medium px-2 py-1 rounded-full ${getUrgencyColor(deadline.due_date)}`}>
+                  <div className={`text-xs font-medium px-2 rounded-full ${getUrgencyColor(deadline.due_date)}`}>
                     {formatDate(deadline.due_date)}
                   </div>
                   <div className="text-xs text-gray-500 mt-1 capitalize">

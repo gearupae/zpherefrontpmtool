@@ -119,7 +119,7 @@ const AdminDashboardPage: React.FC = () => {
           <p className="mt-1 text-sm text-gray-500">{error}</p>
           <button
             onClick={fetchDashboardStats}
-            className="mt-3 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
+            className="mt-3 inline-flex items-center py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
           >
             Retry
           </button>

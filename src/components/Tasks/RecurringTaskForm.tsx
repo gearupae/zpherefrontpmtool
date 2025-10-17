@@ -157,7 +157,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
+                  className="w-full py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
                   required
                 />
               </div>
@@ -170,7 +170,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
-                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
+                  className="w-full py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
                 />
               </div>
 
@@ -182,7 +182,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                   <select
                     value={formData.priority}
                     onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
+                    className="w-full py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -198,7 +198,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                   <select
                     value={formData.task_type}
                     onChange={(e) => setFormData(prev => ({ ...prev, task_type: e.target.value }))}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
+                    className="w-full py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
                   >
                     <option value="task">Task</option>
                     <option value="bug">Bug</option>
@@ -219,7 +219,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                     type="number"
                     value={formData.estimated_hours}
                     onChange={(e) => setFormData(prev => ({ ...prev, estimated_hours: e.target.value }))}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
+                    className="w-full py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
                     min="0"
                     step="0.5"
                   />
@@ -233,7 +233,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                     type="number"
                     value={formData.story_points}
                     onChange={(e) => setFormData(prev => ({ ...prev, story_points: e.target.value }))}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
+                    className="w-full py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
                     min="0"
                   />
                 </div>
@@ -254,7 +254,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                   <select
                     value={formData.frequency}
                     onChange={(e) => setFormData(prev => ({ ...prev, frequency: e.target.value }))}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
+                    className="w-full py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
                     required
                   >
                     <option value="daily">Daily</option>
@@ -274,7 +274,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                     type="number"
                     value={formData.interval_value}
                     onChange={(e) => setFormData(prev => ({ ...prev, interval_value: parseInt(e.target.value) || 1 }))}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
+                    className="w-full py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
                     min="1"
                   />
                 </div>
@@ -292,7 +292,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                         key={day.value}
                         type="button"
                         onClick={() => toggleDayOfWeek(day.value)}
-                        className={`px-3 py-1 text-sm rounded-lg border transition-colors ${
+                        className={`text-sm rounded-lg border transition-colors ${
                           formData.days_of_week.includes(day.value)
                             ? 'bg-user-blue text-white border-user-blue'
                             : 'bg-background text-text-secondary border-border hover:bg-surface'
@@ -315,7 +315,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                     type="number"
                     value={formData.day_of_month}
                     onChange={(e) => setFormData(prev => ({ ...prev, day_of_month: e.target.value }))}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
+                    className="w-full py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
                     min="1"
                     max="31"
                     placeholder="e.g., 15 for 15th of each month"
@@ -332,7 +332,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                     type="datetime-local"
                     value={formData.start_date}
                     onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
+                    className="w-full py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
                     required
                   />
                 </div>
@@ -345,7 +345,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                     type="datetime-local"
                     value={formData.end_date}
                     onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
+                    className="w-full py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
                   />
                 </div>
               </div>
@@ -358,7 +358,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                   type="number"
                   value={formData.max_occurrences}
                   onChange={(e) => setFormData(prev => ({ ...prev, max_occurrences: e.target.value }))}
-                  className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
+                  className="w-full py-2 border border-border rounded-lg focus:ring-2 focus:ring-user-blue focus:border-transparent"
                   min="1"
                   placeholder="Leave empty for unlimited"
                 />
@@ -407,7 +407,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                   {formData.labels.map((label) => (
                     <span
                       key={label}
-                      className="inline-flex items-center px-2 py-1 text-xs bg-user-blue/10 text-user-blue rounded border border-user-blue/20"
+                      className="inline-flex items-center px-2 text-xs bg-user-blue/10 text-user-blue rounded border border-user-blue/20"
                     >
                       {label}
                       <button
@@ -426,13 +426,13 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                     value={newLabel}
                     onChange={(e) => setNewLabel(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addLabel())}
-                    className="flex-1 px-3 py-1 text-sm border border-border rounded focus:ring-2 focus:ring-user-blue focus:border-transparent"
+                    className="flex-1 text-sm border border-border rounded focus:ring-2 focus:ring-user-blue focus:border-transparent"
                     placeholder="Add label"
                   />
                   <button
                     type="button"
                     onClick={addLabel}
-                    className="px-2 py-1 text-sm bg-user-blue text-white rounded hover:bg-blue-600"
+                    className="text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                   >
                     <PlusIcon className="h-4 w-4" />
                   </button>
@@ -447,7 +447,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                   {formData.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="inline-flex items-center px-2 py-1 text-xs bg-user-green/10 text-user-green rounded border border-user-green/20"
+                      className="inline-flex items-center px-2 text-xs bg-user-green/10 text-user-green rounded border border-user-green/20"
                     >
                       #{tag}
                       <button
@@ -466,13 +466,13 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
                     value={newTag}
                     onChange={(e) => setNewTag(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                    className="flex-1 px-3 py-1 text-sm border border-border rounded focus:ring-2 focus:ring-user-blue focus:border-transparent"
+                    className="flex-1 text-sm border border-border rounded focus:ring-2 focus:ring-user-blue focus:border-transparent"
                     placeholder="Add tag"
                   />
                   <button
                     type="button"
                     onClick={addTag}
-                    className="px-2 py-1 text-sm bg-user-green text-white rounded hover:bg-green-600"
+                    className="px-2 text-sm bg-user-green text-white rounded hover:bg-green-600"
                   >
                     <PlusIcon className="h-4 w-4" />
                   </button>
@@ -492,7 +492,7 @@ const RecurringTaskForm: React.FC<RecurringTaskFormProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting || !formData.title || !formData.start_date}
-                className="px-4 py-2 text-sm bg-user-blue text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isSubmitting ? 'Creating...' : 'Create Recurring Task'}
               </button>

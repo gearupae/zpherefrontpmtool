@@ -138,7 +138,7 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
   const fetchDeliveryNotes = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get(`/delivery-notes/?invoice_id=${invoiceId}`);
+      const response = await apiClient.get(`/delivery-notes?invoice_id=${invoiceId}`);
       // Handle the DeliveryNoteList response structure
       const deliveryNotesData = response.data.delivery_notes || response.data || [];
       setDeliveryNotes(Array.isArray(deliveryNotesData) ? deliveryNotesData : []);
@@ -162,7 +162,7 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
       if (editingNote) {
         await apiClient.put(`/delivery-notes/${editingNote.id}`, submitData);
       } else {
-        await apiClient.post('/delivery-notes/', submitData);
+        await apiClient.post('/delivery-notes', submitData);
       }
       
       await fetchDeliveryNotes();
@@ -281,7 +281,7 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
         {!showForm && !showDetails && (
           <div className="space-y-4">
             {deliveryNotes.length === 0 ? (
-              <div className="text-center py-12">
+              <div className="text-center2">
                 <TruckIcon className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No delivery notes</h3>
                 <p className="mt-1 text-sm text-gray-500">
@@ -335,7 +335,7 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
                           <select
                             value={note.status}
                             onChange={(e) => handleStatusChange(note.id, e.target.value)}
-                            className={`text-xs font-semibold rounded-full px-2 py-1 border-none ${getStatusColor(note.status)}`}
+                            className={`text-xs font-semibold rounded-full px-2 border-none ${getStatusColor(note.status)}`}
                           >
                             <option value="DRAFT">Draft</option>
                             <option value="PREPARED">Prepared</option>
@@ -408,7 +408,7 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
                     required
                     value={formData.delivery_date}
                     onChange={(e) => setFormData({ ...formData, delivery_date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
                 <div>
@@ -420,7 +420,7 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
                     required
                     value={formData.driver_name}
                     onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -435,7 +435,7 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
                   value={formData.delivery_address}
                   onChange={(e) => setFormData({ ...formData, delivery_address: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
 
@@ -448,7 +448,7 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
                     type="text"
                     value={formData.delivery_contact_name}
                     onChange={(e) => setFormData({ ...formData, delivery_contact_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
                 <div>
@@ -459,7 +459,7 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
                     type="text"
                     value={formData.delivery_contact_phone}
                     onChange={(e) => setFormData({ ...formData, delivery_contact_phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
                 <div>
@@ -471,7 +471,7 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
                     value={formData.vehicle_info}
                     onChange={(e) => setFormData({ ...formData, vehicle_info: e.target.value })}
                     placeholder="License plate, vehicle type"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -485,7 +485,7 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
                     type="text"
                     value={formData.tracking_number}
                     onChange={(e) => setFormData({ ...formData, tracking_number: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
                 <div>
@@ -496,7 +496,7 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
                     type="text"
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -508,18 +508,18 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total Ordered</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Previously Delivered</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Remaining</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Deliver Now</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="py-2 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
+                        <th className="py-2 text-left text-xs font-medium text-gray-500 uppercase">Total Ordered</th>
+                        <th className="py-2 text-left text-xs font-medium text-gray-500 uppercase">Previously Delivered</th>
+                        <th className="py-2 text-left text-xs font-medium text-gray-500 uppercase">Remaining</th>
+                        <th className="py-2 text-left text-xs font-medium text-gray-500 uppercase">Deliver Now</th>
+                        <th className="py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {formData.items.map((item, index) => (
                         <tr key={index} className={item.is_fully_delivered ? 'bg-gray-50' : ''}>
-                          <td className="px-3 py-2 text-sm text-gray-900">
+                          <td className="py-2 text-sm text-gray-900">
                             <div>
                               <div className="font-medium">{item.item_name}</div>
                               {item.description && (
@@ -527,8 +527,8 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
                               )}
                             </div>
                           </td>
-                          <td className="px-3 py-2 text-sm text-gray-900">{item.quantity_ordered}</td>
-                          <td className="px-3 py-2 text-sm text-gray-600">
+                          <td className="py-2 text-sm text-gray-900">{item.quantity_ordered}</td>
+                          <td className="py-2 text-sm text-gray-600">
                             {item.total_delivered_so_far || 0}
                             {item.delivery_percentage > 0 && (
                               <div className="text-xs text-gray-400">
@@ -536,12 +536,12 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
                               </div>
                             )}
                           </td>
-                          <td className="px-3 py-2 text-sm">
+                          <td className="py-2 text-sm">
                             <span className={`font-medium ${item.quantity_remaining === 0 ? 'text-green-600' : 'text-gray-900'}`}>
                               {item.quantity_remaining}
                             </span>
                           </td>
-                          <td className="px-3 py-2">
+                          <td className="py-2">
                             <input
                               type="number"
                               min="0"
@@ -549,13 +549,13 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
                               value={item.quantity_delivered}
                               onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 0)}
                               disabled={item.quantity_remaining === 0}
-                              className={`w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-indigo-500 focus:border-indigo-500 ${
+                              className={`w-20 px-2 border border-gray-300 rounded text-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                                 item.quantity_remaining === 0 ? 'bg-gray-100 cursor-not-allowed' : ''
                               }`}
                               placeholder="0"
                             />
                           </td>
-                          <td className="px-3 py-2">
+                          <td className="py-2">
                             {item.quantity_remaining === 0 ? (
                               <div className="flex items-center">
                                 <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
@@ -637,7 +637,7 @@ const DeliveryNoteManagement: React.FC<DeliveryNoteManagementProps> = ({
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Status</label>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedNote.status)}`}>
+                  <span className={`inline-flex px-2 text-xs font-semibold rounded-full ${getStatusColor(selectedNote.status)}`}>
                     {selectedNote.status}
                   </span>
                 </div>

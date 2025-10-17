@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChatBubbleLeftIcon, PaperAirplaneIcon, UserIcon, PaperClipIcon, XMarkIcon, DocumentIcon } from '@heroicons/react/24/outline';
+import apiClient from '../../api/client';
 
 interface User {
   id: string;
@@ -50,21 +51,8 @@ const ProjectComments: React.FC<ProjectCommentsProps> = ({ projectId }) => {
 
   const fetchComments = useCallback(async () => {
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(
-        `http://localhost:8000/api/v1/projects/${projectId}/comments`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setComments(data);
-      }
+      const response = await apiClient.get(`/projects/${projectId}/comments`);
+      setComments(response.data);
     } catch (error) {
       console.error('Error fetching comments:', error);
     }
@@ -75,8 +63,6 @@ const ProjectComments: React.FC<ProjectCommentsProps> = ({ projectId }) => {
 
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
-      
       // Use the new endpoint for comments with files
       if (files && files.length > 0) {
         const formData = new FormData();
@@ -89,47 +75,35 @@ const ProjectComments: React.FC<ProjectCommentsProps> = ({ projectId }) => {
           formData.append('files', file);
         });
         
-        const response = await fetch(
-          `http://localhost:8000/api/v1/projects/${projectId}/comments/with-files`,
+        await apiClient.post(
+          `/projects/${projectId}/comments/with-files`,
+          formData,
           {
-            method: 'POST',
             headers: {
-              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data',
             },
-            body: formData,
           }
         );
 
-        if (response.ok) {
-          setNewComment('');
-          setReplyContent('');
-          setReplyingTo(null);
-          setSelectedFiles([]);
-          fetchComments();
-        }
+        setNewComment('');
+        setReplyContent('');
+        setReplyingTo(null);
+        setSelectedFiles([]);
+        fetchComments();
       } else {
         // Use original endpoint for text-only comments
-        const response = await fetch(
-          `http://localhost:8000/api/v1/projects/${projectId}/comments`,
+        await apiClient.post(
+          `/projects/${projectId}/comments`,
           {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              content: content.trim(),
-              parent_comment_id: parentId,
-            }),
+            content: content.trim(),
+            parent_comment_id: parentId,
           }
         );
 
-        if (response.ok) {
-          setNewComment('');
-          setReplyContent('');
-          setReplyingTo(null);
-          fetchComments();
-        }
+        setNewComment('');
+        setReplyContent('');
+        setReplyingTo(null);
+        fetchComments();
       }
     } catch (error) {
       console.error('Error adding comment:', error);
@@ -254,7 +228,7 @@ const ProjectComments: React.FC<ProjectCommentsProps> = ({ projectId }) => {
                   value={replyContent}
                   onChange={(e) => setReplyContent(e.target.value)}
                   placeholder="Write a reply..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -265,7 +239,7 @@ const ProjectComments: React.FC<ProjectCommentsProps> = ({ projectId }) => {
                 <button
                   onClick={() => addComment(replyContent, comment.id)}
                   disabled={isLoading || !replyContent.trim()}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   <PaperAirplaneIcon className="w-4 h-4" />
                 </button>
@@ -303,7 +277,7 @@ const ProjectComments: React.FC<ProjectCommentsProps> = ({ projectId }) => {
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Share your thoughts about this project... Use @username to mention someone or #TASK-123 to link tasks"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="w-full py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                 rows={3}
               />
               
@@ -355,7 +329,7 @@ const ProjectComments: React.FC<ProjectCommentsProps> = ({ projectId }) => {
                 <button
                   onClick={() => addComment(newComment, undefined, selectedFiles)}
                   disabled={isLoading || (!newComment.trim() && selectedFiles.length === 0)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm flex items-center space-x-2"
+className="btn-page-action flex items-center btn-styled btn-create-auto"
                 >
                   <PaperAirplaneIcon className="w-4 h-4" />
                   <span>{isLoading ? 'Posting...' : 'Post Comment'}</span>

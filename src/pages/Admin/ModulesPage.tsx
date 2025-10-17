@@ -83,7 +83,7 @@ const ModulesPage: React.FC = () => {
   };
 
   const getCategoryBadge = (category: string) => {
-    const baseClasses = 'px-2 py-1 text-xs font-medium rounded-full';
+    const baseClasses = 'px-2 text-xs font-medium rounded-full';
     switch (category) {
       case 'Core':
         return `${baseClasses} bg-blue-100 text-blue-800`;
@@ -192,7 +192,7 @@ const ModulesPage: React.FC = () => {
                             {module.category}
                           </span>
                           {module.is_core && (
-                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
+                            <span className="px-2 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
                               Core
                             </span>
                           )}
@@ -211,7 +211,7 @@ const ModulesPage: React.FC = () => {
                           <button
                             onClick={() => toggleModule(module.id, module.is_available)}
                             disabled={actionLoading === module.id}
-                            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors disabled:opacity-50 ${
+                            className={`text-xs font-medium rounded-md transition-colors disabled:opacity-50 ${
                               module.is_available
                                 ? 'bg-red-100 text-red-700 hover:bg-red-200'
                                 : 'bg-green-100 text-green-700 hover:bg-green-200'
@@ -224,7 +224,7 @@ const ModulesPage: React.FC = () => {
                           </button>
                         )}
                         {module.is_core && (
-                          <span className="px-3 py-1 text-xs text-gray-500 bg-gray-100 rounded-md">
+                          <span className="text-xs text-gray-500 bg-gray-100 rounded-md">
                             Required
                           </span>
                         )}

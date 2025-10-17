@@ -307,7 +307,7 @@ const ExecutiveDashboard: React.FC = () => {
                 {summary.resource_insights.bottleneck_teams.slice(0, 3).map((team, index) => (
                   <div key={index} className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">{team}</span>
-                    <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs">
+                    <span className="px-2 bg-orange-100 text-orange-800 rounded-full text-xs">
                       Bottleneck
                     </span>
                   </div>
@@ -331,7 +331,7 @@ const ExecutiveDashboard: React.FC = () => {
                         {(risk.probability * 100).toFixed(0)}% probability, {(risk.impact * 100).toFixed(0)}% impact
                       </p>
                     </div>
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium border ${getRiskColor(risk.level)}`}>
+                    <span className={`inline-flex px-2 rounded-full text-xs font-medium border ${getRiskColor(risk.level)}`}>
                       {risk.level}
                     </span>
                   </div>
@@ -552,7 +552,7 @@ const ExecutiveDashboard: React.FC = () => {
             <button
               key={tab.key}
               onClick={() => setActiveView(tab.key as any)}
-              className={`py-2 px-3 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
+              className={`py-2 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
                 activeView === tab.key ? 'text-indigo-600' : 'text-black hover:text-gray-700'
               }`}
             >
@@ -567,12 +567,12 @@ const ExecutiveDashboard: React.FC = () => {
       {activeView === 'health' && renderHealthDetails()}
       {activeView === 'predictions' && renderPredictions()}
       {activeView === 'resources' && (
-        <div className="text-center py-12">
+        <div className="text-center2">
           <p className="text-gray-500">Resource management view coming soon</p>
         </div>
       )}
       {activeView === 'risks' && (
-        <div className="text-center py-12">
+        <div className="text-center2">
           <p className="text-gray-500">Risk management view coming soon</p>
         </div>
       )}

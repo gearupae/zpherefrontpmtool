@@ -16,15 +16,25 @@ const AdminOnlyRoute: React.FC<AdminOnlyRouteProps> = ({ children }) => {
   }
 
   const hasOrg = Boolean(user?.organization || user?.organization_id);
-  const isPlatformAdmin = user.role === UserRole.ADMIN && (!hasOrg || user?.organization?.slug === 'zphere-admin');
+  const isPlatformAdmin = user.role === UserRole.ADMIN && !hasOrg;
+
+  console.log('[AdminOnlyRoute] Check:', {
+    role: user.role,
+    hasOrg,
+    orgSlug: user?.organization?.slug,
+    isPlatformAdmin,
+    willRedirect: !isPlatformAdmin
+  });
 
   // Only platform admins (no organization) can access admin routes
   if (isPlatformAdmin) {
+    console.log('[AdminOnlyRoute] Allowing access to admin route');
     return <>{children}</>;
   }
 
   // Otherwise, redirect to tenant dashboard (prefer slug path if available)
   const slug = user.organization?.slug;
+  console.log(`[AdminOnlyRoute] Redirecting tenant user to ${slug ? `/${slug}/dashboard` : '/dashboard'}`);
   return <Navigate to={slug ? `/${slug}/dashboard` : '/dashboard'} replace />;
 };
 

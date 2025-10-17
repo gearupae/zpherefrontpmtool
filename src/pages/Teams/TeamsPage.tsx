@@ -114,6 +114,7 @@ type NewMemberState = {
   visa_expiry_date?: string;
   passport_expiry_date?: string;
   contract_expiry_date?: string;
+  // NOTE: skills captured in UI state to avoid sending unsupported fields to backend
 };
 
 const TeamsPage: React.FC = () => {
@@ -210,6 +211,10 @@ const [newMember, setNewMember] = useState<NewMemberState>({
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
+  // New: skills for new member (UI-only for now)
+  const [newSkills, setNewSkills] = useState<string[]>([]);
+  const [skillInput, setSkillInput] = useState<string>('');
+
   const [stats, setStats] = useState({
     total_members: 0,
     active_members: 0,
@@ -236,16 +241,14 @@ const [newMember, setNewMember] = useState<NewMemberState>({
           result.map(async (member: TeamMember) => {
             try {
               // Fetch member statistics from the backend
-              const statsResponse = await apiClient.get(`/teams/members/${member.id}/statistics`);
-              const stats = statsResponse.data;
-              
+              // Backend does not expose member statistics endpoint; use existing fields or defaults
               return {
                 ...member,
-                projects_count: stats.projects_count || 0,
-                completed_tasks_count: stats.completed_tasks_count || 0,
-                pending_tasks_count: stats.pending_tasks_count || 0,
-                efficiency_score: stats.efficiency_score || 0,
-                start_date: stats.start_date || member.created_at,
+                projects_count: (member as any).projects_count || 0,
+                completed_tasks_count: (member as any).completed_tasks_count || 0,
+                pending_tasks_count: (member as any).pending_tasks_count || 0,
+                efficiency_score: (member as any).efficiency_score || 0,
+                start_date: (member as any).start_date || member.created_at,
               };
             } catch (error) {
               console.warn(`Failed to fetch statistics for member ${member.id}:`, error);
@@ -315,6 +318,19 @@ const [newMember, setNewMember] = useState<NewMemberState>({
         }
         const created = await dispatch(createTeamMember(payload)).unwrap();
 
+        // Persist skills to backend via user preferences
+        if (created?.id && newSkills.length > 0) {
+          try {
+            const { default: apiClient } = await import('../../api/client');
+            // Load existing preferences to avoid overwriting
+            const userResp = await apiClient.get(`users/${created.id}`);
+            const prevPrefs = (userResp?.data?.preferences) || {};
+            await apiClient.put(`users/${created.id}`, { preferences: { ...prevPrefs, skills: newSkills } });
+          } catch (skillErr) {
+            console.error('Failed to persist skills for new member:', skillErr);
+          }
+        }
+
         // Upload attachments if any
         if (created?.id && attachments.length > 0) {
           try {
@@ -323,7 +339,7 @@ const [newMember, setNewMember] = useState<NewMemberState>({
               attachments.map(async (file) => {
                 const form = new FormData();
                 form.append('file', file);
-                await apiClient.post(`/users/${created.id}/attachments`, form);
+await apiClient.post(`users/${created.id}/attachments`, form);
               })
             );
           } catch (uploadErr) {
@@ -354,6 +370,8 @@ const [newMember, setNewMember] = useState<NewMemberState>({
         setPhoneLocal('');
         setPhoneCountryCode('1');
         setAttachments([]);
+        setNewSkills([]);
+        setSkillInput('');
         setShowCreateForm(false);
         
         dispatch(addNotification({
@@ -426,10 +444,10 @@ const [newMember, setNewMember] = useState<NewMemberState>({
       
       const { default: apiClient } = await import('../../api/client');
       if (editingField === 'role') {
-        await apiClient.put(`/teams/members/${memberId}`, { role: value });
+        await apiClient.put(`teams/members/${memberId}`, { role: value });
       } else if (editingField === 'status') {
         const isActive = value === 'active';
-        await apiClient.put(`/teams/members/${memberId}`, { is_active: isActive });
+        await apiClient.put(`teams/members/${memberId}`, { is_active: isActive });
       } else if (editingField === 'rbac_role') {
         const { assignUserRole } = await import('../../store/slices/rbacSlice');
         const roleId = value || null;
@@ -714,8 +732,8 @@ const [newMember, setNewMember] = useState<NewMemberState>({
         <div className="bg-white shadow rounded-lg p-6 mb-6">
           <h2 className="text-lg font-medium text-secondary-900 mb-4">Add New Team Member</h2>
           <form onSubmit={handleCreateMember} className="space-y-5">
-            {/* Row 1: First, Last, Email */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Row 1: First Name, Last Name, Email, Username */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-secondary-700">First Name *</label>
                 <input
@@ -746,10 +764,6 @@ const [newMember, setNewMember] = useState<NewMemberState>({
                   className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
                 />
               </div>
-            </div>
-
-            {/* Row 2: Username, Password, Role */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-secondary-700">Username *</label>
                 <input
@@ -760,6 +774,10 @@ const [newMember, setNewMember] = useState<NewMemberState>({
                   className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
                 />
               </div>
+            </div>
+
+            {/* Row 2: Password, Role, Status, Timezone */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-secondary-700">Password *</label>
                 <input
@@ -781,10 +799,6 @@ const [newMember, setNewMember] = useState<NewMemberState>({
                   <option value={UserRole.ADMIN}>Admin</option>
                 </select>
               </div>
-            </div>
-
-            {/* Row 3: Status, Timezone, Phone (with country code) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-secondary-700">Status</label>
                 <select
@@ -808,13 +822,17 @@ const [newMember, setNewMember] = useState<NewMemberState>({
                   placeholder="UTC"
                 />
               </div>
+            </div>
+
+            {/* Row 3: Phone, Address, RBAC Role, ID Expiry */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-secondary-700">Phone</label>
                 <div className="mt-1 flex">
                   <select
                     value={phoneCountryCode}
                     onChange={(e) => setPhoneCountryCode(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+                    className="py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
                     style={{ minWidth: '5.5rem' }}
                     aria-label="Country code"
                   >
@@ -832,15 +850,11 @@ const [newMember, setNewMember] = useState<NewMemberState>({
                     value={phoneLocal}
                     onChange={(e) => setPhoneLocal(e.target.value)}
                     placeholder="Phone number"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-r-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="flex-1 py-2 border border-gray-300 rounded-r-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Stored as E.164 format (e.g., +{phoneCountryCode}{phoneLocal.replace(/\D/g, '')}).</p>
               </div>
-            </div>
-
-            {/* Row 4: Address, RBAC Role, ID Expiry */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-secondary-700">Address</label>
                 <input
@@ -868,20 +882,20 @@ const [newMember, setNewMember] = useState<NewMemberState>({
                 <label className="block text-sm font-medium text-secondary-700">ID Expiry Date</label>
                 <input
                   type="date"
-value={newMember.id_expiry_date || ''}
+                  value={newMember.id_expiry_date || ''}
                   onChange={(e) => setNewMember({ ...newMember, id_expiry_date: e.target.value })}
                   className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
                 />
               </div>
             </div>
 
-            {/* Row 5: Visa, Passport, Contract Expiry */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Row 4: Visa Expiry, Passport Expiry, Contract Expiry, Bio */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-secondary-700">Visa Expiry</label>
                 <input
                   type="date"
-value={newMember.visa_expiry_date || ''}
+                  value={newMember.visa_expiry_date || ''}
                   onChange={(e) => setNewMember({ ...newMember, visa_expiry_date: e.target.value })}
                   className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
                 />
@@ -890,7 +904,7 @@ value={newMember.visa_expiry_date || ''}
                 <label className="block text-sm font-medium text-secondary-700">Passport Expiry</label>
                 <input
                   type="date"
-value={newMember.passport_expiry_date || ''}
+                  value={newMember.passport_expiry_date || ''}
                   onChange={(e) => setNewMember({ ...newMember, passport_expiry_date: e.target.value })}
                   className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
                 />
@@ -899,25 +913,25 @@ value={newMember.passport_expiry_date || ''}
                 <label className="block text-sm font-medium text-secondary-700">Contract Expiry</label>
                 <input
                   type="date"
-value={newMember.contract_expiry_date || ''}
+                  value={newMember.contract_expiry_date || ''}
                   onChange={(e) => setNewMember({ ...newMember, contract_expiry_date: e.target.value })}
                   className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
                 />
               </div>
-            </div>
-
-            {/* Row 6: Bio and Attachments in same row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-secondary-700">Bio</label>
                 <textarea
-                  rows={6}
+                  rows={3}
                   value={newMember.bio || ''}
                   onChange={(e) => setNewMember({ ...newMember, bio: e.target.value })}
                   className="mt-1 block w-full border-secondary-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-primary-500 sm:text-sm"
                   placeholder="Brief bio about the team member..."
                 />
               </div>
+            </div>
+
+            {/* Row 5: Attachments and Skills */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-secondary-700">Attachments</label>
                 <div
@@ -961,7 +975,7 @@ value={newMember.contract_expiry_date || ''}
                         <button
                           type="button"
                           onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
-                          className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                          className="px-2 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
                         >
                           Remove
                         </button>
@@ -969,6 +983,67 @@ value={newMember.contract_expiry_date || ''}
                     ))}
                   </ul>
                 )}
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-secondary-700">Skills</label>
+                <div className="border border-gray-300 rounded-md p-3 bg-white min-h-[10.5rem] flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={skillInput}
+                      onChange={(e) => setSkillInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const val = skillInput.trim();
+                          if (!val) return;
+                          const exists = newSkills.some(s => s.toLowerCase() === val.toLowerCase());
+                          if (!exists && newSkills.length < 3) {
+                            setNewSkills(prev => [...prev, val]);
+                            setSkillInput('');
+                          }
+                        }
+                      }}
+                      placeholder={newSkills.length >= 3 ? 'Max 3 skills added' : 'Type a skill and press Enter'}
+                      disabled={newSkills.length >= 3}
+                      className="flex-1 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = skillInput.trim();
+                        if (!val) return;
+                        const exists = newSkills.some(s => s.toLowerCase() === val.toLowerCase());
+                        if (!exists && newSkills.length < 3) {
+                          setNewSkills(prev => [...prev, val]);
+                          setSkillInput('');
+                        }
+                      }}
+                      disabled={!skillInput.trim() || newSkills.length >= 3}
+                      className={`py-2 rounded-md text-sm font-medium ${(!skillInput.trim() || newSkills.length >= 3) ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'}`}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {newSkills.map((skill, idx) => (
+                      <span key={`${skill}-${idx}`} className="inline-flex items-center gap-1 px-2 text-xs bg-primary-100 text-primary-800 rounded">
+                        {skill}
+                        <button
+                          type="button"
+                          onClick={() => setNewSkills(prev => prev.filter((_, i) => i !== idx))}
+                          className="ml-1 text-primary-800 hover:text-primary-900"
+                          aria-label={`Remove ${skill}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-auto">
+                    <p className="text-[10px] text-gray-500">Add up to 3 skills.</p>
+                  </div>
+                </div>
               </div>
             </div>
             
@@ -1196,7 +1271,7 @@ value={newMember.contract_expiry_date || ''}
                   placeholder="Search members..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-40 pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-0 focus:border-gray-300"
+                  className="w-40 pl-7 pr-2.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-0 focus:border-gray-300"
                 />
               </div>
               <button
@@ -1261,7 +1336,7 @@ value={newMember.contract_expiry_date || ''}
                         }}
                       />
                     </div>
-                    <div className="flex justify-end gap-2 px-1.5 py-1 border-t border-gray-100 mt-1">
+                    <div className="flex justify-end gap-2 px-1.5 border-t border-gray-100 mt-1">
                       <button 
                         className="filter-popup-btn filter-popup-btn-clear"
                         onClick={(e) => { 
@@ -1295,7 +1370,7 @@ value={newMember.contract_expiry_date || ''}
         </div>
         
         {displayedMembers.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="text-center2">
             <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No team members found</h3>
             <p className="mt-1 text-sm text-gray-500">
@@ -1307,13 +1382,13 @@ value={newMember.contract_expiry_date || ''}
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="px-6 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Member
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="px-6 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Contact
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="px-6 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     <div className="inline-flex items-center gap-1">
                       <span>Role</span>
                       <span className="relative">
@@ -1335,7 +1410,7 @@ value={newMember.contract_expiry_date || ''}
                       </span>
                     </div>
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="px-6 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     <div className="inline-flex items-center gap-1">
                       <span>Status</span>
                       <span className="relative">
@@ -1357,7 +1432,7 @@ value={newMember.contract_expiry_date || ''}
                       </span>
                     </div>
                   </th>
-                  <th onDoubleClick={() => onHeaderDblClick('projects')} className="px-3 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                  <th onDoubleClick={() => onHeaderDblClick('projects')} className="px-6 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                     <div className="inline-flex items-center gap-1">
                       <span>Projects</span>
                       {sortField === 'projects' && (
@@ -1365,7 +1440,7 @@ value={newMember.contract_expiry_date || ''}
                       )}
                     </div>
                   </th>
-                  <th onDoubleClick={() => onHeaderDblClick('tasks')} className="px-3 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                  <th onDoubleClick={() => onHeaderDblClick('tasks')} className="px-6 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                     <div className="inline-flex items-center gap-1">
                       <span>Tasks</span>
                       {sortField === 'tasks' && (
@@ -1373,7 +1448,7 @@ value={newMember.contract_expiry_date || ''}
                       )}
                     </div>
                   </th>
-                  <th onDoubleClick={() => onHeaderDblClick('pending')} className="px-3 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                  <th onDoubleClick={() => onHeaderDblClick('pending')} className="px-6 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                     <div className="inline-flex items-center gap-1">
                       <span>Pending</span>
                       {sortField === 'pending' && (
@@ -1381,7 +1456,7 @@ value={newMember.contract_expiry_date || ''}
                       )}
                     </div>
                   </th>
-                  <th onDoubleClick={() => onHeaderDblClick('score')} className="px-3 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                  <th onDoubleClick={() => onHeaderDblClick('score')} className="px-6 py-2 text-center text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                     <div className="inline-flex items-center gap-1">
                       <span>Score</span>
                       {sortField === 'score' && (
@@ -1389,7 +1464,7 @@ value={newMember.contract_expiry_date || ''}
                       )}
                     </div>
                   </th>
-                  <th onDoubleClick={() => onHeaderDblClick('joined')} className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
+                  <th onDoubleClick={() => onHeaderDblClick('joined')} className="px-6 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider cursor-pointer select-none">
                     <div className="inline-flex items-center gap-1">
                       <span>Joined On</span>
                       {sortField === 'joined' && (
@@ -1397,10 +1472,10 @@ value={newMember.contract_expiry_date || ''}
                       )}
                     </div>
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="px-6 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Permission
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="px-6 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -1454,7 +1529,7 @@ value={newMember.contract_expiry_date || ''}
                       )}
                     </td>
                     
-                    <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => { e.stopPropagation(); startInlineEdit(e, member, 'role'); }}>
+                    <td className="px-6 py-2 whitespace-nowrap" onClick={(e) => { e.stopPropagation(); startInlineEdit(e, member, 'role'); }}>
                       <div className="relative inline-block">
                         <span className={`inline-flex items-center px-1.5 pt-0 pb-0.5 text-xs font-light rounded-sm ${getRoleColor(member.role)}`}>
                           {member.role}
@@ -1466,7 +1541,7 @@ value={newMember.contract_expiry_date || ''}
                                 {[UserRole.MEMBER, UserRole.ADMIN].map((role) => (
                                   <li
                                     key={role}
-                                    className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${role===member.role ? 'bg-gray-50' : ''}`}
+                                    className={`px-2 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${role===member.role ? 'bg-gray-50' : ''}`}
                                     onClick={() => { saveInlineEdit(member.id, role); }}
                                   >
                                     <span className="capitalize">{role}</span>
@@ -1480,7 +1555,7 @@ value={newMember.contract_expiry_date || ''}
                       </div>
                     </td>
                     
-                    <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => { e.stopPropagation(); startInlineEdit(e, member, 'status'); }}>
+                    <td className="px-6 py-2 whitespace-nowrap" onClick={(e) => { e.stopPropagation(); startInlineEdit(e, member, 'status'); }}>
                       <div className="relative inline-block">
                         <span className={`inline-flex items-center px-1.5 pt-0 pb-0.5 text-xs font-light rounded-sm ${member.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                           {member.is_active ? 'Active' : 'Inactive'}
@@ -1492,7 +1567,7 @@ value={newMember.contract_expiry_date || ''}
                                 {['active', 'inactive'].map((status) => (
                                   <li
                                     key={status}
-                                    className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${(status==='active' && member.is_active) || (status==='inactive' && !member.is_active) ? 'bg-gray-50' : ''}`}
+                                    className={`px-2 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${(status==='active' && member.is_active) || (status==='inactive' && !member.is_active) ? 'bg-gray-50' : ''}`}
                                     onClick={() => { saveInlineEdit(member.id, status); }}
                                   >
                                     <span className="capitalize">{status}</span>
@@ -1508,21 +1583,21 @@ value={newMember.contract_expiry_date || ''}
                     
                     {/* Projects Count */}
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-50 text-blue-700">
+                      <span className="inline-flex items-center justify-center rounded-full text-sm font-semibold bg-blue-50 text-blue-700">
                         {member.projects_count ?? 0}
                       </span>
                     </td>
                     
                     {/* Completed Tasks Count */}
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-semibold bg-green-50 text-green-700">
+                      <span className="inline-flex items-center justify-center rounded-full text-sm font-semibold bg-green-50 text-green-700">
                         {member.completed_tasks_count ?? 0}
                       </span>
                     </td>
                     
                     {/* Pending Tasks Count */}
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-semibold bg-yellow-50 text-yellow-700">
+                      <span className="inline-flex items-center justify-center rounded-full text-sm font-semibold bg-yellow-50 text-yellow-700">
                         {member.pending_tasks_count ?? 0}
                       </span>
                     </td>
@@ -1566,7 +1641,7 @@ value={newMember.contract_expiry_date || ''}
                       }
                     </td>
                     
-                    <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => { console.log('TD clicked for rbac_role'); e.stopPropagation(); startInlineEdit(e, member, 'rbac_role'); }}>
+                    <td className="px-6 py-2 whitespace-nowrap" onClick={(e) => { console.log('TD clicked for rbac_role'); e.stopPropagation(); startInlineEdit(e, member, 'rbac_role'); }}>
                       <div className="relative inline-block">
                         <span className={`inline-flex items-center px-1.5 pt-0 pb-0.5 text-xs font-light rounded-sm cursor-pointer ${
                           (member as any).role_id ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'
@@ -1581,7 +1656,7 @@ value={newMember.contract_expiry_date || ''}
                             <div ref={inlinePopoverRef} className="w-40 border border-gray-200 bg-white shadow-sm p-1.5 text-xs font-medium" style={{ borderRadius: '5px' }}>
                               <ul className="max-h-64 overflow-auto">
                                 <li
-                                  className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${!(member as any).role_id ? 'bg-gray-50' : ''}`}
+                                  className={`px-2 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${!(member as any).role_id ? 'bg-gray-50' : ''}`}
                                   onClick={() => { saveInlineEdit(member.id, ''); }}
                                 >
                                   <span>— None —</span>
@@ -1590,7 +1665,7 @@ value={newMember.contract_expiry_date || ''}
                                 {roles.map((r) => (
                                   <li
                                     key={r.id}
-                                    className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${r.id === (member as any).role_id ? 'bg-gray-50' : ''}`}
+                                    className={`px-2 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${r.id === (member as any).role_id ? 'bg-gray-50' : ''}`}
                                     onClick={() => { saveInlineEdit(member.id, r.id); }}
                                   >
                                     <span>{r.name}</span>
@@ -1647,7 +1722,7 @@ value={newMember.contract_expiry_date || ''}
                       return (
                         <li
                           key={role}
-                          className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${isSelected ? 'bg-gray-50' : ''}`}
+                          className={`px-2 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${isSelected ? 'bg-gray-50' : ''}`}
                           onClick={() => {
                             setFilterRoles(prev => 
                               prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
@@ -1660,7 +1735,7 @@ value={newMember.contract_expiry_date || ''}
                       );
                     })}
                   </ul>
-                  <div className="flex justify-end gap-2 px-0.5 py-1 border-t border-gray-100 mt-1">
+                  <div className="flex justify-end gap-2 px-0.5 border-t border-gray-100 mt-1">
                     <button 
                       className="filter-popup-btn filter-popup-btn-clear"
                       onClick={() => { setFilterRoles([]); setHeaderFilterOpen(null); }}
@@ -1687,7 +1762,7 @@ value={newMember.contract_expiry_date || ''}
                       return (
                         <li
                           key={status}
-                          className={`px-2 py-1 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${isSelected ? 'bg-gray-50' : ''}`}
+                          className={`px-2 rounded-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between ${isSelected ? 'bg-gray-50' : ''}`}
                           onClick={() => {
                             setFilterStatuses(prev => 
                               prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
@@ -1700,7 +1775,7 @@ value={newMember.contract_expiry_date || ''}
                       );
                     })}
                   </ul>
-                  <div className="flex justify-end gap-2 px-0.5 py-1 border-t border-gray-100 mt-1">
+                  <div className="flex justify-end gap-2 px-0.5 border-t border-gray-100 mt-1">
                     <button 
                       className="filter-popup-btn filter-popup-btn-clear"
                       onClick={() => { setFilterStatuses([]); setHeaderFilterOpen(null); }}

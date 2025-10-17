@@ -240,7 +240,7 @@ const ProjectHealthDashboard: React.FC<ProjectHealthProps> = ({
             <div className="flex items-center space-x-3">
               <FolderIcon className="w-5 h-5 text-gray-400" />
               <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
-              <span className={`px-2 py-1 text-xs rounded-full border ${getHealthColor(project.health_metrics.overall_health)}`}>
+              <span className={`px-2 text-xs rounded-full border ${getHealthColor(project.health_metrics.overall_health)}`}>
                 {project.health_metrics.overall_health.replace('_', ' ')}
               </span>
             </div>
@@ -332,7 +332,7 @@ const ProjectHealthDashboard: React.FC<ProjectHealthProps> = ({
             <select
               value={selectedProject || ''}
               onChange={(e) => setSelectedProject(e.target.value || null)}
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+              className="border border-gray-300 rounded-md py-2 text-sm"
             >
               <option value="">All Projects</option>
               {projects.map(project => (
@@ -346,7 +346,7 @@ const ProjectHealthDashboard: React.FC<ProjectHealthProps> = ({
           <select
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value as any)}
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+            className="border border-gray-300 rounded-md py-2 text-sm"
           >
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>
@@ -507,7 +507,7 @@ const ProjectHealthDashboard: React.FC<ProjectHealthProps> = ({
         </div>
       ) : (
         /* No Project Selected */
-        <div className="text-center py-12">
+        <div className="text-center2">
           <ChartBarIcon className="w-12 h-12 mx-auto text-gray-300 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             {projects.length === 0 ? 'No projects found' : 'Select a project to view health metrics'}

@@ -256,7 +256,7 @@ const TaskComments: React.FC<TaskCommentsProps> = ({ taskId }) => {
                   value={replyContent}
                   onChange={(e) => setReplyContent(e.target.value)}
                   placeholder="Write a reply..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -267,7 +267,7 @@ const TaskComments: React.FC<TaskCommentsProps> = ({ taskId }) => {
                 <button
                   onClick={() => addComment(replyContent, comment.id)}
                   disabled={isLoading || !replyContent.trim()}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   <PaperAirplaneIcon className="w-4 h-4" />
                 </button>
@@ -325,7 +325,7 @@ const TaskComments: React.FC<TaskCommentsProps> = ({ taskId }) => {
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Add a comment about this task... Use @username to mention someone or #TASK-123 to link tasks"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="w-full py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                 rows={3}
               />
               
@@ -377,7 +377,7 @@ const TaskComments: React.FC<TaskCommentsProps> = ({ taskId }) => {
                 <button
                   onClick={() => addComment(newComment, undefined, selectedFiles)}
                   disabled={isLoading || (!newComment.trim() && selectedFiles.length === 0)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm flex items-center space-x-2"
+                  className="bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm flex items-center space-x-2"
                 >
                   <PaperAirplaneIcon className="w-4 h-4" />
                   <span>{isLoading ? 'Posting...' : 'Post Comment'}</span>

@@ -554,6 +554,54 @@ export enum ProposalType {
   CUSTOM = 'CUSTOM'
 }
 
+// PDF Section structure types
+export interface PDFSection1 {
+  logo_url?: string;
+  company_details: {
+    name: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+    website?: string;
+  };
+}
+
+export interface PDFSection2 {
+  heading: string;
+  subheading?: string;
+}
+
+export interface PDFSection3 {
+  left: {
+    content: string;
+    details?: string;
+  };
+  right: {
+    title: string; // Proposal title goes here as first line
+    content: string;
+  };
+}
+
+export interface ProposalPDFStructure {
+  section1: PDFSection1;
+  section2: PDFSection2;
+  section3: PDFSection3;
+  // Legacy sections for backward compatibility
+  sections?: Array<{
+    title: string;
+    content: string;
+  }>;
+  items?: Array<{
+    item_id: string;
+    name: string;
+    description: string;
+    quantity: number;
+    unit_price: number;
+    total: number;
+    unit: string;
+  }>;
+}
+
 export interface Proposal {
   id: string;
   title: string;
@@ -564,7 +612,7 @@ export interface Proposal {
   created_by_id: string;
   proposal_type: ProposalType;
   status: ProposalStatus;
-  content: Record<string, any>;
+  content: ProposalPDFStructure;
   template_id?: string;
   custom_template: Record<string, any>;
   total_amount?: number;
@@ -590,7 +638,7 @@ export interface ProposalCreate {
   title: string;
   description?: string;
   proposal_type: ProposalType;
-  content: Record<string, any>;
+  content: ProposalPDFStructure;
   template_id?: string;
   custom_template: Record<string, any>;
   total_amount?: number;

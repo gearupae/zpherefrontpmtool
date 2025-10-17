@@ -288,7 +288,7 @@ const ListView: React.FC<ListViewProps> = ({
             {showFilters && (
               <button
                 onClick={() => setShowFilterPanel(!showFilterPanel)}
-                className={`flex items-center space-x-2 px-3 py-2 text-sm border rounded-md ${
+                className={`flex items-center space-x-2 py-2 text-sm border rounded-md ${
                   showFilterPanel ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-gray-700 border-gray-300'
                 } hover:bg-gray-50`}
               >
@@ -454,7 +454,7 @@ const ListView: React.FC<ListViewProps> = ({
                             {overdue && <ExclamationTriangleIcon className="w-4 h-4 text-red-500" />}
                           </div>
                           <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
-                            <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(item.status)}`}>
+                            <span className={`px-2 text-xs rounded-full ${getStatusColor(item.status)}`}>
                               {item.status.replace('_', ' ')}
                             </span>
                             <span className={getPriorityColor(item.priority)}>
@@ -483,7 +483,7 @@ const ListView: React.FC<ListViewProps> = ({
                       </div>
                       
                       <div className="col-span-2">
-                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(item.status)}`}>
+                        <span className={`px-2 text-xs rounded-full ${getStatusColor(item.status)}`}>
                           {item.status.replace('_', ' ')}
                         </span>
                       </div>

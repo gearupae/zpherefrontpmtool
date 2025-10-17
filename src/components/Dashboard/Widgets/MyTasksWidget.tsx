@@ -144,9 +144,9 @@ const MyTasksWidget: React.FC<MyTasksWidgetProps> = ({
     return `In ${diffDays} days`;
   };
 
-  const isOverdue = (dateString?: string) => {
-    if (!dateString) return false;
-    return new Date(dateString) < new Date() && tasks.find(t => t.due_date === dateString)?.status !== 'completed';
+  const isOverdue = (dateString?: string, status?: string) => {
+    if (!dateString || status === 'completed') return false;
+    return new Date(dateString) < new Date();
   };
 
   if (isLoading) {
@@ -174,7 +174,7 @@ const MyTasksWidget: React.FC<MyTasksWidgetProps> = ({
               key={filterOption}
               onClick={() => setFilter(filterOption)}
               className={`
-                px-2 py-1 text-xs font-medium rounded-md transition-colors
+                px-2 text-xs font-medium rounded-md transition-colors
                 ${filter === filterOption
                   ? 'bg-blue-100 text-blue-800'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -188,7 +188,7 @@ const MyTasksWidget: React.FC<MyTasksWidgetProps> = ({
       </div>
 
       <div className={`space-y-${compact ? '2' : '3'} max-h-80 overflow-y-auto`}>
-        {tasks.length === 0 ? (
+        {!Array.isArray(tasks) || tasks.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <svg className="mx-auto h-8 w-8 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -215,14 +215,14 @@ const MyTasksWidget: React.FC<MyTasksWidgetProps> = ({
                     {task.title}
                   </h4>
                   <div className="flex items-center space-x-2 mt-2">
-                    <span className={`text-xs px-2 py-1 rounded-full ${getPriorityColor(task.priority)}`}>
+                    <span className={`text-xs px-2 rounded-full ${getPriorityColor(task.priority)}`}>
                       {task.priority}
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(task.status)}`}>
+                    <span className={`text-xs px-2 rounded-full ${getStatusColor(task.status)}`}>
                       {task.status.replace('_', ' ')}
                     </span>
                     {task.due_date && (
-                      <span className={`text-xs ${isOverdue(task.due_date) ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+                      <span className={`text-xs ${isOverdue(task.due_date, task.status) ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
                         {formatDate(task.due_date)}
                       </span>
                     )}
@@ -234,7 +234,7 @@ const MyTasksWidget: React.FC<MyTasksWidgetProps> = ({
         )}
       </div>
 
-      {!compact && tasks.length > 0 && (
+      {!compact && Array.isArray(tasks) && tasks.length > 0 && (
         <div className="mt-4 pt-4 border-t border-gray-200">
           <button className="w-full text-sm text-blue-600 hover:text-blue-800 font-medium">
             View All Tasks →

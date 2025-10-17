@@ -7,6 +7,7 @@ import {
   LinkIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
+import apiClient from '../../api/client';
 
 interface FileUploadProps {
   onFileUpload?: (files: File[]) => void;
@@ -95,28 +96,21 @@ const DragDropUpload: React.FC<FileUploadProps> = ({
       if (projectId) formData.append('project_id', projectId);
       if (taskId) formData.append('task_id', taskId);
 
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8000/api/v1/files/upload', {
-        method: 'POST',
+      const response = await apiClient.post('/files/upload', formData, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
         },
-        body: formData,
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        setUploadedFiles(prev =>
-          prev.map(f =>
-            f.id === fileId
-              ? { ...f, progress: 100, status: 'completed', url: result.file_path }
-              : f
-          )
-        );
-        return { ...uploadedFile, progress: 100, status: 'completed', url: result.file_path };
-      } else {
-        throw new Error('Upload failed');
-      }
+      const result = response.data;
+      setUploadedFiles(prev =>
+        prev.map(f =>
+          f.id === fileId
+            ? { ...f, progress: 100, status: 'completed', url: result.file_path }
+            : f
+        )
+      );
+      return { ...uploadedFile, progress: 100, status: 'completed', url: result.file_path };
     } catch (error) {
       setUploadedFiles(prev =>
         prev.map(f =>
@@ -249,7 +243,7 @@ const DragDropUpload: React.FC<FileUploadProps> = ({
             <button
               type="button"
               onClick={() => setShowCloudOptions(!showCloudOptions)}
-              className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50"
+              className="inline-flex items-center border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               <LinkIcon className="w-4 h-4 mr-1" />
               Import from Cloud
@@ -259,19 +253,19 @@ const DragDropUpload: React.FC<FileUploadProps> = ({
               <div className="mt-2 flex justify-center space-x-2">
                 <button
                   onClick={() => handleCloudImport('google-drive')}
-                  className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                  className="text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                 >
                   Google Drive
                 </button>
                 <button
                   onClick={() => handleCloudImport('dropbox')}
-                  className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                  className="text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                 >
                   Dropbox
                 </button>
                 <button
                   onClick={() => handleCloudImport('onedrive')}
-                  className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                  className="text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                 >
                   OneDrive
                 </button>

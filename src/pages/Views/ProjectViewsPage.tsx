@@ -125,7 +125,7 @@ const ProjectViewsPage: React.FC = () => {
             <nav className="flex space-x-8">
               <button
                 onClick={() => setActiveTab('projects')}
-                className={`py-2 px-3 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
+                className={`py-2 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
                   activeTab === 'projects' ? 'text-indigo-600' : 'text-black hover:text-gray-700'
                 }`}
               >
@@ -133,7 +133,7 @@ const ProjectViewsPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setActiveTab('tasks')}
-                className={`py-2 px-3 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
+                className={`py-2 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
                   activeTab === 'tasks' ? 'text-indigo-600' : 'text-black hover:text-gray-700'
                 }`}
               >

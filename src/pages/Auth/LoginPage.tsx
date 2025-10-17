@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { login, clearError } from '../../store/slices/authSlice';
 import { addNotification } from '../../store/slices/uiSlice';
@@ -11,6 +11,8 @@ const LoginPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { isLoading, error, isAuthenticated } = useAppSelector((state) => state.auth);
+  const location = useLocation();
+  const fromPath = (location.state as any)?.from?.pathname as string | undefined;
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,16 +42,15 @@ const LoginPage: React.FC = () => {
           duration: 3000,
         }));
         
-        // Navigate based on user role and organization
+        // Navigate back to the originally requested route if available
         const user = result.payload.user;
-        // Prefer tenant context if organization exists (tenant admins included)
-        if (user?.organization && user.organization.slug) {
+        if (fromPath && fromPath !== '/login') {
+          navigate(fromPath);
+        } else if (user?.organization && user.organization.slug) {
           navigate(`/${user.organization.slug}/dashboard`);
         } else if ((user?.role || '').toUpperCase() === 'ADMIN') {
-          // Only send to platform admin area if there is no organization context
           navigate('/admin');
         } else {
-          // Fallback to legacy dashboard
           navigate('/dashboard');
         }
       } else {
@@ -72,11 +73,15 @@ const LoginPage: React.FC = () => {
   };
 
   React.useEffect(() => {
-    // Redirect to dashboard if already authenticated
+    // If already authenticated and a return path exists, go there
     if (isAuthenticated) {
-      navigate('/dashboard');
+      if (fromPath && fromPath !== '/login') {
+        navigate(fromPath);
+      } else {
+        navigate('/dashboard');
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, fromPath]);
 
   React.useEffect(() => {
     return () => {
@@ -85,7 +90,7 @@ const LoginPage: React.FC = () => {
   }, [dispatch]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-secondary-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-secondary-502 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="mx-auto h-12 w-12 bg-text-primary rounded-xl flex items-center justify-center">
@@ -117,7 +122,7 @@ const LoginPage: React.FC = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className="relative block w-full px-3 py-2 border border-secondary-300 placeholder-secondary-500 text-secondary-900 rounded-t-md focus:outline-none focus:ring-gray-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+                className="relative block w-full py-2 border border-secondary-300 placeholder-secondary-500 text-secondary-900 rounded-t-md focus:outline-none focus:ring-gray-500 focus:border-primary-500 focus:z-10 sm:text-sm"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -133,7 +138,7 @@ const LoginPage: React.FC = () => {
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 required
-                className="relative block w-full px-3 py-2 pr-10 border border-secondary-300 placeholder-secondary-500 text-secondary-900 rounded-b-md focus:outline-none focus:ring-gray-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+                className="relative block w-full py-2 pr-10 border border-secondary-300 placeholder-secondary-500 text-secondary-900 rounded-b-md focus:outline-none focus:ring-gray-500 focus:border-primary-500 focus:z-10 sm:text-sm"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -179,7 +184,7 @@ const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-user-blue hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <LoadingSpinner size="small" />

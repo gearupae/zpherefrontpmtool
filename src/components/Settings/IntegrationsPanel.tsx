@@ -145,7 +145,7 @@ const IntegrationsPanel: React.FC = () => {
             {googleConnected ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800"><CheckCircleIcon className="h-4 w-4"/> Connected</span>
             ) : (
-              <button onClick={() => startOAuth('google')} className="px-3 py-1.5 text-sm rounded-md bg-black text-white hover:bg-gray-800">Connect</button>
+              <button onClick={() => startOAuth('google')} className="px-3.5 text-sm rounded-md bg-black text-white hover:bg-gray-800">Connect</button>
             )}
           </div>
         </div>
@@ -153,19 +153,19 @@ const IntegrationsPanel: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-              <input type="text" value={googleForm.title} onChange={(e) => setGoogleForm(prev => ({...prev, title: e.target.value}))} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Project sync meeting" />
+              <input type="text" value={googleForm.title} onChange={(e) => setGoogleForm(prev => ({...prev, title: e.target.value}))} className="w-full py-2 border border-gray-300 rounded-md" placeholder="Project sync meeting" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Start</label>
-              <input type="datetime-local" value={googleForm.start} onChange={(e) => setGoogleForm(prev => ({...prev, start: e.target.value}))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+              <input type="datetime-local" value={googleForm.start} onChange={(e) => setGoogleForm(prev => ({...prev, start: e.target.value}))} className="w-full py-2 border border-gray-300 rounded-md" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
-              <input type="number" min={5} step={5} value={googleForm.duration_minutes} onChange={(e) => setGoogleForm(prev => ({...prev, duration_minutes: Number(e.target.value)}))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+              <input type="number" min={5} step={5} value={googleForm.duration_minutes} onChange={(e) => setGoogleForm(prev => ({...prev, duration_minutes: Number(e.target.value)}))} className="w-full py-2 border border-gray-300 rounded-md" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Attendees (emails)</label>
-              <input type="text" value={googleForm.attendees} onChange={(e) => setGoogleForm(prev => ({...prev, attendees: e.target.value}))} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="a@x.com, b@y.com" />
+              <input type="text" value={googleForm.attendees} onChange={(e) => setGoogleForm(prev => ({...prev, attendees: e.target.value}))} className="w-full py-2 border border-gray-300 rounded-md" placeholder="a@x.com, b@y.com" />
             </div>
           </div>
           <div className="flex items-center justify-between">
@@ -193,7 +193,7 @@ const IntegrationsPanel: React.FC = () => {
             {teamsConnected ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800"><CheckCircleIcon className="h-4 w-4"/> Connected</span>
             ) : (
-              <button onClick={() => startOAuth('microsoft')} className="px-3 py-1.5 text-sm rounded-md bg-black text-white hover:bg-gray-800">Connect</button>
+              <button onClick={() => startOAuth('microsoft')} className="px-3.5 text-sm rounded-md bg-black text-white hover:bg-gray-800">Connect</button>
             )}
           </div>
         </div>
@@ -201,19 +201,19 @@ const IntegrationsPanel: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-              <input type="text" value={teamsForm.title} onChange={(e) => setTeamsForm(prev => ({...prev, title: e.target.value}))} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Stakeholder review" />
+              <input type="text" value={teamsForm.title} onChange={(e) => setTeamsForm(prev => ({...prev, title: e.target.value}))} className="w-full py-2 border border-gray-300 rounded-md" placeholder="Stakeholder review" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Start</label>
-              <input type="datetime-local" value={teamsForm.start} onChange={(e) => setTeamsForm(prev => ({...prev, start: e.target.value}))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+              <input type="datetime-local" value={teamsForm.start} onChange={(e) => setTeamsForm(prev => ({...prev, start: e.target.value}))} className="w-full py-2 border border-gray-300 rounded-md" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
-              <input type="number" min={5} step={5} value={teamsForm.duration_minutes} onChange={(e) => setTeamsForm(prev => ({...prev, duration_minutes: Number(e.target.value)}))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+              <input type="number" min={5} step={5} value={teamsForm.duration_minutes} onChange={(e) => setTeamsForm(prev => ({...prev, duration_minutes: Number(e.target.value)}))} className="w-full py-2 border border-gray-300 rounded-md" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Attendees (emails)</label>
-              <input type="text" value={teamsForm.attendees} onChange={(e) => setTeamsForm(prev => ({...prev, attendees: e.target.value}))} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="a@x.com, b@y.com" />
+              <input type="text" value={teamsForm.attendees} onChange={(e) => setTeamsForm(prev => ({...prev, attendees: e.target.value}))} className="w-full py-2 border border-gray-300 rounded-md" placeholder="a@x.com, b@y.com" />
             </div>
           </div>
           <div className="flex items-center justify-between">
@@ -241,7 +241,7 @@ const IntegrationsPanel: React.FC = () => {
             {waConnected ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800"><CheckCircleIcon className="h-4 w-4"/> Connected</span>
             ) : (
-              <button onClick={() => startOAuth('whatsapp')} className="px-3 py-1.5 text-sm rounded-md bg-black text-white hover:bg-gray-800">Connect</button>
+              <button onClick={() => startOAuth('whatsapp')} className="px-3.5 text-sm rounded-md bg-black text-white hover:bg-gray-800">Connect</button>
             )}
           </div>
         </div>
@@ -249,11 +249,11 @@ const IntegrationsPanel: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">To (phone with country code)</label>
-              <input type="tel" value={waForm.to_phone} onChange={(e) => setWaForm(prev => ({...prev, to_phone: e.target.value}))} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="+15551234567" />
+              <input type="tel" value={waForm.to_phone} onChange={(e) => setWaForm(prev => ({...prev, to_phone: e.target.value}))} className="w-full py-2 border border-gray-300 rounded-md" placeholder="+15551234567" />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-              <textarea value={waForm.message} onChange={(e) => setWaForm(prev => ({...prev, message: e.target.value}))} className="w-full px-3 py-2 border border-gray-300 rounded-md" rows={3} />
+              <textarea value={waForm.message} onChange={(e) => setWaForm(prev => ({...prev, message: e.target.value}))} className="w-full py-2 border border-gray-300 rounded-md" rows={3} />
             </div>
           </div>
           <div className="flex items-center justify-between">

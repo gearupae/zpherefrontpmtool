@@ -510,7 +510,7 @@ const UniversalSearch: React.FC<UniversalSearchProps> = ({
                     ...prev, 
                     date_range: { ...prev.date_range, from: e.target.value } 
                   }))}
-                  className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                  className="w-full text-xs border border-gray-300 rounded px-2"
                   placeholder="From"
                 />
                 <input
@@ -520,7 +520,7 @@ const UniversalSearch: React.FC<UniversalSearchProps> = ({
                     ...prev, 
                     date_range: { ...prev.date_range, to: e.target.value } 
                   }))}
-                  className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                  className="w-full text-xs border border-gray-300 rounded px-2"
                   placeholder="To"
                 />
               </div>
@@ -611,7 +611,7 @@ const UniversalSearch: React.FC<UniversalSearchProps> = ({
                 <button
                   key={index}
                   onClick={() => setQuery(search)}
-                  className="block w-full text-left px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 rounded"
+                  className="block w-full text-left px-2 text-sm text-gray-700 hover:bg-gray-100 rounded"
                 >
                   <ClockIcon className="inline w-3 h-3 mr-2 text-gray-400" />
                   {search}
@@ -741,28 +741,28 @@ const AdvancedSearchPanel: React.FC<{
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => onQuerySelect('updated:today')}
-            className="text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md"
+            className="text-left py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md"
           >
             <SparklesIcon className="inline w-4 h-4 mr-2 text-blue-500" />
             Updated today
           </button>
           <button
             onClick={() => onQuerySelect('author:me')}
-            className="text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md"
+            className="text-left py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md"
           >
             <UserIcon className="inline w-4 h-4 mr-2 text-green-500" />
             Created by me
           </button>
           <button
             onClick={() => onQuerySelect('type:task status:open')}
-            className="text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md"
+            className="text-left py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md"
           >
             <Square3Stack3DIcon className="inline w-4 h-4 mr-2 text-yellow-500" />
             Open tasks
           </button>
           <button
             onClick={() => onQuerySelect('has:attachments')}
-            className="text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md"
+            className="text-left py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md"
           >
             <PhotoIcon className="inline w-4 h-4 mr-2 text-purple-500" />
             With files

@@ -117,7 +117,7 @@ const EntityCustomFieldsEditor: React.FC<Props> = ({ entityType, entityId, value
                   type="text"
                   value={val || ''}
                   onChange={(e) => updateValue(key, e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
                 {f.description && <p className="text-xs text-gray-500 mt-1">{f.description}</p>}
               </div>
@@ -131,7 +131,7 @@ const EntityCustomFieldsEditor: React.FC<Props> = ({ entityType, entityId, value
                   rows={3}
                   value={val || ''}
                   onChange={(e) => updateValue(key, e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
                 {f.description && <p className="text-xs text-gray-500 mt-1">{f.description}</p>}
               </div>
@@ -145,7 +145,7 @@ const EntityCustomFieldsEditor: React.FC<Props> = ({ entityType, entityId, value
                   type="number"
                   value={val ?? ''}
                   onChange={(e) => updateValue(key, e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
                 {f.description && <p className="text-xs text-gray-500 mt-1">{f.description}</p>}
               </div>
@@ -160,7 +160,7 @@ const EntityCustomFieldsEditor: React.FC<Props> = ({ entityType, entityId, value
                   type="date"
                   value={formatted || ''}
                   onChange={(e) => updateValue(key, e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
                 {f.description && <p className="text-xs text-gray-500 mt-1">{f.description}</p>}
               </div>
@@ -194,7 +194,7 @@ const EntityCustomFieldsEditor: React.FC<Props> = ({ entityType, entityId, value
                       const sel = Array.from(e.target.selectedOptions).map(o => o.value);
                       updateValue(key, sel);
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     {options.map((o) => (
                       <option key={o.value} value={o.value}>{o.label}</option>
@@ -210,7 +210,7 @@ const EntityCustomFieldsEditor: React.FC<Props> = ({ entityType, entityId, value
                 <select
                   value={val || ''}
                   onChange={(e) => updateValue(key, e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
                   <option value="">Select…</option>
                   {options.map((o) => (
@@ -229,7 +229,7 @@ const EntityCustomFieldsEditor: React.FC<Props> = ({ entityType, entityId, value
                 type="text"
                 value={val || ''}
                 onChange={(e) => updateValue(key, e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
           );

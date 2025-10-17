@@ -37,6 +37,7 @@ import { apiClient } from '../../api/client';
 
 const tenantNavigation = [
   // Dashboard removed from menu per request; logo links to dashboard
+  { name: 'PAI', href: '/ai', icon: SparklesIcon },
   { name: 'Projects', href: '/projects', icon: FolderIcon },
   { name: 'Tasks', href: '/tasks', icon: RectangleStackIcon },
   { name: 'Goals', href: '/goals', icon: FlagIcon },
@@ -46,7 +47,6 @@ const tenantNavigation = [
   { name: 'Proposals', href: '/proposals', icon: DocumentTextIcon },
   { name: 'Invoices', href: '/invoices', icon: BanknotesIcon },
   { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
-  { name: 'AI', href: '/ai', icon: SparklesIcon },
   { name: 'Knowledge', href: '/knowledge', icon: AcademicCapIcon },
   { name: 'Settings', href: '/settings', icon: CogIcon },
 ];
@@ -107,9 +107,24 @@ const Header: React.FC = () => {
             if (data.type === 'notification' && data.notification) {
               const n = data.notification;
               console.log('📬 Processing notification:', n);
+              // Heuristic: classify toast type based on title to avoid confusing "updated" notices showing as errors
+              const titleLc = String(n.title || '').toLowerCase();
+              let toastType: 'success' | 'info' | 'warning' | 'error' = 'info';
+              if (
+                titleLc.startsWith('task updated') ||
+                titleLc.startsWith('task created') ||
+                titleLc.startsWith('project updated') ||
+                titleLc.startsWith('project created') ||
+                titleLc.startsWith('comment added') ||
+                titleLc.startsWith('subtask created')
+              ) {
+                toastType = 'success';
+              } else if (titleLc.includes('deleted') || titleLc.includes('removed')) {
+                toastType = 'warning';
+              }
               // Show a lightweight toast for visibility
               dispatch(addNotification({
-                type: 'info',
+                type: toastType,
                 title: n.title || 'Notification',
                 message: n.message || '',
                 duration: 4000,
@@ -218,9 +233,9 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-black shadow-sm border-b border-gray-800">
+    <header className="fixed top-0 inset-x-0 z-40 bg-black shadow-sm border-b border-gray-800">
       {/* Optimized navigation bar with better spacing and responsiveness */}
-      <div className="px-3 sm:px-4 lg:px-6">
+      <div className="sm:px-4 lg:px-6">
         <div className="flex items-center justify-between h-14">
           {/* Logo -> link to dashboard per request, label as zphere.io */}
           <NavLink
@@ -288,7 +303,7 @@ const Header: React.FC = () => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onBlur={() => setSearchOpen(false)}
-                    className="w-56 px-3 py-2 text-sm border border-secondary-300 rounded-md bg-white shadow-sm placeholder-secondary-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-56 py-2 text-sm border border-secondary-300 rounded-md bg-white shadow-sm placeholder-secondary-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Search..."
                     type="search"
                     autoFocus
@@ -377,8 +392,8 @@ const Header: React.FC = () => {
 
       {/* Mobile/Tablet Navigation Menu - Updated for better responsiveness */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-black border-t border-gray-800 shadow-lg">
-          <div className="px-3 py-3 space-y-1 max-h-96 overflow-y-auto">
+        <div className="lg:hidden fixed top-14 inset-x-0 z-40 bg-black border-t border-gray-800 shadow-lg max-h-[calc(100vh-56px)] overflow-y-auto">
+          <div className="py-3 space-y-1">
             {/* Mobile Search removed; we use the top icon search toggler */}
             
             {/* Mobile Navigation Links - Organized in grid for better space usage */}

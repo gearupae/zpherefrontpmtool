@@ -47,6 +47,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       )}
       <Header />
+      {/* spacer for fixed header height (h-14 = 56px) */}
+      <div className="h-14" aria-hidden="true" />
       <main className="page-container space-y-6">
         {children}
       </main>

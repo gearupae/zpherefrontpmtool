@@ -57,20 +57,11 @@ export function detectTenantContext(userRole?: string, userOrganization?: any): 
   const tenantSections = new Set([
     'dashboard', 'projects', 'tasks', 'teams', 'customers', 'proposals',
     'invoices', 'analytics', 'ai', 'settings', 'collaboration', 'views',
-    'knowledge', 'purchase', 'goals', 'vendors', 'orders'
+    'knowledge', 'purchase', 'goals', 'vendors', 'orders', 'calendar', 'todo', 'chat'
   ]);
   if (pathParts.length >= 2 && tenantSections.has(pathParts[1])) {
     const tenantSlug = pathParts[0];
     // Treat special admin slug as admin context for path-based routing
-    if (tenantSlug === 'zphere-admin') {
-      return {
-        tenantId: 'admin',
-        tenantSlug: tenantSlug,
-        tenantType: 'admin',
-        isAdmin: true,
-        isTenant: false,
-      };
-    }
     return {
       tenantId: tenantSlug, // Will be resolved to actual ID by backend
       tenantSlug: tenantSlug,
@@ -86,15 +77,6 @@ export function detectTenantContext(userRole?: string, userOrganization?: any): 
     // If no organization, they're a platform admin (admin context)
     if (userOrganization) {
       // Special-case: if the org slug is the admin slug, treat as admin namespace
-      if (userOrganization.slug === 'zphere-admin') {
-        return {
-          tenantId: 'admin',
-          tenantSlug: userOrganization.slug,
-          tenantType: 'admin',
-          isAdmin: true,
-          isTenant: false,
-        };
-      }
       // Organization admin - use tenant context
       return {
         tenantId: userOrganization.id || userOrganization.organization_id,
@@ -161,14 +143,24 @@ function extractSubdomain(host: string): string | null {
  * Get the appropriate API base URL for current tenant context
  */
 export function getApiBaseUrl(): string {
-  // In development, use relative URLs to avoid CORS issues
+  // Prefer explicit API base URL if provided, even in development
+  const configuredRaw = process.env.REACT_APP_API_URL?.trim();
+  if (configuredRaw && configuredRaw.length > 0) {
+    // If user accidentally includes /api or /api/v1, don't append again
+    const normalized = configuredRaw.replace(/\/$/, '');
+    if (/\/api(\/v\d+)?$/i.test(normalized)) {
+      return normalized; // already contains /api or /api/v1
+    }
+    return `${normalized}/api/v1`;
+  }
+  // Default: in development, use the CRA proxy with relative path
   if (process.env.NODE_ENV === 'development') {
     return '/api/v1';
   }
-  
-  // In production, use the configured API URL
+  // Production fallback
   const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-  return `${baseUrl}/api/v1`;
+  const norm = (baseUrl || '').replace(/\/$/, '');
+  return /\/api(\/v\d+)?$/i.test(norm) ? norm : `${norm}/api/v1`;
 }
 
 /**

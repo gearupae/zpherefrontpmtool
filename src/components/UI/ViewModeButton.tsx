@@ -7,7 +7,7 @@ export interface ViewModeButtonProps extends React.ButtonHTMLAttributes<HTMLButt
   variant?: 'default' | 'destructive';
 }
 
-const base = 'flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors shadow-sm border';
+const base = 'flex items-center space-x-2 rounded-md text-sm font-medium transition-colors shadow-sm border';
 const activeCls = 'bg-blue-50 border-blue-200 text-blue-700';
 const inactiveCls = 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50';
 const destructiveCls = 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100';

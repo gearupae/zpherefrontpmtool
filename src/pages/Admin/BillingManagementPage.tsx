@@ -417,7 +417,7 @@ const BillingManagementPage: React.FC = () => {
                 </table>
               </div>
             ) : (
-              <div className="text-center py-12">
+              <div className="text-center2">
                 <CheckCircleIcon className="mx-auto h-12 w-12 text-green-500" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">All caught up!</h3>
                 <p className="mt-1 text-sm text-gray-500">

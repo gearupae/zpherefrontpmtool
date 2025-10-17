@@ -44,7 +44,6 @@
     min-height: 38px;
     padding: 0.45rem 0.65rem;
     border-radius: var(--radius-md);
-    border: 1px solid var(--color-border);
     background-color: var(--color-surface);
   }
 
@@ -69,7 +68,7 @@
     align-items: center;
     justify-content: center;
     gap: 0.4rem;
-    padding: var(--btn-py) var(--btn-px);
+    padding: 6px 8px;
     border-radius: var(--radius-md);
     border: 1px solid transparent;
     font-weight: 500;
@@ -84,12 +83,16 @@
   a:focus-visible,
   button:focus-visible,
   [role="button"]:focus-visible,
-  input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px rgba(11,11,11,0.2);
     border-color: var(--piano-black);
+  }
+  
+  /* Remove focus styles from inputs by default */
+  input:focus-visible {
+    outline: none;
   }
 }
 
@@ -235,4 +238,12 @@
   .toast__icon svg { width: 24px; height: 24px; display: block; }
   .toast__title { line-height: 1.35; }
   .toast__message { line-height: 1.45; }
+}
+
+/* Standardized empty state container for all tables and lists */
+@layer components {
+  .empty-state,
+  .text-center2 {
+    @apply w-full text-center flex flex-col items-center justify-center py-12 px-4;
+  }
 }

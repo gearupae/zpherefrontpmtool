@@ -129,7 +129,7 @@ const RolesPermissionsPage: React.FC = () => {
         </div>
         <button
           onClick={startCreate}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-black text-white hover:bg-gray-800"
+          className="inline-flex items-center gap-2.5 text-sm rounded-md bg-black text-white hover:bg-gray-800"
         >
           <PlusIcon className="w-4 h-4" />
           New Role
@@ -147,7 +147,7 @@ const RolesPermissionsPage: React.FC = () => {
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 required
-                className="mt-1 w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                className="mt-1 w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                 placeholder="e.g., Project Manager"
               />
             </div>
@@ -157,15 +157,15 @@ const RolesPermissionsPage: React.FC = () => {
                 type="text"
                 value={form.description || ''}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                className="mt-1 w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                className="mt-1 w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                 placeholder="Short description of the role"
               />
             </div>
             <div className="flex gap-2">
-              <button type="submit" className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-black text-white hover:bg-gray-800">
+              <button type="submit" className="inline-flex items-center gap-2.5 text-sm rounded-md bg-black text-white hover:bg-gray-800">
                 <CheckIcon className="w-4 h-4" /> Save
               </button>
-              <button type="button" onClick={cancelCreate} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-gray-100 text-black hover:bg-gray-200">
+              <button type="button" onClick={cancelCreate} className="inline-flex items-center gap-2.5 text-sm rounded-md bg-gray-100 text-black hover:bg-gray-200">
                 <XMarkIcon className="w-4 h-4" /> Cancel
               </button>
             </div>
@@ -221,21 +221,21 @@ const RolesPermissionsPage: React.FC = () => {
                     type="text"
                     value={editingRole.name}
                     onChange={(e) => setEditingRole({ ...editingRole, name: e.target.value })}
-                    className="mt-1 w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="mt-1 w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   />
                   <label className="block text-sm font-medium text-secondary-700 mt-3">Description</label>
                   <input
                     type="text"
                     value={editingRole.description || ''}
                     onChange={(e) => setEditingRole({ ...editingRole, description: e.target.value })}
-                    className="mt-1 w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="mt-1 w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <button onClick={submitUpdateRoleMeta} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-black text-white hover:bg-gray-800">
+                  <button onClick={submitUpdateRoleMeta} className="inline-flex items-center gap-2.5 text-sm rounded-md bg-black text-white hover:bg-gray-800">
                     <CheckIcon className="w-4 h-4" /> Save Role
                   </button>
-                  <button onClick={savePermissions} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">
+                  <button onClick={savePermissions} className="inline-flex items-center gap-2.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">
                     <CheckIcon className="w-4 h-4" /> Save Permissions
                   </button>
                 </div>
@@ -245,19 +245,19 @@ const RolesPermissionsPage: React.FC = () => {
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-3 py-2 text-left font-semibold">Module</th>
-                      <th className="px-3 py-2 text-center font-semibold">View</th>
-                      <th className="px-3 py-2 text-center font-semibold">Create</th>
-                      <th className="px-3 py-2 text-center font-semibold">Edit</th>
-                      <th className="px-3 py-2 text-center font-semibold">Delete</th>
+                      <th className="py-2 text-left font-semibold">Module</th>
+                      <th className="py-2 text-center font-semibold">View</th>
+                      <th className="py-2 text-center font-semibold">Create</th>
+                      <th className="py-2 text-center font-semibold">Edit</th>
+                      <th className="py-2 text-center font-semibold">Delete</th>
                     </tr>
                   </thead>
                   <tbody>
                     {MODULES.map((mod) => (
                       <tr key={mod} className="border-t">
-                        <td className="px-3 py-2">{mod}</td>
+                        <td className="py-2">{mod}</td>
                         {(['view', 'create', 'edit', 'delete'] as const).map((k) => (
-                          <td key={k} className="px-3 py-2 text-center">
+                          <td key={k} className="py-2 text-center">
                             <input
                               type="checkbox"
                               checked={!!matrix[mod]?.[k]}

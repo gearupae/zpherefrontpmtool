@@ -244,7 +244,7 @@ const TaskAssignment: React.FC<TaskAssignmentProps> = ({
           <h4 className="text-md font-medium text-gray-900">Task Assignees</h4>
           <button
             onClick={() => setShowAssigneeModal(true)}
-            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
+            className="inline-flex items-center border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
           >
             <UserPlusIcon className="w-4 h-4 mr-1" />
             Assign
@@ -372,7 +372,7 @@ const TaskAssignment: React.FC<TaskAssignmentProps> = ({
           <h4 className="text-md font-medium text-gray-900">Task Watchers</h4>
           <button
             onClick={() => setShowWatcherModal(true)}
-            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200"
+            className="inline-flex items-center py-1.5 border border-transparent text-sm font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200"
           >
             <EyeIcon className="w-4 h-4 mr-1" />
             Add Watcher
@@ -469,7 +469,7 @@ const TaskAssignment: React.FC<TaskAssignmentProps> = ({
                 placeholder="Search team members..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full py-2 border border-gray-300 rounded-md"
               />
             </div>
 
@@ -519,7 +519,7 @@ const TaskAssignment: React.FC<TaskAssignmentProps> = ({
                 <select
                   value={primaryAssignee}
                   onChange={(e) => setPrimaryAssignee(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="w-full border border-gray-300 rounded-md py-2"
                 >
                   <option value="">Select primary assignee...</option>
                   {selectedUsers.map((userId) => {
@@ -544,7 +544,7 @@ const TaskAssignment: React.FC<TaskAssignmentProps> = ({
               <button
                 onClick={handleAddAssignees}
                 disabled={selectedUsers.length === 0}
-                className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400"
+                className="border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400"
               >
                 Assign ({selectedUsers.length})
               </button>
@@ -574,7 +574,7 @@ const TaskAssignment: React.FC<TaskAssignmentProps> = ({
                 placeholder="Search team members..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full py-2 border border-gray-300 rounded-md"
               />
             </div>
 

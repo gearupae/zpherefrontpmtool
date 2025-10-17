@@ -230,6 +230,7 @@ const TaskAttachments: React.FC<TaskAttachmentsProps> = ({ taskId }) => {
             onDeleteAttachment={handleDeleteAttachment}
             onRetryUpload={handleRetryUpload}
             onPreviewFile={handlePreviewFile}
+            onDownloadAttachment={handleDownloadAttachment}
           />
         </div>
       </div>
@@ -299,7 +300,7 @@ const TaskAttachments: React.FC<TaskAttachmentsProps> = ({ taskId }) => {
                     {attachment.upload_status === 'failed' && (
                       <button
                         onClick={() => handleRetryUpload(attachment.id)}
-                        className="px-3 py-1 text-xs bg-red-50 text-red-700 rounded-md hover:bg-red-100 transition-colors"
+                        className="text-xs bg-red-50 text-red-700 rounded-md hover:bg-red-100 transition-colors"
                       >
                         Retry
                       </button>

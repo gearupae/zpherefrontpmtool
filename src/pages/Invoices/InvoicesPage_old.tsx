@@ -289,7 +289,7 @@ className="btn-page-action inline-flex items-center"
                   required
                   value={newInvoice.title}
                   onChange={(e) => setNewInvoice({...newInvoice, title: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter invoice title"
                 />
               </div>
@@ -300,7 +300,7 @@ className="btn-page-action inline-flex items-center"
                   required
                   value={newInvoice.project_id}
                   onChange={(e) => setNewInvoice({...newInvoice, project_id: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select a project</option>
                   {projects.map(project => (
@@ -317,7 +317,7 @@ className="btn-page-action inline-flex items-center"
                   required
                   value={newInvoice.customer_id}
                   onChange={(e) => setNewInvoice({...newInvoice, customer_id: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select a customer</option>
                   {customers.map(customer => (
@@ -333,7 +333,7 @@ className="btn-page-action inline-flex items-center"
                 <select
                   value={newInvoice.invoice_type}
                   onChange={(e) => setNewInvoice({...newInvoice, invoice_type: e.target.value as InvoiceType})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value={InvoiceType.PROJECT}>Project</option>
                   <option value={InvoiceType.RECURRING}>Recurring</option>
@@ -350,7 +350,7 @@ className="btn-page-action inline-flex items-center"
                   type="date"
                   value={newInvoice.invoice_date}
                   onChange={(e) => setNewInvoice({...newInvoice, invoice_date: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               
@@ -360,7 +360,7 @@ className="btn-page-action inline-flex items-center"
                   type="date"
                   value={newInvoice.due_date}
                   onChange={(e) => setNewInvoice({...newInvoice, due_date: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               
@@ -369,7 +369,7 @@ className="btn-page-action inline-flex items-center"
                 <select
                   value={newInvoice.payment_terms}
                   onChange={(e) => setNewInvoice({...newInvoice, payment_terms: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="net_15">Net 15</option>
                   <option value="net_30">Net 30</option>
@@ -384,7 +384,7 @@ className="btn-page-action inline-flex items-center"
                 <select
                   value={newInvoice.currency}
                   onChange={(e) => setNewInvoice({...newInvoice, currency: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="USD">USD</option>
                   <option value="EUR">EUR</option>
@@ -399,7 +399,7 @@ className="btn-page-action inline-flex items-center"
                 value={newInvoice.description}
                 onChange={(e) => setNewInvoice({...newInvoice, description: e.target.value})}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Describe the invoice details and services provided"
               />
             </div>
@@ -410,7 +410,7 @@ className="btn-page-action inline-flex items-center"
                 value={newInvoice.notes}
                 onChange={(e) => setNewInvoice({...newInvoice, notes: e.target.value})}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Additional notes or special instructions"
               />
             </div>
@@ -421,7 +421,7 @@ className="btn-page-action inline-flex items-center"
                 value={newInvoice.terms_and_conditions}
                 onChange={(e) => setNewInvoice({...newInvoice, terms_and_conditions: e.target.value})}
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Payment terms, cancellation policy, warranties, etc."
               />
             </div>
@@ -515,7 +515,7 @@ className="btn-page-action inline-flex items-center"
           </h3>
         </div>
         {filteredInvoices.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center2">
             <BanknotesIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No invoices</h3>
             <p className="mt-1 text-sm text-gray-500">
@@ -536,28 +536,28 @@ className="btn-page-action inline-flex items-center"
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Invoice
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Project
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Customer
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Amount
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Balance Due
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Due Date
                   </th>
-                  <th className="px-3 py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
+                  <th className="py-2 text-left text-sm font-semibold text-black uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -565,7 +565,7 @@ className="btn-page-action inline-flex items-center"
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredInvoices.map((invoice) => (
                   <tr key={invoice.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className="py-2 whitespace-nowrap">
                       <div className="text-base font-semibold text-black">
                         {invoice.title}
                       </div>
@@ -573,13 +573,13 @@ className="btn-page-action inline-flex items-center"
                         {invoice.invoice_type}
                       </div>
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-base text-black">
+                    <td className="py-2 whitespace-nowrap text-base text-black">
                       {projects.find(p => p.id === invoice.project_id)?.name || 'Unknown Project'}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-base text-black">
+                    <td className="py-2 whitespace-nowrap text-base text-black">
                       {customers.find(c => c.id === invoice.customer_id)?.display_name || 'Unknown Customer'}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className="py-2 whitespace-nowrap">
                       <span className={`inline-flex px-1.5 pt-0 pb-0.5 text-xs font-light rounded-sm ${
                         invoice.status === 'draft' ? 'bg-gray-100 text-gray-800' :
                         invoice.status === 'sent' ? 'bg-blue-100 text-blue-800' :
@@ -590,16 +590,16 @@ className="btn-page-action inline-flex items-center"
                         {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                       </span>
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-base text-black">
+                    <td className="py-2 whitespace-nowrap text-base text-black">
                       ${typeof invoice.total_amount === 'number' ? (invoice.total_amount / 100).toFixed(2) : '0.00'}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-base text-black">
+                    <td className="py-2 whitespace-nowrap text-base text-black">
                       ${typeof invoice.balance_due === 'number' ? (invoice.balance_due / 100).toFixed(2) : '0.00'}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-base text-black">
+                    <td className="py-2 whitespace-nowrap text-base text-black">
                       {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : 'No due date'}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className="py-2 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => navigate(`/invoices/${invoice.id}`)}

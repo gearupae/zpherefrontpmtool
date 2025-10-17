@@ -57,7 +57,7 @@ const ProjectDetailPage: React.FC = () => {
       return <div />;
     }
     return (
-      <div className="text-center py-12">
+      <div className="text-center2">
         <FolderIcon className="mx-auto h-12 w-12 text-secondary-400" />
         <h3 className="mt-2 text-sm font-medium text-secondary-900">Project not found</h3>
         <p className="mt-1 text-sm text-secondary-500">
@@ -334,7 +334,7 @@ const ProjectDetailPage: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          <span className={`inline-flex px-2 text-xs font-semibold rounded-full ${
                             task.status === TaskStatus.COMPLETED ? 'bg-green-100 text-green-800' :
                             task.status === TaskStatus.IN_PROGRESS ? 'bg-blue-100 text-blue-800' :
                             task.status === TaskStatus.BLOCKED ? 'bg-red-100 text-red-800' :
@@ -344,7 +344,7 @@ const ProjectDetailPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
+                          <span className={`inline-flex px-2 text-xs font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
                             {task.priority}
                           </span>
                         </td>
@@ -356,7 +356,7 @@ const ProjectDetailPage: React.FC = () => {
                   </tbody>
                 </table>
                 {projectTasks.length === 0 && (
-                  <div className="text-center py-12">
+                  <div className="text-center2">
                     <CheckCircleIcon className="mx-auto h-12 w-12 text-gray-400" />
                     <h3 className="mt-2 text-sm font-medium text-gray-900">No tasks</h3>
                     <p className="mt-1 text-sm text-gray-500">Get started by creating a new task.</p>

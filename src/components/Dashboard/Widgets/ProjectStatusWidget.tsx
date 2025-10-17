@@ -114,7 +114,7 @@ const ProjectStatusWidget: React.FC<ProjectStatusWidgetProps> = ({
               `}
             >
               <div className="flex items-center justify-between">
-                <div className={`text-xs font-medium ${getStatusColor(status)} px-2 py-1 rounded-full`}>
+                <div className={`text-xs font-medium ${getStatusColor(status)} px-2 rounded-full`}>
                   {formatLabel(status)}
                 </div>
                 <div className={`font-bold text-gray-900 ${compact ? 'text-lg' : 'text-xl'}`}>

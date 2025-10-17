@@ -69,7 +69,7 @@ const TenantsPage: React.FC = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    const baseClasses = 'px-2 py-1 text-xs font-medium rounded-full';
+    const baseClasses = 'px-2 text-xs font-medium rounded-full';
     switch (status) {
       case 'active':
         return `${baseClasses} bg-green-100 text-green-800`;

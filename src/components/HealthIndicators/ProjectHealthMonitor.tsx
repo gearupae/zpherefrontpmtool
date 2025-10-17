@@ -492,7 +492,7 @@ const ProjectHealthMonitor: React.FC<ProjectHealthMonitorProps> = ({
                   <IconComponent className="w-5 h-5 text-gray-600" />
                   <h3 className="font-medium text-gray-900">{component.label}</h3>
                 </div>
-                <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getHealthColor(componentData.status)}`}>
+                <div className={`flex items-center space-x-1 px-2 rounded-full text-xs font-medium ${getHealthColor(componentData.status)}`}>
                   {React.createElement(getHealthIcon(componentData.status), { className: "w-3 h-3" })}
                   <span className="capitalize">{componentData.status}</span>
                 </div>
@@ -603,7 +603,7 @@ const CompactHealthView: React.FC<{
     <div className="bg-white rounded-lg border border-gray-200 p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-medium text-gray-900">Project Health</h3>
-        <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getHealthColor(healthData.overall_health)}`}>
+        <div className={`flex items-center space-x-1 px-2 rounded-full text-xs font-medium ${getHealthColor(healthData.overall_health)}`}>
           {React.createElement(getHealthIcon(healthData.overall_health), { className: "w-3 h-3" })}
           <span className="capitalize">{healthData.overall_health}</span>
         </div>
@@ -770,7 +770,7 @@ const AlertItem: React.FC<{
           <p className="text-sm text-gray-600 mt-1">{alert.description}</p>
           {alert.action_required && (
             <div className="flex items-center space-x-1 mt-2">
-              <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">
+              <span className="text-xs bg-red-100 text-red-700 px-2 rounded-full">
                 Action Required
               </span>
             </div>
@@ -803,7 +803,7 @@ const RecommendationItem: React.FC<{
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-medium text-gray-900">{recommendation.title}</h4>
-            <span className={`text-xs px-2 py-1 rounded-full ${getPriorityColor(recommendation.priority)}`}>
+            <span className={`text-xs px-2 rounded-full ${getPriorityColor(recommendation.priority)}`}>
               {recommendation.priority}
             </span>
           </div>

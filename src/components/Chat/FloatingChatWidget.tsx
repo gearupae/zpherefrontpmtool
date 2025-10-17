@@ -89,7 +89,7 @@ const FloatingChatWidget: React.FC = () => {
       {/* Widget Panel */}
       {open && (
         <div className="fixed bottom-20 right-4 z-50 w-96 max-w-[95vw] h-[28rem] bg-white border shadow-xl rounded-lg flex flex-col">
-          <div className="px-3 py-2 border-b flex items-center justify-between">
+          <div className="py-2 border-b flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <ChatBubbleLeftRightIcon className="w-5 h-5 text-user-blue" />
               <span className="font-medium">Chat</span>
@@ -98,7 +98,7 @@ const FloatingChatWidget: React.FC = () => {
               <XMarkIcon className="w-5 h-5" />
             </button>
           </div>
-          <div className="px-3 py-2 border-b">
+          <div className="py-2 border-b">
             <select className="w-full border rounded p-2" value={room?.id || ''} onChange={(e) => {
               const r = rooms.find(x => x.id === e.target.value) || null; setRoom(r); setMessages([]);
             }}>

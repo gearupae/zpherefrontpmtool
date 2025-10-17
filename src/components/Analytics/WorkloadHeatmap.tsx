@@ -176,7 +176,7 @@ const WorkloadHeatmap: React.FC<WorkloadHeatmapProps> = ({ teamMembers, tasks })
           <select
             value={viewMode}
             onChange={(e) => setViewMode(e.target.value as 'daily' | 'weekly')}
-            className="text-sm border border-gray-300 rounded-md px-3 py-1 focus:ring-blue-500 focus:border-blue-500"
+            className="text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="daily">Daily View</option>
             <option value="weekly">Weekly View</option>
@@ -213,15 +213,15 @@ const WorkloadHeatmap: React.FC<WorkloadHeatmapProps> = ({ teamMembers, tasks })
         <table className="min-w-full">
           <thead>
             <tr>
-              <th className="text-left py-2 px-3 border-b border-gray-200">
+              <th className="text-left py-2 border-b border-gray-200">
                 <div className="flex items-center space-x-2">
                   <span className="font-medium text-gray-900">Team Member</span>
                 </div>
               </th>
-              <th className="text-center py-2 px-3 border-b border-gray-200">
+              <th className="text-center py-2 border-b border-gray-200">
                 <span className="font-medium text-gray-900">Status</span>
               </th>
-              <th className="text-center py-2 px-3 border-b border-gray-200">
+              <th className="text-center py-2 border-b border-gray-200">
                 <span className="font-medium text-gray-900">Utilization</span>
               </th>
               {getDates().map(date => (
@@ -236,21 +236,21 @@ const WorkloadHeatmap: React.FC<WorkloadHeatmapProps> = ({ teamMembers, tasks })
           <tbody>
             {workloadData.map(member => (
               <tr key={member.userId} className="hover:bg-gray-50">
-                <td className="py-3 px-3 border-b border-gray-100">
+                <td className="py-3 border-b border-gray-100">
                   <div>
                     <div className="font-medium text-[#0d0d0d]">{member.name}</div>
                     <div className="text-sm text-gray-500">{member.email}</div>
                   </div>
                 </td>
-                <td className="py-3 px-3 border-b border-gray-100 text-center">
+                <td className="py-3 border-b border-gray-100 text-center">
                   <div className="flex items-center justify-center space-x-2">
                     {getStatusIcon(member.status)}
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(member.status)}`}>
+                    <span className={`inline-flex items-center px-2 rounded-full text-xs font-medium ${getStatusColor(member.status)}`}>
                       {member.status}
                     </span>
                   </div>
                 </td>
-                <td className="py-3 px-3 border-b border-gray-100 text-center">
+                <td className="py-3 border-b border-gray-100 text-center">
                   <div className="flex items-center justify-center space-x-1">
                     <span className="font-medium text-[#0d0d0d]">{member.utilization}%</span>
                     <div className="w-8 h-2 bg-gray-200 rounded-full">

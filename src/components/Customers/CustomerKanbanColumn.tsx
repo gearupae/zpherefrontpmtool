@@ -24,7 +24,7 @@ const CustomerKanbanColumn: React.FC<CustomerKanbanColumnProps> = ({
 
   return (
     <div className="flex flex-col flex-1 min-w-0">
-      <div className={`${color} rounded-md px-3 py-2 mb-2`}>
+      <div className={`${color} rounded-md py-2 mb-2`}>
         <div className="flex items-center justify-between">
           <h3 className="text-sm md:text-base font-semibold text-white">{title}</h3>
           <span className="bg-white/90 px-2 py-0.5 rounded-full text-xs md:text-sm font-medium text-gray-800">

@@ -26,7 +26,7 @@ const sizeStyles = {
     weekdayText: 'text-[9px]',
   },
   sm: {
-    headerPad: 'px-1.5 py-1',
+    headerPad: 'px-1.5',
     navPad: 'p-0.5',
     gridPad: 'px-0.5 pb-0.5',
     gap: 'gap-0',
@@ -35,7 +35,7 @@ const sizeStyles = {
     weekdayText: 'text-[10px]',
   },
   md: {
-    headerPad: 'px-2 py-1',
+    headerPad: 'px-2',
     navPad: 'p-1',
     gridPad: 'px-1 pb-1',
     gap: 'gap-0.5',

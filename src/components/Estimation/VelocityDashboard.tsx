@@ -433,7 +433,7 @@ const VelocityDashboard: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Direction</span>
-                  <span className={`text-sm font-medium ${getTrendColor(velocityTrend.velocity_trend)} px-2 py-1 rounded`}>
+                  <span className={`text-sm font-medium ${getTrendColor(velocityTrend.velocity_trend)} px-2 rounded`}>
                     {velocityTrend.velocity_trend}
                   </span>
                 </div>
@@ -524,7 +524,7 @@ const VelocityDashboard: React.FC = () => {
             <button
               key={tab.key}
               onClick={() => setActiveView(tab.key as any)}
-              className={`py-2 px-3 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
+              className={`py-2 font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-0 ${
                 activeView === tab.key ? 'text-indigo-600' : 'text-black hover:text-gray-700'
               }`}
             >

@@ -220,7 +220,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
           <div className="flex items-center space-x-1 bg-white rounded-lg p-1 border">
             <button
               onClick={() => setTimeScale('days')}
-              className={`px-3 py-1 text-sm rounded-md ${
+              className={`text-sm rounded-md ${
                 timeScale === 'days' ? 'bg-blue-100 text-blue-700' : 'text-gray-600'
               }`}
             >
@@ -228,7 +228,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
             </button>
             <button
               onClick={() => setTimeScale('weeks')}
-              className={`px-3 py-1 text-sm rounded-md ${
+              className={`text-sm rounded-md ${
                 timeScale === 'weeks' ? 'bg-blue-100 text-blue-700' : 'text-gray-600'
               }`}
             >
@@ -236,7 +236,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
             </button>
             <button
               onClick={() => setTimeScale('months')}
-              className={`px-3 py-1 text-sm rounded-md ${
+              className={`text-sm rounded-md ${
                 timeScale === 'months' ? 'bg-blue-100 text-blue-700' : 'text-gray-600'
               }`}
             >

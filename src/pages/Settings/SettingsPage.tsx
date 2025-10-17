@@ -274,7 +274,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
     if (!next) return;
     try {
       const { default: apiClient } = await import('../../api/client');
-      await apiClient.post('/auth/change-password', { current_password: current, new_password: next });
+      await apiClient.post('auth/change-password', { current_password: current, new_password: next });
       dispatch(addNotification({
         type: 'success',
         title: 'Password Changed',
@@ -415,7 +415,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                       type="text"
                       value={profileForm.first_name}
                       onChange={(e) => setProfileForm(prev => ({ ...prev, first_name: e.target.value }))}
-                      className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                      className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                       required
                     />
                   </div>
@@ -428,7 +428,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                       type="text"
                       value={profileForm.last_name}
                       onChange={(e) => setProfileForm(prev => ({ ...prev, last_name: e.target.value }))}
-                      className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                      className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                       required
                     />
                   </div>
@@ -441,7 +441,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                       type="tel"
                       value={profileForm.phone}
                       onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
-                      className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                      className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     />
                   </div>
                   
@@ -452,7 +452,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     <select
                       value={profileForm.timezone}
                       onChange={(e) => setProfileForm(prev => ({ ...prev, timezone: e.target.value }))}
-                      className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                      className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     >
                       <option value="UTC">UTC</option>
                       <option value="America/New_York">Eastern Time</option>
@@ -474,7 +474,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     value={profileForm.bio}
                     onChange={(e) => setProfileForm(prev => ({ ...prev, bio: e.target.value }))}
                     rows={4}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     placeholder="Tell us about yourself..."
                   />
                 </div>
@@ -758,7 +758,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                 <p className="text-sm text-secondary-500">Choose your preferred color scheme</p>
               </div>
               <select 
-                className="px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                className="py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                 value={preferencesForm.theme}
                 onChange={(e) => {
                   const nextTheme = e.target.value as any;
@@ -779,7 +779,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                 <p className="text-sm text-secondary-500">Select your preferred language</p>
               </div>
               <select 
-                className="px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                className="py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                 value={preferencesForm.language}
                 onChange={(e) => setPreferencesForm(prev => ({...prev, language: e.target.value as any}))}
               >
@@ -796,7 +796,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                 <p className="text-sm text-secondary-500">Choose how dates are displayed</p>
               </div>
               <select 
-                className="px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                className="py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                 value={preferencesForm.date_format}
                 onChange={(e) => setPreferencesForm(prev => ({...prev, date_format: e.target.value as any}))}
               >
@@ -841,7 +841,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     type="text"
                     value={orgForm.name}
                     onChange={(e) => setOrgForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     placeholder="Your company name"
                   />
                 </div>
@@ -851,7 +851,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     type="url"
                     value={orgForm.website}
                     onChange={(e) => setOrgForm(prev => ({ ...prev, website: e.target.value }))}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     placeholder="https://example.com"
                   />
                 </div>
@@ -861,7 +861,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     type="email"
                     value={orgForm.contact_email}
                     onChange={(e) => setOrgForm(prev => ({ ...prev, contact_email: e.target.value }))}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     placeholder="contact@example.com"
                   />
                 </div>
@@ -871,7 +871,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     type="tel"
                     value={orgForm.contact_phone}
                     onChange={(e) => setOrgForm(prev => ({ ...prev, contact_phone: e.target.value }))}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     placeholder="+1 555-555-5555"
                   />
                 </div>
@@ -888,7 +888,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     type="text"
                     value={orgForm.address_line1}
                     onChange={(e) => setOrgForm(prev => ({ ...prev, address_line1: e.target.value }))}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     placeholder="Street address, PO box, company name"
                   />
                 </div>
@@ -898,7 +898,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     type="text"
                     value={orgForm.address_line2}
                     onChange={(e) => setOrgForm(prev => ({ ...prev, address_line2: e.target.value }))}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     placeholder="Apartment, suite, unit, building, floor, etc."
                   />
                 </div>
@@ -908,7 +908,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     type="text"
                     value={orgForm.city}
                     onChange={(e) => setOrgForm(prev => ({ ...prev, city: e.target.value }))}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
                 <div>
@@ -917,7 +917,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     type="text"
                     value={orgForm.state}
                     onChange={(e) => setOrgForm(prev => ({ ...prev, state: e.target.value }))}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
                 <div>
@@ -926,7 +926,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     type="text"
                     value={orgForm.postal_code}
                     onChange={(e) => setOrgForm(prev => ({ ...prev, postal_code: e.target.value }))}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
                 <div>
@@ -935,7 +935,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     type="text"
                     value={orgForm.country}
                     onChange={(e) => setOrgForm(prev => ({ ...prev, country: e.target.value }))}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
               </div>
@@ -951,7 +951,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     type="text"
                     value={orgForm.tax_number}
                     onChange={(e) => setOrgForm(prev => ({ ...prev, tax_number: e.target.value }))}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     placeholder="e.g., PAN/VAT"
                   />
                 </div>
@@ -961,7 +961,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     type="text"
                     value={orgForm.gst_number}
                     onChange={(e) => setOrgForm(prev => ({ ...prev, gst_number: e.target.value }))}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     placeholder="GSTIN (if applicable)"
                   />
                 </div>
@@ -1007,7 +1007,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     type="text"
                     value={orgForm.logo_url}
                     onChange={(e) => setOrgForm(prev => ({ ...prev, logo_url: e.target.value }))}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                     placeholder="/uploads/{org_id}/logo.png"
                   />
                 </div>
@@ -1034,7 +1034,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     value={termsForm.invoice_terms}
                     onChange={(e) => setTermsForm(prev => ({ ...prev, invoice_terms: e.target.value }))}
                     rows={4}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm"
                     placeholder="Payment due within 30 days. Late fees may apply."
                   />
                 </div>
@@ -1051,7 +1051,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     value={termsForm.project_terms}
                     onChange={(e) => setTermsForm(prev => ({ ...prev, project_terms: e.target.value }))}
                     rows={4}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm"
                     placeholder="Project scope defined in SOW. Changes require approval."
                   />
                 </div>
@@ -1068,7 +1068,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     value={termsForm.proposal_terms}
                     onChange={(e) => setTermsForm(prev => ({ ...prev, proposal_terms: e.target.value }))}
                     rows={4}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm"
                     placeholder="Proposal valid for 30 days. 50% deposit required."
                   />
                 </div>
@@ -1085,7 +1085,7 @@ const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'securi
                     value={termsForm.purchase_order_terms}
                     onChange={(e) => setTermsForm(prev => ({ ...prev, purchase_order_terms: e.target.value }))}
                     rows={4}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm"
+                    className="w-full py-2 border border-secondary-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm"
                     placeholder="Delivery as per schedule. Payment upon receipt."
                   />
                 </div>

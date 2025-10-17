@@ -280,7 +280,7 @@ const EnhancedKnowledgeCenter: React.FC<EnhancedKnowledgeCenterProps> = ({
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as any)}
-                  className={`py-3 px-3 font-medium text-sm flex items-center gap-2 rounded-md transition-colors focus:outline-none focus:ring-0 ${
+                  className={`py-3 font-medium text-sm flex items-center gap-2 rounded-md transition-colors focus:outline-none focus:ring-0 ${
                     activeTab === tab.key ? 'text-indigo-600' : 'text-black hover:text-gray-700'
                   }`}
                 >

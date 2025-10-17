@@ -513,7 +513,7 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
                       }
                     }}
                     placeholder="Search for item or service..."
-                    className="w-full px-3 py-2 pr-9 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full py-2 pr-9 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                   {idx > 0 && (
                     <button
@@ -543,7 +543,7 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
                       key={it.id}
                       onMouseDown={(e) => { e.preventDefault(); selectRowSuggestion(row.id, it); }}
                       onMouseEnter={() => setRowHighlight(row.id, sIdx)}
-                      className={`px-3 py-2 cursor-pointer transition-colors ${row.highlighted === sIdx ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+                      className={`py-2 cursor-pointer transition-colors ${row.highlighted === sIdx ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
@@ -587,7 +587,7 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
                   type="text"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="Item name"
                 />
                 <input 
@@ -596,7 +596,7 @@ const ItemSelector: React.FC<ItemSelectorProps> = ({
                   min="0"
                   value={customPrice}
                   onChange={(e) => setCustomPrice(parseFloat(e.target.value) || 0)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="Unit price"
                 />
               </div>

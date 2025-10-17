@@ -23,26 +23,80 @@ export const login = createAsyncThunk(
   'auth/login',
   async (credentials: LoginCredentials, { rejectWithValue }) => {
     try {
-      const response = await apiClient.post('/auth/login', credentials);
-      const tokens = response.data;
+      // Try multiple backend auth patterns to avoid 405s across environments
+      const tryJsonLogin = async (url: string) => apiClient.post(url, { email: credentials.email, password: credentials.password });
+      const tryFormLogin = async (url: string) => {
+        const form = new URLSearchParams();
+        form.set('username', credentials.email);
+        form.set('password', credentials.password);
+        return apiClient.post(url, form, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      };
+
+      const attempts: Array<() => Promise<any>> = [
+        () => tryJsonLogin('auth/login'),
+        () => tryJsonLogin('auth/login/'),
+        () => tryFormLogin('auth/login'),
+        () => tryFormLogin('auth/login/'),
+        () => tryFormLogin('auth/token'),
+        () => tryFormLogin('auth/jwt/login'),
+        () => tryFormLogin('login/access-token'),
+      ];
+
+      let response: any | null = null;
+      let lastErr: any = null;
+      for (const attempt of attempts) {
+        try {
+          response = await attempt();
+          if (response?.data) break;
+        } catch (e: any) {
+          lastErr = e;
+          // Continue to next attempt on 404/405/415/422
+          const st = e?.response?.status;
+          if (![404, 405, 415, 422].includes(st)) {
+            throw e;
+          }
+        }
+      }
+
+      if (!response?.data) throw lastErr || new Error('Login endpoint not available');
+
+      // Normalize token shape from various backends
+      const raw = response.data || {};
+      const tokens: AuthTokens = {
+        access_token: raw.access_token || raw.access || raw.token || '',
+        refresh_token: raw.refresh_token || raw.refresh || raw.refreshToken || '',
+        token_type: raw.token_type || raw.tokenType || 'bearer',
+      } as AuthTokens;
+
+      if (!tokens.access_token) {
+        throw new Error('No access token returned from server');
+      }
       
       // Store tokens in localStorage
       localStorage.setItem('access_token', tokens.access_token);
-      localStorage.setItem('refresh_token', tokens.refresh_token);
+      localStorage.setItem('refresh_token', tokens.refresh_token || '');
       
-      // Get user profile with explicit Authorization header to avoid timing issues
-      const userResponse = await apiClient.get('/auth/me', {
-        headers: {
-          Authorization: `Bearer ${tokens.access_token}`
+      // Get user profile with explicit Authorization header; try common endpoints
+      const userEndpoints = ['auth/me', 'auth/me/', 'users/me', 'users/me/', 'me'];
+      let userResponse: any | null = null;
+      let uErr: any = null;
+      for (const ep of userEndpoints) {
+        try {
+          const resp = await apiClient.get(ep, { headers: { Authorization: `Bearer ${tokens.access_token}` } });
+          if (resp?.data) { userResponse = resp; break; }
+        } catch (e) {
+          uErr = e;
+          continue;
         }
-      });
+      }
+      if (!userResponse?.data) throw uErr || new Error('Failed to fetch current user');
       
       return {
         tokens,
         user: userResponse.data,
       };
     } catch (error: any) {
-      const errorDetail = error.response?.data?.detail;
+      const errorDetail = error?.response?.data?.detail;
       let errorMessage = 'Login failed';
       
       if (errorDetail) {
@@ -51,6 +105,8 @@ export const login = createAsyncThunk(
         } else if (Array.isArray(errorDetail)) {
           errorMessage = errorDetail.map((err: any) => err.msg || err.message || 'Validation error').join(', ');
         }
+      } else if (error?.message) {
+        errorMessage = error.message;
       }
       
       return rejectWithValue(errorMessage);
@@ -62,7 +118,7 @@ export const register = createAsyncThunk(
   'auth/register',
   async (userData: RegisterData, { rejectWithValue }) => {
     try {
-      const response = await apiClient.post('/auth/register', userData);
+      const response = await apiClient.post('auth/register', userData);
       return response.data;
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;
@@ -85,7 +141,19 @@ export const getCurrentUser = createAsyncThunk(
   'auth/getCurrentUser',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await apiClient.get('/auth/me');
+      const endpoints = ['auth/me', 'auth/me/', 'users/me', 'users/me/', 'me'];
+      let response: any | null = null;
+      let lastErr: any = null;
+      for (const ep of endpoints) {
+        try {
+          const resp = await apiClient.get(ep);
+          if (resp?.data) { response = resp; break; }
+        } catch (e) {
+          lastErr = e;
+          continue;
+        }
+      }
+      if (!response?.data) throw lastErr || new Error('Failed to get user');
       return response.data;
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;
@@ -97,6 +165,8 @@ export const getCurrentUser = createAsyncThunk(
         } else if (Array.isArray(errorDetail)) {
           errorMessage = errorDetail.map((err: any) => err.msg || err.message || 'Validation error').join(', ');
         }
+      } else if (error?.message) {
+        errorMessage = error.message;
       }
       
       return rejectWithValue(errorMessage);
@@ -113,7 +183,7 @@ export const refreshToken = createAsyncThunk(
         throw new Error('No refresh token available');
       }
 
-      const response = await apiClient.post('/auth/refresh', {
+      const response = await apiClient.post('auth/refresh', {
         refresh_token: refreshToken,
       });
 
@@ -143,7 +213,7 @@ export const updateCurrentUser = createAsyncThunk(
   'auth/updateCurrentUser',
   async (userData: any, { rejectWithValue }) => {
     try {
-      const response = await apiClient.put('/users/me', userData);
+      const response = await apiClient.put('users/me', userData);
       return response.data;
     } catch (error: any) {
       const errorDetail = error.response?.data?.detail;
@@ -166,7 +236,7 @@ export const logout = createAsyncThunk(
   'auth/logout',
   async () => {
     try {
-      await apiClient.post('/auth/logout');
+      await apiClient.post('auth/logout');
     } catch (error) {
       // Ignore logout errors
     } finally {
